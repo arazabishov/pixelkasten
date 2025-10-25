@@ -1,5 +1,7 @@
 import { extname } from "path";
 
+// TODO: .MP extension will need to get special treatment
+// TODO: ignore known unsupported files, like .DS_Store, thumbs.db, etc, but include them in the stats for verification.
 const supportedExtensions = {
   images: [".jpg", ".jpeg", ".png", ".gif", ".heic", ".webp"],
   videos: [".mp4", ".mov", ".avi"],
