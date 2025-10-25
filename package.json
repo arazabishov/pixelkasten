@@ -2,6 +2,7 @@
   "name": "pixelkasten",
   "version": "0.0.1",
   "description": "A script that helps you organize and manage your photo archive.",
+  "type": "module",
   "main": "index.js",
   "bin": {
     "pixelkasten": "./index.js"
