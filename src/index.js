@@ -27,7 +27,6 @@ if (options.verbose) {
   console.log("Options:", options);
 }
 
-// Your photo organization logic goes here
 if (options.source && options.destination) {
   console.log(`Organizing photos from: ${options.source}`);
   console.log(`Destination: ${options.destination}`);
@@ -36,10 +35,48 @@ if (options.source && options.destination) {
     console.log("(Dry run mode - no files will be modified)");
   }
 
-  workspace(options.source, {
+  const { entriesCount, files } = await workspace(options.source, {
     verbose: options.verbose,
     dryRun: options.dryRun,
   });
+
+  const stats = {
+    unsupported: 0,
+    directories: 0,
+    metadata: 0,
+    images: 0,
+    videos: 0,
+  };
+
+  files.forEach((item) => {
+    if (item.type === "image") {
+      stats.images += 1;
+    } else if (item.type === "video") {
+      stats.videos += 1;
+    } else if (item.type === "metadata") {
+      stats.metadata += 1;
+    } else if (item.type === "directory") {
+      stats.directories += 1;
+    } else {
+      stats.unsupported += 1;
+
+      console.log("Unsupported file type:", item.path);
+    }
+  });
+
+  console.log("All stats", stats);
+  console.log(
+    "All media files",
+    stats.images + stats.videos,
+    " all metadata files ",
+    stats.metadata
+  );
+  console.log(
+    "Total files",
+    stats.images + stats.videos + stats.metadata + stats.unsupported + stats.directories,
+    " all entries ",
+    entriesCount
+  );
 } else {
   console.log("Please specify both source and destination directories.");
   console.log('Run "pixelkasten --help" for usage information.');
