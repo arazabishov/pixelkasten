@@ -3,6 +3,9 @@
   "version": "0.0.1",
   "description": "A script that helps you organize and manage your photo archive.",
   "main": "index.js",
+  "bin": {
+    "pixelkasten": "./index.js"
+  },
   "scripts": {
     "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -18,5 +21,8 @@
   "homepage": "https://github.com/arazabishov/pixelkasten#readme",
   "devDependencies": {
     "prettier": "^3.6.2"
+  },
+  "dependencies": {
+    "commander": "^14.0.1"
   }
 }

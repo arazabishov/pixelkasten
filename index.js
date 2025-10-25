@@ -1,1 +1,42 @@
-console.log("Hello, World!");
+#!/usr/bin/env node
+
+const { Command } = require("commander");
+const program = new Command();
+
+program
+  .name("pixelkasten")
+  .description("A script that helps you organize and manage your photo archive")
+  .version("0.0.1");
+
+program
+  .option("-s, --source <path>", "source directory containing photos")
+  .option(
+    "-d, --destination <path>",
+    "destination directory for organized photos"
+  )
+  .option("-v, --verbose", "enable verbose output")
+  .option("--dry-run", "preview changes without modifying files");
+
+program.parse(process.argv);
+
+const options = program.opts();
+
+// Display parsed options
+if (options.verbose) {
+  console.log("Pixelkasten - Photo Archive Organizer");
+  console.log("=====================================");
+  console.log("Options:", options);
+}
+
+// Your photo organization logic goes here
+if (options.source && options.destination) {
+  console.log(`Organizing photos from: ${options.source}`);
+  console.log(`Destination: ${options.destination}`);
+  if (options.dryRun) {
+    console.log("(Dry run mode - no files will be modified)");
+  }
+  // TODO: Add your photo organization logic here
+} else {
+  console.log("Please specify both source and destination directories.");
+  console.log('Run "pixelkasten --help" for usage information.');
+}
