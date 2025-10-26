@@ -2,7 +2,7 @@
 
 import { Command } from "commander";
 import { workspace } from "./workspace.js";
-import { supportedExtensions } from "./fs.js";
+import { extensions } from "./fs.js";
 import { extname } from "path";
 
 const program = new Command();
@@ -50,19 +50,19 @@ if (options.source && options.destination) {
 
   for (const value of library.media.values()) {
     if (!value.metadata) {
-      const ext = extname(value.file.name.toLowerCase());
-      if (supportedExtensions.images.includes(ext)) {
+      const ext = extname(value.file.name).toLowerCase();
+      if (extensions.images.includes(ext)) {
         incompleteEntries.images += 1;
-      } else if (supportedExtensions.videos.includes(ext)) {
+      } else if (extensions.videos.includes(ext)) {
         incompleteEntries.videos += 1;
       } else {
-        console.log(ext);
         incompleteEntries.others += 1;
       }
     }
   }
 
-  console.log(incompleteEntries);
+  // console.log(incompleteEntries);
+  // console.log(library);
 } else {
   console.log("Please specify both source and destination directories.");
   console.log('Run "pixelkasten --help" for usage information.');

@@ -1,5 +1,5 @@
 import { stat, readdir } from "fs/promises";
-import { getFileType, supportedExtensions } from "./fs.js";
+import { extensions } from "./fs.js";
 import { join, extname } from "path";
 
 export async function workspace(path, options) {
@@ -29,10 +29,10 @@ export async function workspace(path, options) {
   };
 
   entries.forEach((entry) => {
-    const name = entry.name.toLowerCase();
+    const name = entry.name;
 
     if (entry.isFile()) {
-      const ext = extname(name);
+      const ext = extname(name).toLowerCase();
 
       if (name.toLowerCase() === "metadata.json") {
         if (!workspace.directories.has(entry.path)) {
@@ -40,31 +40,35 @@ export async function workspace(path, options) {
             metadata: entry,
           });
         }
-      } else if (
-        supportedExtensions.images.includes(ext) ||
-        supportedExtensions.videos.includes(ext)
-      ) {
-        if (workspace.media.has(name)) {
-          workspace.media.get(name).file = entry;
+      } else if (extensions.images.includes(ext) || extensions.videos.includes(ext)) {
+        const path = join(entry.path, name);
+
+        if (workspace.media.has(path)) {
+          workspace.media.get(path).file = entry;
         } else {
-          workspace.media.set(name, {
+          workspace.media.set(path, {
             file: entry,
             metadata: undefined,
           });
         }
       } else if (ext === ".json") {
         const normalizedName = normalizeMetadataName(name);
+        const path = join(entry.path, normalizedName);
 
-        if (workspace.media.has(normalizedName)) {
-          workspace.media.get(normalizedName).metadata = entry;
+        if (workspace.media.has(path)) {
+          workspace.media.get(path).metadata = entry;
         } else {
-          workspace.media.set(normalizedName, {
+          workspace.media.set(path, {
             file: undefined,
             metadata: entry,
           });
         }
-      } else if (supportedExtensions.os.includes(ext)) {
+      } else if (extensions.os.includes(ext) || extensions.os.includes(name.toLowerCase())) {
         // We can simply ignore this type of files
+      } else if (extensions.unsupported.includes(ext)) {
+        if (options.verbose) {
+          console.warn(`Skipping unsupported file type: name=${name}, ext=${ext}`);
+        }
       } else {
         console.warn(`Encountered unsupported file type: name=${name}, ext=${ext}`);
       }
