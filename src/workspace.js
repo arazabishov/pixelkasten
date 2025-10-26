@@ -28,6 +28,7 @@ export async function workspace(path, options) {
     media: new Map(),
   };
 
+  // Iteration 1: try to map metadata to media files assuming that their names match entirely
   entries.forEach((entry) => {
     const name = entry.name;
 
@@ -79,6 +80,63 @@ export async function workspace(path, options) {
     }
   });
 
+  // Iteration 2: sometimes Google cuts the file name to fit some arbitrary constraint. For example:
+  //  - CB6054D8-E1F4-419D-B5B5-4C74D81D6625-98855-000.json
+  //  - CB6054D8-E1F4-419D-B5B5-4C74D81D6625-98855-0000.mov
+  // Both file names are exactly 51 characters long. However, without their respective extensions, the names won't match.
+
+  for (const [key, value] of new Map(workspace.media)) {
+    if (value.file == undefined) {
+      if (options.verbose) {
+        const metadataFilePath = join(value.metadata.path, value.metadata.name);
+        console.warn(`\nEncountered an orphaned metadata file: ${metadataFilePath}.`);
+      }
+
+      const segments = value.metadata.name.split(".");
+      if (segments.length > 1) {
+        const extension = segments.pop();
+        if (extension !== "json") {
+          // We should drop the extension only if it is .json.
+          segments.push(extension);
+        }
+      }
+      const name = segments.join(".");
+      const mediaFileCandidates = [];
+
+      for (const [mediaKey, mediaValue] of workspace.media) {
+        if (
+          mediaKey.includes(name) &&
+          mediaValue.file &&
+          mediaValue.file.path === value.metadata.path &&
+          mediaValue.metadata === undefined
+        ) {
+          mediaFileCandidates.push(mediaValue);
+        }
+      }
+
+      if (mediaFileCandidates.length > 1) {
+        console.error("Matched the metadata file to more than one media file.");
+        process.exit(1);
+      } else if (mediaFileCandidates.length === 1) {
+        // Grab the media file and assign it a metadata file
+        const mediaFile = mediaFileCandidates[0];
+        mediaFile.metadata = value.metadata;
+
+        // Remove the orphan metadata file from the original workspace file
+        workspace.media.delete(key);
+
+        if (options.verbose) {
+          console.info("Matched an orphan metadata file to a media file 🎉!");
+          console.info(`  - metadata: ${join(mediaFile.metadata.path, mediaFile.metadata.name)}`);
+          console.info(`  - file:     ${join(mediaFile.file.path, mediaFile.file.name)}`);
+        }
+      } else {
+        console.error("Failed to find matching media file.");
+        process.exit(1);
+      }
+    }
+  }
+
   return workspace;
 }
 
@@ -97,17 +155,21 @@ export function normalizeMetadataName(fileName) {
     return fileName;
   }
 
-  const supplementalMarker = segments.pop();
-  if (supplementalMarker) {
-    const match = supplementalMarker.match(/\(\d+\)/);
+  if (segments.length > 1) {
+    const supplementalMarker = segments.pop();
+    if (supplementalMarker) {
+      const match = supplementalMarker.match(/\(\d+\)/);
 
-    if (match && match[0]) {
-      const base = segments.shift();
-      const duplicateMarker = match[0];
+      if (match && match[0]) {
+        const base = segments.shift();
+        const duplicateMarker = match[0];
 
-      segments.unshift(`${base}${duplicateMarker}`);
+        segments.unshift(`${base}${duplicateMarker}`);
+      }
     }
-  }
 
-  return segments.join(".");
+    return segments.join(".");
+  } else {
+    return segments[0];
+  }
 }

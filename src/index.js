@@ -42,27 +42,33 @@ if (options.source && options.destination) {
     dryRun: options.dryRun,
   });
 
-  const incompleteEntries = {
+  const filesWithoutMetadata = {
     images: 0,
     videos: 0,
     others: 0,
   };
 
-  for (const value of library.media.values()) {
+  const metadataWithoutFiles = [];
+
+  for (const [key, value] of library.media) {
     if (!value.metadata) {
       const ext = extname(value.file.name).toLowerCase();
       if (extensions.images.includes(ext)) {
-        incompleteEntries.images += 1;
+        filesWithoutMetadata.images += 1;
       } else if (extensions.videos.includes(ext)) {
-        incompleteEntries.videos += 1;
+        filesWithoutMetadata.videos += 1;
       } else {
-        incompleteEntries.others += 1;
+        filesWithoutMetadata.others += 1;
       }
+    }
+
+    if (!value.file) {
+      metadataWithoutFiles.push({ key, value: value.metadata });
     }
   }
 
-  // console.log(incompleteEntries);
-  // console.log(library);
+  console.log(metadataWithoutFiles);
+  console.log(filesWithoutMetadata);
 } else {
   console.log("Please specify both source and destination directories.");
   console.log('Run "pixelkasten --help" for usage information.');

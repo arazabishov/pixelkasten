@@ -43,6 +43,11 @@ describe("normalizeMetadataName", () => {
     assert.strictEqual(result, "PXL_20241231_114900266.jpg");
   });
 
+  test("should return filename without extension if the only extension is .json", () => {
+    const result = normalizeMetadataName("29407C9C-7528-4FF1-AD5F-08EAA7F9738E-98855-000.json");
+    assert.strictEqual(result, "29407C9C-7528-4FF1-AD5F-08EAA7F9738E-98855-000");
+  });
+
   test("should return an empty string if empty string is provided", () => {
     const result = normalizeMetadataName("");
     assert.strictEqual(result, "");
