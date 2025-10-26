@@ -2,10 +2,10 @@ import { extname } from "path";
 
 // TODO: .MP extension will need to get special treatment
 // TODO: ignore known unsupported files, like .DS_Store, thumbs.db, etc, but include them in the stats for verification.
-const supportedExtensions = {
+export const supportedExtensions = {
   images: [".jpg", ".jpeg", ".png", ".gif", ".heic", ".webp"],
   videos: [".mp4", ".mov", ".avi"],
-  metadata: [".json"],
+  os: [".ds_store", "thumbs.db"],
 };
 
 export function getFileType(filename) {
@@ -19,9 +19,9 @@ export function getFileType(filename) {
     return "video";
   }
 
-  if (supportedExtensions.metadata.includes(ext)) {
-    return "metadata";
-  }
+  // if (supportedExtensions.metadata.includes(ext)) {
+  //   return "metadata";
+  // }
 
   return "unsupported";
 }

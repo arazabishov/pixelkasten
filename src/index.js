@@ -2,6 +2,8 @@
 
 import { Command } from "commander";
 import { workspace } from "./workspace.js";
+import { supportedExtensions } from "./fs.js";
+import { extname } from "path";
 
 const program = new Command();
 
@@ -35,48 +37,32 @@ if (options.source && options.destination) {
     console.log("(Dry run mode - no files will be modified)");
   }
 
-  const { entriesCount, files } = await workspace(options.source, {
+  const library = await workspace(options.source, {
     verbose: options.verbose,
     dryRun: options.dryRun,
   });
 
-  const stats = {
-    unsupported: 0,
-    directories: 0,
-    metadata: 0,
+  const incompleteEntries = {
     images: 0,
     videos: 0,
+    others: 0,
   };
 
-  files.forEach((item) => {
-    if (item.type === "image") {
-      stats.images += 1;
-    } else if (item.type === "video") {
-      stats.videos += 1;
-    } else if (item.type === "metadata") {
-      stats.metadata += 1;
-    } else if (item.type === "directory") {
-      stats.directories += 1;
-    } else {
-      stats.unsupported += 1;
-
-      console.log("Unsupported file type:", item.path);
+  for (const value of library.media.values()) {
+    if (!value.metadata) {
+      const ext = extname(value.file.name.toLowerCase());
+      if (supportedExtensions.images.includes(ext)) {
+        incompleteEntries.images += 1;
+      } else if (supportedExtensions.videos.includes(ext)) {
+        incompleteEntries.videos += 1;
+      } else {
+        console.log(ext);
+        incompleteEntries.others += 1;
+      }
     }
-  });
+  }
 
-  console.log("All stats", stats);
-  console.log(
-    "All media files",
-    stats.images + stats.videos,
-    " all metadata files ",
-    stats.metadata
-  );
-  console.log(
-    "Total files",
-    stats.images + stats.videos + stats.metadata + stats.unsupported + stats.directories,
-    " all entries ",
-    entriesCount
-  );
+  console.log(incompleteEntries);
 } else {
   console.log("Please specify both source and destination directories.");
   console.log('Run "pixelkasten --help" for usage information.');
