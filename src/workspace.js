@@ -1,6 +1,8 @@
 import { stat, readdir } from "fs/promises";
 import { extensions } from "./fs.js";
 import { join, extname } from "path";
+import { createHash } from "crypto";
+import { createReadStream } from "fs";
 
 export async function workspace(path, options) {
   const stats = await stat(path);
@@ -49,7 +51,9 @@ export async function workspace(path, options) {
         }
       } else if (extensions.images.includes(extl) || extensions.videos.includes(extl)) {
         const path = join(entry.path, name);
-        mediaFiles.set(path, entry);
+        const sha256 = await calculateFileSha256(path);
+
+        mediaFiles.set(path, { entry, sha256 });
 
         if (options.verbose) {
           console.info(`Encountered a media file: ${path}`);
@@ -102,8 +106,8 @@ export function connect(mediaFiles, mediaMetadataFiles) {
   // Iteration 2: link unmatched media files
   for (const [mediaFilePath, mediaFile] of new Map(mediaFilesUnmatched)) {
     // If there was no exact match, we can try to do a prefix search
-    const nameWithoutExt = dropExtension(mediaFile.name);
-    const prefix = join(mediaFile.path, nameWithoutExt);
+    const nameWithoutExt = dropExtension(mediaFile.entry.name);
+    const prefix = join(mediaFile.entry.path, nameWithoutExt);
 
     for (const [metadataFilePath, metadataFile] of mediaMetadataFilesUnmatched) {
       if (metadataFilePath.startsWith(prefix)) {
@@ -116,7 +120,7 @@ export function connect(mediaFiles, mediaMetadataFiles) {
         mediaMetadataFilesUnmatched.delete(metadataFilePath);
 
         console.info("Matched an orphan media file to a metadata file 🎉!");
-        console.info(`  - file:     ${join(mediaFile.path, mediaFile.name)}`);
+        console.info(`  - file:     ${join(mediaFile.entry.path, mediaFile.entry.name)}`);
         console.info(`  - metadata: ${join(metadataFile.path, metadataFile.name)}`);
         break;
       }
@@ -141,7 +145,7 @@ export function connect(mediaFiles, mediaMetadataFiles) {
         mediaMetadataFilesUnmatched.delete(metadataFilePath);
 
         console.info("Matched an orphan metadata file to a media file 🎉!");
-        console.info(`  - file:     ${join(mediaFile.path, mediaFile.name)}`);
+        console.info(`  - file:     ${join(mediaFile.entry.path, mediaFile.entry.name)}`);
         console.info(`  - metadata: ${join(metadataFile.path, metadataFile.name)}`);
         break;
       }
@@ -199,6 +203,25 @@ export function normalizeMetadataName(fileName) {
   } else {
     return segments[0];
   }
+}
+
+export function calculateFileSha256(path) {
+  return new Promise((resolve, reject) => {
+    const hash = createHash("sha256");
+    const stream = createReadStream(path);
+
+    stream.on("error", (err) => {
+      reject(err);
+    });
+
+    stream.on("data", (chunk) => {
+      hash.update(chunk);
+    });
+
+    stream.on("end", () => {
+      resolve(hash.digest("hex"));
+    });
+  });
 }
 
 export function dropExtension(name) {

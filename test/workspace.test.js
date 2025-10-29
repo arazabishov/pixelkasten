@@ -64,51 +64,51 @@ describe("connect", () => {
     new Map([
       [
         "/test/temporary/directory/IMG_0076.PNG",
-        { path: "/test/temporary/directory", name: "IMG_0076.PNG" },
+        { sha256: "a1", entry: { path: "/test/temporary/directory", name: "IMG_0076.PNG" } },
       ],
       [
         "/test/temporary/directory/IMG_0784.MOV",
-        { path: "/test/temporary/directory", name: "IMG_0784.MOV" },
+        { sha256: "b2", entry: { path: "/test/temporary/directory", name: "IMG_0784.MOV" } },
       ],
       [
         "/test/temporary/directory/98855-0000.mov",
-        { path: "/test/temporary/directory", name: "98855-0000.mov" },
+        { sha256: "c3", entry: { path: "/test/temporary/directory", name: "98855-0000.mov" } },
       ],
       [
         "/test/temporary/directory/C3D916AEF50.jpg",
-        { path: "/test/temporary/directory", name: "C3D916AEF50.jpg" },
+        { sha256: "d4", entry: { path: "/test/temporary/directory", name: "C3D916AEF50.jpg" } },
       ],
       [
         "/test/temporary/directory/1804928587.jpg",
-        { path: "/test/temporary/directory", name: "1804928587.jpg" },
+        { sha256: "e5", entry: { path: "/test/temporary/directory", name: "1804928587.jpg" } },
       ],
       [
         "/test/temporary/directory/1804928587(1).jpg",
-        { path: "/test/temporary/directory", name: "1804928587(1).jpg" },
+        { sha256: "f6", entry: { path: "/test/temporary/directory", name: "1804928587(1).jpg" } },
       ],
       [
         "/test/temporary/directory/114910784.MP.jpg",
-        { path: "/test/temporary/directory", name: "114910784.MP.jpg" },
+        { sha256: "g7", entry: { path: "/test/temporary/directory", name: "114910784.MP.jpg" } },
       ],
       [
         "/test/temporary/directory/FA79581F10E4.jpeg",
-        { path: "/test/temporary/directory", name: "FA79581F10E4.jpeg" },
+        { sha256: "h8", entry: { path: "/test/temporary/directory", name: "FA79581F10E4.jpeg" } },
       ],
       [
         "/test/temporary/directory/IMG_0785.HEIC",
-        { path: "/test/temporary/directory", name: "IMG_0785.HEIC" },
+        { sha256: "i9", entry: { path: "/test/temporary/directory", name: "IMG_0785.HEIC" } },
       ],
       [
         "/test/temporary/directory/IMG_0785.MP4",
-        { path: "/test/temporary/directory", name: "IMG_0785.MP4" },
+        { sha256: "j0", entry: { path: "/test/temporary/directory", name: "IMG_0785.MP4" } },
       ],
       [
         "/test/temporary/directory/IMG_0792.MP4",
-        { path: "/test/temporary/directory", name: "IMG_0792.MP4" },
+        { sha256: "k1", entry: { path: "/test/temporary/directory", name: "IMG_0792.MP4" } },
       ],
       [
         "/test/temporary/directory/114910784.MP",
-        { path: "/test/temporary/directory", name: "114910784.MP" },
+        { sha256: "l2", entry: { path: "/test/temporary/directory", name: "114910784.MP" } },
       ],
     ]),
     new Map([
@@ -159,7 +159,8 @@ describe("connect", () => {
     const entry = result.get("/test/temporary/directory/IMG_0076.PNG");
     ok(entry.media);
     ok(entry.metadata);
-    strictEqual(entry.media.name, "IMG_0076.PNG");
+    strictEqual(entry.media.entry.name, "IMG_0076.PNG");
+    strictEqual(entry.media.sha256, "a1");
     strictEqual(entry.metadata.name, "IMG_0076.PNG.supplemental-metadata.json");
   });
 
@@ -167,7 +168,8 @@ describe("connect", () => {
     const entry = result.get("/test/temporary/directory/IMG_0784.MOV");
     ok(entry.media);
     ok(entry.metadata);
-    strictEqual(entry.media.name, "IMG_0784.MOV");
+    strictEqual(entry.media.entry.name, "IMG_0784.MOV");
+    strictEqual(entry.media.sha256, "b2");
     strictEqual(entry.metadata.name, "IMG_0784.MOV.supplemental-metadata.json");
   });
 
@@ -175,7 +177,8 @@ describe("connect", () => {
     const entry = result.get("/test/temporary/directory/98855-0000.mov");
     ok(entry.media);
     ok(entry.metadata);
-    strictEqual(entry.media.name, "98855-0000.mov");
+    strictEqual(entry.media.entry.name, "98855-0000.mov");
+    strictEqual(entry.media.sha256, "c3");
     strictEqual(entry.metadata.name, "98855-000.json");
   });
 
@@ -183,7 +186,8 @@ describe("connect", () => {
     const entry = result.get("/test/temporary/directory/C3D916AEF50.jpg");
     ok(entry.media);
     ok(entry.metadata);
-    strictEqual(entry.media.name, "C3D916AEF50.jpg");
+    strictEqual(entry.media.entry.name, "C3D916AEF50.jpg");
+    strictEqual(entry.media.sha256, "d4");
     strictEqual(entry.metadata.name, "C3D916AEF50D.jpg.suppl.json");
   });
 
@@ -191,7 +195,8 @@ describe("connect", () => {
     const entry = result.get("/test/temporary/directory/1804928587.jpg");
     ok(entry.media);
     ok(entry.metadata);
-    strictEqual(entry.media.name, "1804928587.jpg");
+    strictEqual(entry.media.entry.name, "1804928587.jpg");
+    strictEqual(entry.media.sha256, "e5");
     strictEqual(entry.metadata.name, "1804928587.jpg.supplemental-metadata.json");
   });
 
@@ -199,7 +204,8 @@ describe("connect", () => {
     const entry = result.get("/test/temporary/directory/1804928587(1).jpg");
     ok(entry.media);
     ok(entry.metadata);
-    strictEqual(entry.media.name, "1804928587(1).jpg");
+    strictEqual(entry.media.entry.name, "1804928587(1).jpg");
+    strictEqual(entry.media.sha256, "f6");
     strictEqual(entry.metadata.name, "1804928587.jpg.supplemental-metadata(1).json");
   });
 
@@ -207,7 +213,8 @@ describe("connect", () => {
     const entry = result.get("/test/temporary/directory/114910784.MP.jpg");
     ok(entry.media);
     ok(entry.metadata);
-    strictEqual(entry.media.name, "114910784.MP.jpg");
+    strictEqual(entry.media.entry.name, "114910784.MP.jpg");
+    strictEqual(entry.media.sha256, "g7");
     strictEqual(entry.metadata.name, "114910784.MP.jpg.supplemental-met.json");
   });
 
@@ -215,7 +222,8 @@ describe("connect", () => {
     const entry = result.get("/test/temporary/directory/FA79581F10E4.jpeg");
     ok(entry.media);
     ok(entry.metadata);
-    strictEqual(entry.media.name, "FA79581F10E4.jpeg");
+    strictEqual(entry.media.entry.name, "FA79581F10E4.jpeg");
+    strictEqual(entry.media.sha256, "h8");
     strictEqual(entry.metadata.name, "FA79581F10E4.jpeg..json");
   });
 
@@ -223,27 +231,31 @@ describe("connect", () => {
     const heic = result.get("/test/temporary/directory/IMG_0785.HEIC");
     ok(heic.media);
     ok(heic.metadata);
-    strictEqual(heic.media.name, "IMG_0785.HEIC");
+    strictEqual(heic.media.entry.name, "IMG_0785.HEIC");
+    strictEqual(heic.media.sha256, "i9");
   });
 
   test("should match Live Photo pairs separately - MP4 without metadata", () => {
     const mp4 = result.get("/test/temporary/directory/IMG_0785.MP4");
     ok(mp4.media);
     strictEqual(mp4.metadata, undefined);
-    strictEqual(mp4.media.name, "IMG_0785.MP4");
+    strictEqual(mp4.media.entry.name, "IMG_0785.MP4");
+    strictEqual(mp4.media.sha256, "j0");
   });
 
   test("should include orphan media - IMG_0792.MP4", () => {
     const entry = result.get("/test/temporary/directory/IMG_0792.MP4");
     ok(entry.media);
     strictEqual(entry.metadata, undefined);
-    strictEqual(entry.media.name, "IMG_0792.MP4");
+    strictEqual(entry.media.entry.name, "IMG_0792.MP4");
+    strictEqual(entry.media.sha256, "k1");
   });
 
   test("should include orphan media - 114910784.MP", () => {
     const entry = result.get("/test/temporary/directory/114910784.MP");
     ok(entry.media);
     strictEqual(entry.metadata, undefined);
-    strictEqual(entry.media.name, "114910784.MP");
+    strictEqual(entry.media.entry.name, "114910784.MP");
+    strictEqual(entry.media.sha256, "l2");
   });
 });

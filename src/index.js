@@ -52,9 +52,9 @@ if (options.source && options.destination) {
 
   for (const [mediaFilePath, mediaFile] of library.media) {
     if (!mediaFile.media) {
-      metadataWithoutFiles.push({ key: mediaFilePath, value: value.metadata });
+      metadataWithoutFiles.push({ key: mediaFilePath, value: mediaFile.metadata });
     } else if (!mediaFile.metadata) {
-      const ext = extname(mediaFile.media.name).toLowerCase();
+      const ext = extname(mediaFile.media.entry.name).toLowerCase();
 
       if (extensions.images.includes(ext)) {
         filesWithoutMetadata.images += 1;
