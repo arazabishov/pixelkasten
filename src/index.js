@@ -49,12 +49,14 @@ if (options.source && options.destination) {
   };
 
   const metadataWithoutFiles = [];
+  const duplicates = new Map();
 
   for (const [mediaFilePath, mediaFile] of library.media) {
     if (!mediaFile.media) {
       metadataWithoutFiles.push({ key: mediaFilePath, value: mediaFile.metadata });
     } else if (!mediaFile.metadata) {
-      const ext = extname(mediaFile.media.entry.name).toLowerCase();
+      const { entry, sha256 } = mediaFile.media;
+      const ext = extname(entry.name).toLowerCase();
 
       if (extensions.images.includes(ext)) {
         filesWithoutMetadata.images += 1;
@@ -63,11 +65,22 @@ if (options.source && options.destination) {
       } else {
         filesWithoutMetadata.others += 1;
       }
+
+      if (duplicates.has(sha256)) {
+        const count = duplicates.get(sha256);
+        duplicates.set(sha256, count + 1);
+      } else {
+        duplicates.set(sha256, 0);
+      }
     }
   }
 
+  // Count duplicates based on hash values of files SHA256
+  const duplicatesCount = Array.from(duplicates.values()).reduce((sum, count) => sum + count, 0);
+
   console.log(metadataWithoutFiles);
   console.log(filesWithoutMetadata);
+  console.log(duplicatesCount);
 } else {
   console.log("Please specify both source and destination directories.");
   console.log('Run "pixelkasten --help" for usage information.');
