@@ -50,9 +50,12 @@ if (options.source && options.destination) {
 
   const metadataWithoutFiles = [];
 
-  for (const [key, value] of library.media) {
-    if (!value.metadata) {
-      const ext = extname(value.file.name).toLowerCase();
+  for (const [mediaFilePath, mediaFile] of library.media) {
+    if (!mediaFile.media) {
+      metadataWithoutFiles.push({ key: mediaFilePath, value: value.metadata });
+    } else if (!mediaFile.metadata) {
+      const ext = extname(mediaFile.media.name).toLowerCase();
+
       if (extensions.images.includes(ext)) {
         filesWithoutMetadata.images += 1;
       } else if (extensions.videos.includes(ext)) {
@@ -60,10 +63,6 @@ if (options.source && options.destination) {
       } else {
         filesWithoutMetadata.others += 1;
       }
-    }
-
-    if (!value.file) {
-      metadataWithoutFiles.push({ key, value: value.metadata });
     }
   }
 
