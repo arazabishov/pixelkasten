@@ -3,11 +3,12 @@ import { extensions } from "./fs.js";
 import { join, extname } from "path";
 import { createHash } from "crypto";
 import { createReadStream } from "fs";
+import { consola } from "consola";
 
 export async function workspace(path, options) {
   const stats = await stat(path);
   if (!stats.isDirectory()) {
-    console.error(`The path provided is not a directory: ${path}`);
+    consola.error(`The path provided is not a directory: ${path}`);
     return undefined;
   }
 
@@ -32,7 +33,7 @@ export async function workspace(path, options) {
       directories.set(path, entry);
 
       if (options.verbose) {
-        console.info(`Encoutered a directory: ${path}.`);
+        consola.info(`Encoutered a directory: ${path}.`);
       }
     } else if (entry.isFile()) {
       if (name === "metadata.json") {
@@ -40,14 +41,14 @@ export async function workspace(path, options) {
         albumMetadataFiles.set(path, entry);
 
         if (options.verbose) {
-          console.info(`Encountered an album metadata file: ${path}`);
+          consola.info(`Encountered an album metadata file: ${path}`);
         }
       } else if (extl === ".json") {
         const path = join(entry.path, normalizeMetadataName(name));
         mediaMetadataFiles.set(path, entry);
 
         if (options.verbose) {
-          console.info(`Encountered a media metadata file: ${path}`);
+          consola.info(`Encountered a media metadata file: ${path}`);
         }
       } else if (extensions.images.includes(extl) || extensions.videos.includes(extl)) {
         const path = join(entry.path, name);
@@ -56,14 +57,14 @@ export async function workspace(path, options) {
         mediaFiles.set(path, { entry, sha256 });
 
         if (options.verbose) {
-          console.info(`Encountered a media file: ${path}`);
+          consola.info(`Encountered a media file: ${path}`);
         }
       } else {
         const path = join(entry.path, name);
         unsupportedEntries.set(path, entry);
 
         if (options.verbose) {
-          console.warn(`Encountered unsupported file: type=${extl}, path=${path}`);
+          consola.warn(`Encountered unsupported file: type=${extl}, path=${path}`);
         }
       }
     } else {
@@ -71,7 +72,7 @@ export async function workspace(path, options) {
       unsupportedEntries.set(path, entry);
 
       if (options.verbose) {
-        console.info(`Encountered unsupported file system entry: ${path}`);
+        consola.info(`Encountered unsupported file system entry: ${path}`);
       }
     }
   }
@@ -123,9 +124,9 @@ export function connect(mediaFiles, mediaMetadataFiles, options) {
         mediaMetadataFilesUnmatched.delete(metadataFilePath);
 
         if (options.verbose) {
-          console.info("Matched an orphan media file to a metadata file 🎉!");
-          console.info(`  - file:     ${join(mediaFile.entry.path, mediaFile.entry.name)}`);
-          console.info(`  - metadata: ${join(metadataFile.path, metadataFile.name)}`);
+          consola.info("Matched an orphan media file to a metadata file 🎉!");
+          consola.info(`  - file:     ${join(mediaFile.entry.path, mediaFile.entry.name)}`);
+          consola.info(`  - metadata: ${join(metadataFile.path, metadataFile.name)}`);
         }
         break;
       }
@@ -150,9 +151,9 @@ export function connect(mediaFiles, mediaMetadataFiles, options) {
         mediaMetadataFilesUnmatched.delete(metadataFilePath);
 
         if (options.verbose) {
-          console.info("Matched an orphan metadata file to a media file 🎉!");
-          console.info(`  - file:     ${join(mediaFile.entry.path, mediaFile.entry.name)}`);
-          console.info(`  - metadata: ${join(metadataFile.path, metadataFile.name)}`);
+          consola.info("Matched an orphan metadata file to a media file 🎉!");
+          consola.info(`  - file:     ${join(mediaFile.entry.path, mediaFile.entry.name)}`);
+          consola.info(`  - metadata: ${join(metadataFile.path, metadataFile.name)}`);
         }
         break;
       }
@@ -162,7 +163,7 @@ export function connect(mediaFiles, mediaMetadataFiles, options) {
   // Iteration 4: place media files that had no metadata into media map
   for (const [mediaFilePath, mediaFile] of new Map(mediaFilesUnmatched)) {
     if (mediaMetadataFiles.has(mediaFilePath)) {
-      console.error(`Encountered a conflict at the following path: ${mediaFilePath}`);
+      consola.error(`Encountered a conflict at the following path: ${mediaFilePath}`);
     } else {
       media.set(mediaFilePath, {
         media: mediaFile,
@@ -172,7 +173,7 @@ export function connect(mediaFiles, mediaMetadataFiles, options) {
 
   // Ensure that we have no metadata files left
   if (mediaMetadataFilesUnmatched.size !== 0) {
-    console.error("Unmatched metadata files left!");
+    consola.error("Unmatched metadata files left!");
   }
 
   return media;

@@ -1,4 +1,5 @@
 import { join } from "path";
+import { consola } from "consola";
 
 export function deduplicate(workspace, options) {
   const { media: mediaEntries, albums: albumMetadataFiles } = workspace;
@@ -9,11 +10,11 @@ export function deduplicate(workspace, options) {
   // Process albums first, and fold them into output directory
   for (const albumMetadataFile of albumMetadataFiles.values()) {
     if (options.verbose) {
-      console.verbose(`Album path: ${albumMetadataFile.path}`);
+      consola.verbose(`Album path: ${albumMetadataFile.path}`);
     }
 
     if (library.has(albumMetadataFile.path)) {
-      console.error(`Encountered duplicate album directory: ${albumMetadataFile}`);
+      consola.error(`Encountered duplicate album directory: ${albumMetadataFile}`);
     } else {
       library.set(albumMetadataFile.path, []);
     }
@@ -26,7 +27,7 @@ export function deduplicate(workspace, options) {
 
     if (library.has(entry.path)) {
       if (options.verbose) {
-        console.verbose(`Found media=${entry.name} that belongs to an album=${entry.path}`);
+        consola.verbose(`Found media=${entry.name} that belongs to an album=${entry.path}`);
       }
 
       const album = library.get(entry.path);
@@ -38,7 +39,7 @@ export function deduplicate(workspace, options) {
         mediaFilesCopy.delete(mediaEntryKey);
 
         if (options.verbose) {
-          console.info(`Encountered duplicate: ${join(entry.path, entry.name)}`);
+          consola.info(`Encountered duplicate: ${join(entry.path, entry.name)}`);
         }
       } else {
         // We need to keep track of files that we have encountered
@@ -63,7 +64,7 @@ export function deduplicate(workspace, options) {
       duplicate.push(mediaEntry);
 
       if (options.verbose) {
-        console.info(`Encountered duplicate: ${path}`);
+        consola.info(`Encountered duplicate: ${path}`);
       }
     } else {
       // We need to keep track of files that we have encountered
@@ -72,7 +73,7 @@ export function deduplicate(workspace, options) {
       if (library.has(mediaEntryKey)) {
         // We should not run into this scenario, because duplicates
         // should have been caught by the sha check
-        console.error(`Encountered unexpected duplicate: ${path}`);
+        consola.error(`Encountered unexpected duplicate: ${path}`);
       } else {
         library.set(mediaEntryKey, mediaEntry);
       }

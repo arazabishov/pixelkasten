@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
+import { consola } from "consola";
 import { workspace } from "./workspace.js";
 import { extensions } from "./fs.js";
 import { extname } from "path";
@@ -25,17 +26,17 @@ const options = program.opts();
 
 // Display parsed options
 if (options.verbose) {
-  console.log("Pixelkasten - Photo Archive Organizer");
-  console.log("=====================================");
-  console.log("Options:", options);
+  consola.log("Pixelkasten - Photo Archive Organizer");
+  consola.log("=====================================");
+  consola.log("Options:", options);
 }
 
 if (options.source && options.destination) {
-  console.log(`Organizing photos from: ${options.source}`);
-  console.log(`Destination: ${options.destination}`);
+  consola.log(`Organizing photos from: ${options.source}`);
+  consola.log(`Destination: ${options.destination}`);
 
   if (options.dryRun) {
-    console.log("(Dry run mode - no files will be modified)");
+    consola.log("(Dry run mode - no files will be modified)");
   }
 
   const project = await workspace(options.source, options);
@@ -81,9 +82,9 @@ if (options.source && options.destination) {
     0
   );
 
-  console.log(metadataWithoutFiles);
-  console.log(filesWithoutMetadata);
-  console.log(duplicatesCountOne);
+  consola.log(metadataWithoutFiles);
+  consola.log(filesWithoutMetadata);
+  consola.log(duplicatesCountOne);
 
   const { duplicates } = deduplicate(project, options);
 
@@ -93,9 +94,9 @@ if (options.source && options.destination) {
     0
   );
 
-  // console.log("Keys: ", library.keys());
-  console.log(duplicatesCount);
+  // consola.log("Keys: ", library.keys());
+  consola.log(duplicatesCount);
 } else {
-  console.log("Please specify both source and destination directories.");
-  console.log('Run "pixelkasten --help" for usage information.');
+  consola.log("Please specify both source and destination directories.");
+  consola.log('Run "pixelkasten --help" for usage information.');
 }
