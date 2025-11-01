@@ -148,10 +148,7 @@ describe("connect", () => {
         "/test/temporary/directory/IMG_0785.HEIC",
         { path: "/test/temporary/directory", name: "IMG_0785.HEIC.supplemental-metadata.json" },
       ],
-    ]),
-    {
-      verbose: false,
-    }
+    ])
   );
 
   test("should return correct total number of media entries", () => {

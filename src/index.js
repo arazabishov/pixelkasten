@@ -24,19 +24,19 @@ program.parse(process.argv);
 
 const options = program.opts();
 
-// Display parsed options
+// Set consola log level based on verbose flag
 if (options.verbose) {
-  consola.log("Pixelkasten - Photo Archive Organizer");
-  consola.log("=====================================");
-  consola.log("Options:", options);
+  consola.level = 4; // Show debug messages
+} else {
+  consola.level = 3; // Default: info, warn, error, success
 }
 
 if (options.source && options.destination) {
-  consola.log(`Organizing photos from: ${options.source}`);
-  consola.log(`Destination: ${options.destination}`);
+  consola.info(`Organizing photos from: ${options.source}`);
+  consola.info(`Destination: ${options.destination}`);
 
   if (options.dryRun) {
-    consola.log("(Dry run mode - no files will be modified)");
+    consola.warn("(Dry run mode - no files will be modified)");
   }
 
   const project = await workspace(options.source, options);
@@ -82,11 +82,11 @@ if (options.source && options.destination) {
     0
   );
 
-  consola.log(metadataWithoutFiles);
-  consola.log(filesWithoutMetadata);
-  consola.log(duplicatesCountOne);
+  consola.info(metadataWithoutFiles);
+  consola.info(filesWithoutMetadata);
+  consola.info(duplicatesCountOne);
 
-  const { duplicates } = deduplicate(project, options);
+  const { duplicates } = deduplicate(project);
 
   // Count duplicates based on hash values of files SHA256
   const duplicatesCount = Array.from(duplicates.values()).reduce(
@@ -95,8 +95,8 @@ if (options.source && options.destination) {
   );
 
   // consola.log("Keys: ", library.keys());
-  consola.log(duplicatesCount);
+  consola.info(duplicatesCount);
 } else {
-  consola.log("Please specify both source and destination directories.");
-  consola.log('Run "pixelkasten --help" for usage information.');
+  consola.error("Please specify both source and destination directories.");
+  consola.info('Run "pixelkasten --help" for usage information.');
 }

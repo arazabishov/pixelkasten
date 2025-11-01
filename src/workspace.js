@@ -32,48 +32,36 @@ export async function workspace(path, options) {
       const path = join(entry.path, name);
       directories.set(path, entry);
 
-      if (options.verbose) {
-        consola.info(`Encoutered a directory: ${path}.`);
-      }
+      consola.debug(`Encoutered a directory: ${path}.`);
     } else if (entry.isFile()) {
       if (name === "metadata.json") {
         const path = join(entry.path, name);
         albumMetadataFiles.set(path, entry);
 
-        if (options.verbose) {
-          consola.info(`Encountered an album metadata file: ${path}`);
-        }
+        consola.debug(`Encountered an album metadata file: ${path}`);
       } else if (extl === ".json") {
         const path = join(entry.path, normalizeMetadataName(name));
         mediaMetadataFiles.set(path, entry);
 
-        if (options.verbose) {
-          consola.info(`Encountered a media metadata file: ${path}`);
-        }
+        consola.debug(`Encountered a media metadata file: ${path}`);
       } else if (extensions.images.includes(extl) || extensions.videos.includes(extl)) {
         const path = join(entry.path, name);
         const sha256 = await calculateFileSha256(path);
 
         mediaFiles.set(path, { entry, sha256 });
 
-        if (options.verbose) {
-          consola.info(`Encountered a media file: ${path}`);
-        }
+        consola.debug(`Encountered a media file: ${path}`);
       } else {
         const path = join(entry.path, name);
         unsupportedEntries.set(path, entry);
 
-        if (options.verbose) {
-          consola.warn(`Encountered unsupported file: type=${extl}, path=${path}`);
-        }
+        consola.debug(`Encountered unsupported file: type=${extl}, path=${path}`);
       }
     } else {
       const path = join(entry.path, name);
       unsupportedEntries.set(path, entry);
 
-      if (options.verbose) {
-        consola.info(`Encountered unsupported file system entry: ${path}`);
-      }
+      consola.debug(`Encountered unsupported file system entry: ${path}`);
     }
   }
 
@@ -82,11 +70,11 @@ export async function workspace(path, options) {
     unsupportedEntries: unsupportedEntries,
     directories: directories,
     albums: albumMetadataFiles,
-    media: connect(mediaFiles, mediaMetadataFiles, options),
+    media: connect(mediaFiles, mediaMetadataFiles),
   };
 }
 
-export function connect(mediaFiles, mediaMetadataFiles, options) {
+export function connect(mediaFiles, mediaMetadataFiles) {
   const media = new Map();
   const mediaFilesUnmatched = new Map(mediaFiles);
   const mediaMetadataFilesUnmatched = new Map(mediaMetadataFiles);
@@ -123,11 +111,9 @@ export function connect(mediaFiles, mediaMetadataFiles, options) {
         mediaFilesUnmatched.delete(mediaFilePath);
         mediaMetadataFilesUnmatched.delete(metadataFilePath);
 
-        if (options.verbose) {
-          consola.info("Matched an orphan media file to a metadata file 🎉!");
-          consola.info(`  - file:     ${join(mediaFile.entry.path, mediaFile.entry.name)}`);
-          consola.info(`  - metadata: ${join(metadataFile.path, metadataFile.name)}`);
-        }
+        consola.info("Matched an orphan media file to a metadata file 🎉!");
+        consola.info(` - file:     ${join(mediaFile.entry.path, mediaFile.entry.name)}`);
+        consola.info(` - metadata: ${join(metadataFile.path, metadataFile.name)}`);
         break;
       }
     }
@@ -150,11 +136,9 @@ export function connect(mediaFiles, mediaMetadataFiles, options) {
         mediaFilesUnmatched.delete(mediaFilePath);
         mediaMetadataFilesUnmatched.delete(metadataFilePath);
 
-        if (options.verbose) {
-          consola.info("Matched an orphan metadata file to a media file 🎉!");
-          consola.info(`  - file:     ${join(mediaFile.entry.path, mediaFile.entry.name)}`);
-          consola.info(`  - metadata: ${join(metadataFile.path, metadataFile.name)}`);
-        }
+        consola.info("Matched an orphan metadata file to a media file 🎉!");
+        consola.info(` - file:     ${join(mediaFile.entry.path, mediaFile.entry.name)}`);
+        consola.info(` - metadata: ${join(metadataFile.path, metadataFile.name)}`);
         break;
       }
     }

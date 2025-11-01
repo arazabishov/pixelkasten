@@ -1,7 +1,7 @@
 import { join } from "path";
 import { consola } from "consola";
 
-export function deduplicate(workspace, options) {
+export function deduplicate(workspace) {
   const { media: mediaEntries, albums: albumMetadataFiles } = workspace;
 
   const duplicates = new Map();
@@ -9,9 +9,7 @@ export function deduplicate(workspace, options) {
 
   // Process albums first, and fold them into output directory
   for (const albumMetadataFile of albumMetadataFiles.values()) {
-    if (options.verbose) {
-      consola.verbose(`Album path: ${albumMetadataFile.path}`);
-    }
+    consola.debug(`Album path: ${albumMetadataFile.path}`);
 
     if (library.has(albumMetadataFile.path)) {
       consola.error(`Encountered duplicate album directory: ${albumMetadataFile}`);
@@ -26,9 +24,7 @@ export function deduplicate(workspace, options) {
     const { entry, sha256 } = mediaEntry.media;
 
     if (library.has(entry.path)) {
-      if (options.verbose) {
-        consola.verbose(`Found media=${entry.name} that belongs to an album=${entry.path}`);
-      }
+      consola.debug(`Found media=${entry.name} that belongs to an album=${entry.path}`);
 
       const album = library.get(entry.path);
       if (duplicates.has(sha256)) {
@@ -38,9 +34,7 @@ export function deduplicate(workspace, options) {
         // Ensure that we do not process the same entry twice
         mediaFilesCopy.delete(mediaEntryKey);
 
-        if (options.verbose) {
-          consola.info(`Encountered duplicate: ${join(entry.path, entry.name)}`);
-        }
+        consola.debug(`Encountered duplicate: ${join(entry.path, entry.name)}`);
       } else {
         // We need to keep track of files that we have encountered
         duplicates.set(sha256, []);
@@ -63,9 +57,7 @@ export function deduplicate(workspace, options) {
       const duplicate = duplicates.get(sha256);
       duplicate.push(mediaEntry);
 
-      if (options.verbose) {
-        consola.info(`Encountered duplicate: ${path}`);
-      }
+      consola.debug(`Encountered duplicate: ${path}`);
     } else {
       // We need to keep track of files that we have encountered
       duplicates.set(sha256, []);
