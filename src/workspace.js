@@ -78,6 +78,7 @@ export async function workspace(path, options) {
 
   return {
     entries: entries.length,
+    albums: albumMetadataFiles,
     media: connect(mediaFiles, mediaMetadataFiles),
   };
 }

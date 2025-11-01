@@ -4,6 +4,7 @@ import { Command } from "commander";
 import { workspace } from "./workspace.js";
 import { extensions } from "./fs.js";
 import { extname } from "path";
+import { deduplicate } from "./organize.js";
 
 const program = new Command();
 
@@ -37,7 +38,7 @@ if (options.source && options.destination) {
     console.log("(Dry run mode - no files will be modified)");
   }
 
-  const library = await workspace(options.source, {
+  const project = await workspace(options.source, {
     verbose: options.verbose,
     dryRun: options.dryRun,
   });
@@ -49,37 +50,53 @@ if (options.source && options.destination) {
   };
 
   const metadataWithoutFiles = [];
-  const duplicates = new Map();
+  const duplicatesOne = new Map();
 
-  for (const [mediaFilePath, mediaFile] of library.media) {
+  for (const [mediaFilePath, mediaFile] of project.media) {
     if (!mediaFile.media) {
       metadataWithoutFiles.push({ key: mediaFilePath, value: mediaFile.metadata });
-    } else if (!mediaFile.metadata) {
+    } else {
       const { entry, sha256 } = mediaFile.media;
       const ext = extname(entry.name).toLowerCase();
 
-      if (extensions.images.includes(ext)) {
-        filesWithoutMetadata.images += 1;
-      } else if (extensions.videos.includes(ext)) {
-        filesWithoutMetadata.videos += 1;
-      } else {
-        filesWithoutMetadata.others += 1;
+      if (!mediaFile.metadata) {
+        if (extensions.images.includes(ext)) {
+          filesWithoutMetadata.images += 1;
+        } else if (extensions.videos.includes(ext)) {
+          filesWithoutMetadata.videos += 1;
+        } else {
+          filesWithoutMetadata.others += 1;
+        }
       }
 
-      if (duplicates.has(sha256)) {
-        const count = duplicates.get(sha256);
-        duplicates.set(sha256, count + 1);
+      if (duplicatesOne.has(sha256)) {
+        const count = duplicatesOne.get(sha256);
+        duplicatesOne.set(sha256, count + 1);
       } else {
-        duplicates.set(sha256, 0);
+        duplicatesOne.set(sha256, 0);
       }
     }
   }
 
   // Count duplicates based on hash values of files SHA256
-  const duplicatesCount = Array.from(duplicates.values()).reduce((sum, count) => sum + count, 0);
+  const duplicatesCountOne = Array.from(duplicatesOne.values()).reduce(
+    (sum, count) => sum + count,
+    0
+  );
 
   console.log(metadataWithoutFiles);
   console.log(filesWithoutMetadata);
+  console.log(duplicatesCountOne);
+
+  const { duplicates } = deduplicate(project, options);
+
+  // Count duplicates based on hash values of files SHA256
+  const duplicatesCount = Array.from(duplicates.values()).reduce(
+    (sum, duplicate) => sum + duplicate.length,
+    0
+  );
+
+  // console.log("Keys: ", library.keys());
   console.log(duplicatesCount);
 } else {
   console.log("Please specify both source and destination directories.");
