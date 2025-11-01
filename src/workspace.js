@@ -78,12 +78,14 @@ export async function workspace(path, options) {
 
   return {
     entries: entries.length,
+    unsupportedEntries: unsupportedEntries,
+    directories: directories,
     albums: albumMetadataFiles,
-    media: connect(mediaFiles, mediaMetadataFiles),
+    media: connect(mediaFiles, mediaMetadataFiles, options),
   };
 }
 
-export function connect(mediaFiles, mediaMetadataFiles) {
+export function connect(mediaFiles, mediaMetadataFiles, options) {
   const media = new Map();
   const mediaFilesUnmatched = new Map(mediaFiles);
   const mediaMetadataFilesUnmatched = new Map(mediaMetadataFiles);
@@ -120,9 +122,11 @@ export function connect(mediaFiles, mediaMetadataFiles) {
         mediaFilesUnmatched.delete(mediaFilePath);
         mediaMetadataFilesUnmatched.delete(metadataFilePath);
 
-        console.info("Matched an orphan media file to a metadata file 🎉!");
-        console.info(`  - file:     ${join(mediaFile.entry.path, mediaFile.entry.name)}`);
-        console.info(`  - metadata: ${join(metadataFile.path, metadataFile.name)}`);
+        if (options.verbose) {
+          console.info("Matched an orphan media file to a metadata file 🎉!");
+          console.info(`  - file:     ${join(mediaFile.entry.path, mediaFile.entry.name)}`);
+          console.info(`  - metadata: ${join(metadataFile.path, metadataFile.name)}`);
+        }
         break;
       }
     }
@@ -145,9 +149,11 @@ export function connect(mediaFiles, mediaMetadataFiles) {
         mediaFilesUnmatched.delete(mediaFilePath);
         mediaMetadataFilesUnmatched.delete(metadataFilePath);
 
-        console.info("Matched an orphan metadata file to a media file 🎉!");
-        console.info(`  - file:     ${join(mediaFile.entry.path, mediaFile.entry.name)}`);
-        console.info(`  - metadata: ${join(metadataFile.path, metadataFile.name)}`);
+        if (options.verbose) {
+          console.info("Matched an orphan metadata file to a media file 🎉!");
+          console.info(`  - file:     ${join(mediaFile.entry.path, mediaFile.entry.name)}`);
+          console.info(`  - metadata: ${join(metadataFile.path, metadataFile.name)}`);
+        }
         break;
       }
     }

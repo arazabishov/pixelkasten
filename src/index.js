@@ -38,10 +38,7 @@ if (options.source && options.destination) {
     console.log("(Dry run mode - no files will be modified)");
   }
 
-  const project = await workspace(options.source, {
-    verbose: options.verbose,
-    dryRun: options.dryRun,
-  });
+  const project = await workspace(options.source, options);
 
   const filesWithoutMetadata = {
     images: 0,
