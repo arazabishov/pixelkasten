@@ -1,5 +1,7 @@
 import { join } from "path";
 import { consola } from "consola";
+import cliProgress from "cli-progress";
+import { canShowProgress } from "./logging.js";
 
 export function deduplicate(workspace) {
   const { media: mediaEntries, albums: albumMetadataFiles } = workspace;
@@ -12,14 +14,37 @@ export function deduplicate(workspace) {
     consola.debug(`Album path: ${albumMetadataFile.path}`);
 
     if (library.has(albumMetadataFile.path)) {
-      consola.error(`Encountered duplicate album directory: ${albumMetadataFile}`);
+      consola.fail(`Encountered duplicate album directory: ${albumMetadataFile}`);
+
+      // Fail early!
+      process.exit(1);
     } else {
       library.set(albumMetadataFile.path, []);
     }
   }
 
+  // Create progress bar for processing media entries
+  const progressBar = canShowProgress()
+    ? new cliProgress.SingleBar(
+        {
+          format: "⧗ Phase 2: deduplicating |{bar}| {percentage}% | {value}/{total} media files",
+          barCompleteChar: "\u2588",
+          barIncompleteChar: "\u2591",
+          hideCursor: true,
+        },
+        cliProgress.Presets.shades_classic
+      )
+    : null;
+
+  if (canShowProgress()) {
+    progressBar.start(mediaEntries.size, 0);
+  }
+
+  // Keep track of progress made for progress bar
+  const mediaEntriesProcessed = [];
+
   // Iteration 1: we need to process images that belong to albums first
-  const mediaFilesCopy = new Map(mediaEntries);
+  const mediaEntriesCopy = new Map(mediaEntries);
   for (const [mediaEntryKey, mediaEntry] of mediaEntries) {
     const { entry, sha256 } = mediaEntry.media;
 
@@ -32,7 +57,7 @@ export function deduplicate(workspace) {
         duplicate.push(mediaEntry);
 
         // Ensure that we do not process the same entry twice
-        mediaFilesCopy.delete(mediaEntryKey);
+        mediaEntriesCopy.delete(mediaEntryKey);
 
         consola.debug(`Encountered duplicate: ${join(entry.path, entry.name)}`);
       } else {
@@ -40,16 +65,22 @@ export function deduplicate(workspace) {
         duplicates.set(sha256, []);
 
         // Ensure that we do not process the same entry twice
-        mediaFilesCopy.delete(mediaEntryKey);
+        mediaEntriesCopy.delete(mediaEntryKey);
 
         // Push the entry to an album
         album.push(mediaEntry);
+      }
+
+      mediaEntriesProcessed.push(mediaEntry);
+
+      if (canShowProgress()) {
+        progressBar.update(mediaEntriesProcessed.length);
       }
     }
   }
 
   // Iteration 2: process remaining files outside of albums
-  for (const [mediaEntryKey, mediaEntry] of mediaFilesCopy) {
+  for (const [mediaEntryKey, mediaEntry] of mediaEntriesCopy) {
     const { entry, sha256 } = mediaEntry.media;
     const path = join(entry.path, entry.name);
 
@@ -65,15 +96,58 @@ export function deduplicate(workspace) {
       if (library.has(mediaEntryKey)) {
         // We should not run into this scenario, because duplicates
         // should have been caught by the sha check
-        consola.error(`Encountered unexpected duplicate: ${path}`);
+        consola.fail(`Encountered unexpected duplicate: ${path}`);
       } else {
         library.set(mediaEntryKey, mediaEntry);
       }
     }
+
+    mediaEntriesProcessed.push(mediaEntry);
+
+    if (canShowProgress()) {
+      progressBar.update(mediaEntriesProcessed.length);
+    }
   }
 
-  return {
-    library,
-    duplicates,
-  };
+  if (canShowProgress()) {
+    progressBar.stop();
+  }
+
+  const duplicatesCount = Array.from(duplicates.values()).reduce(
+    (sum, duplicate) => sum + duplicate.length,
+    0
+  );
+
+  if (check(mediaEntries, library, duplicates)) {
+    consola.success(`Found ${duplicatesCount} duplicates!`);
+
+    return { library, duplicates };
+  } else {
+    consola.fail(`Failed the integrity check after deduping ❌!`);
+
+    process.exit(1);
+  }
+}
+
+export function check(media, library, duplicates) {
+  let totalMediaFilesInLibrary = 0;
+
+  for (const mediaEntry of library.values()) {
+    if (Array.isArray(mediaEntry)) {
+      totalMediaFilesInLibrary += mediaEntry.length;
+    } else {
+      totalMediaFilesInLibrary += 1;
+    }
+  }
+
+  for (const duplicate of duplicates.values()) {
+    totalMediaFilesInLibrary += duplicate.length;
+  }
+
+  if (totalMediaFilesInLibrary !== media.size) {
+    consola.fail(`After dedupe: expected ${media.size} files, found ${totalMediaFilesInLibrary}`);
+    process.exit(1);
+  }
+
+  return true;
 }

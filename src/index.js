@@ -6,6 +6,7 @@ import { workspace } from "./workspace.js";
 import { extensions } from "./fs.js";
 import { extname } from "path";
 import { deduplicate } from "./organize.js";
+import CliTable3 from "cli-table3";
 
 const program = new Command();
 
@@ -26,77 +27,77 @@ const options = program.opts();
 
 // Set consola log level based on verbose flag
 if (options.verbose) {
-  consola.level = 4; // Show debug messages
+  // Show debug messages
+  consola.level = 4;
 } else {
-  consola.level = 3; // Default: info, warn, error, success
+  // Default: info, warn, error, success
+  consola.level = 3;
 }
 
 if (options.source && options.destination) {
-  consola.info(`Organizing photos from: ${options.source}`);
-  consola.info(`Destination: ${options.destination}`);
+  consola.debug(`Organizing photos from: ${options.source}`);
+  consola.debug(`Destination: ${options.destination}`);
 
   if (options.dryRun) {
-    consola.warn("(Dry run mode - no files will be modified)");
+    consola.warn("Dry run mode - no files will be modified");
   }
 
-  const project = await workspace(options.source, options);
+  // Phase 1: scan files, calculate hashes, and link metadata
+  const project = await workspace(options.source);
 
-  const filesWithoutMetadata = {
+  // Collect stats for transparency
+  const projectStats = {
     images: 0,
+    imagesWithoutMetadata: 0,
     videos: 0,
+    videosWithoutMetadata: 0,
     others: 0,
   };
 
-  const metadataWithoutFiles = [];
-  const duplicatesOne = new Map();
+  for (const mediaFile of project.media.values()) {
+    const { entry } = mediaFile.media;
+    const ext = extname(entry.name).toLowerCase();
 
-  for (const [mediaFilePath, mediaFile] of project.media) {
-    if (!mediaFile.media) {
-      metadataWithoutFiles.push({ key: mediaFilePath, value: mediaFile.metadata });
-    } else {
-      const { entry, sha256 } = mediaFile.media;
-      const ext = extname(entry.name).toLowerCase();
+    if (extensions.images.includes(ext)) {
+      projectStats.images += 1;
 
       if (!mediaFile.metadata) {
-        if (extensions.images.includes(ext)) {
-          filesWithoutMetadata.images += 1;
-        } else if (extensions.videos.includes(ext)) {
-          filesWithoutMetadata.videos += 1;
-        } else {
-          filesWithoutMetadata.others += 1;
-        }
+        projectStats.imagesWithoutMetadata += 1;
       }
+    } else if (extensions.videos.includes(ext)) {
+      projectStats.videos += 1;
 
-      if (duplicatesOne.has(sha256)) {
-        const count = duplicatesOne.get(sha256);
-        duplicatesOne.set(sha256, count + 1);
-      } else {
-        duplicatesOne.set(sha256, 0);
+      if (!mediaFile.metadata) {
+        projectStats.videosWithoutMetadata += 1;
       }
+    } else {
+      projectStats.others += 1;
     }
   }
 
-  // Count duplicates based on hash values of files SHA256
-  const duplicatesCountOne = Array.from(duplicatesOne.values()).reduce(
-    (sum, count) => sum + count,
-    0
+  const projectStatsTable = new CliTable3({ head: ["Category", "Count"] });
+  projectStatsTable.push(
+    ["Total media files", project.media.size],
+    ["Images (total/no metadata)", `${projectStats.images}/${projectStats.imagesWithoutMetadata}`],
+    ["Videos (total/no metadata)", `${projectStats.videos}/${projectStats.videosWithoutMetadata}`],
+    ["Albums", project.albums.size],
+    ["Other files", project.unsupportedEntries.size + projectStats.others]
   );
 
-  consola.info(metadataWithoutFiles);
-  consola.info(filesWithoutMetadata);
-  consola.info(duplicatesCountOne);
+  // Using console instead of consola here to ensure proper formatting.
+  console.info(projectStatsTable.toString());
 
-  const { duplicates } = deduplicate(project);
+  // For a new line
+  console.info();
 
-  // Count duplicates based on hash values of files SHA256
-  const duplicatesCount = Array.from(duplicates.values()).reduce(
-    (sum, duplicate) => sum + duplicate.length,
-    0
-  );
+  deduplicate(project);
 
-  // consola.log("Keys: ", library.keys());
-  consola.info(duplicatesCount);
+  console.info();
+
+  consola.ready("Analysis complete!");
 } else {
-  consola.error("Please specify both source and destination directories.");
+  consola.fail("Please specify both source and destination directories.");
   consola.info('Run "pixelkasten --help" for usage information.');
+
+  process.exit(1);
 }

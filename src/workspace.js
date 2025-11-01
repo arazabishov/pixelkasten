@@ -4,12 +4,14 @@ import { join, extname } from "path";
 import { createHash } from "crypto";
 import { createReadStream } from "fs";
 import { consola } from "consola";
+import cliProgress from "cli-progress";
+import { canShowProgress } from "./logging.js";
 
-export async function workspace(path, options) {
+export async function workspace(path) {
   const stats = await stat(path);
   if (!stats.isDirectory()) {
-    consola.error(`The path provided is not a directory: ${path}`);
-    return undefined;
+    consola.fail(`The path provided is not a directory: ${path}`);
+    process.exit(1);
   }
 
   const entries = await readdir(path, {
@@ -23,8 +25,28 @@ export async function workspace(path, options) {
   const unsupportedEntries = new Map();
   const directories = new Map();
 
+  // Create progress bar (only if not in verbose mode)
+  const progressBar = canShowProgress()
+    ? new cliProgress.SingleBar(
+        {
+          format: "⧗ Phase 1: scanning files |{bar}| {percentage}% | {value}/{total} entries",
+          barCompleteChar: "\u2588",
+          barIncompleteChar: "\u2591",
+          hideCursor: true,
+        },
+        cliProgress.Presets.shades_classic
+      )
+    : null;
+
+  if (canShowProgress()) {
+    progressBar.start(entries.length, 0);
+  }
+
   // Walk through entries and categorize them into buckets
-  for (const entry of entries) {
+  for (let index = 0; index < entries.length; index++) {
+    const entry = entries[index];
+
+    // Extract name and extension (in lowercase)
     const name = entry.name;
     const extl = extname(name).toLowerCase();
 
@@ -63,15 +85,30 @@ export async function workspace(path, options) {
 
       consola.debug(`Encountered unsupported file system entry: ${path}`);
     }
+
+    if (canShowProgress()) {
+      progressBar.update(index + 1);
+    }
   }
 
-  return {
+  if (canShowProgress()) {
+    progressBar.stop();
+  }
+
+  const project = {
     entries: entries.length,
     unsupportedEntries: unsupportedEntries,
     directories: directories,
     albums: albumMetadataFiles,
     media: connect(mediaFiles, mediaMetadataFiles),
   };
+
+  if (check(project)) {
+    consola.success(`Scanned ${entries.length} entries!`);
+    return project;
+  } else {
+    process.exit(1);
+  }
 }
 
 export function connect(mediaFiles, mediaMetadataFiles) {
@@ -111,9 +148,9 @@ export function connect(mediaFiles, mediaMetadataFiles) {
         mediaFilesUnmatched.delete(mediaFilePath);
         mediaMetadataFilesUnmatched.delete(metadataFilePath);
 
-        consola.info("Matched an orphan media file to a metadata file 🎉!");
-        consola.info(` - file:     ${join(mediaFile.entry.path, mediaFile.entry.name)}`);
-        consola.info(` - metadata: ${join(metadataFile.path, metadataFile.name)}`);
+        consola.debug("Matched orphan media file to metadata 🎉");
+        consola.debug(`  File:     ${join(mediaFile.entry.path, mediaFile.entry.name)}`);
+        consola.debug(`  Metadata: ${join(metadataFile.path, metadataFile.name)}`);
         break;
       }
     }
@@ -136,9 +173,9 @@ export function connect(mediaFiles, mediaMetadataFiles) {
         mediaFilesUnmatched.delete(mediaFilePath);
         mediaMetadataFilesUnmatched.delete(metadataFilePath);
 
-        consola.info("Matched an orphan metadata file to a media file 🎉!");
-        consola.info(` - file:     ${join(mediaFile.entry.path, mediaFile.entry.name)}`);
-        consola.info(` - metadata: ${join(metadataFile.path, metadataFile.name)}`);
+        consola.debug("Matched orphan metadata to media file 🎉");
+        consola.debug(`  File:     ${join(mediaFile.entry.path, mediaFile.entry.name)}`);
+        consola.debug(`  Metadata: ${join(metadataFile.path, metadataFile.name)}`);
         break;
       }
     }
@@ -147,7 +184,7 @@ export function connect(mediaFiles, mediaMetadataFiles) {
   // Iteration 4: place media files that had no metadata into media map
   for (const [mediaFilePath, mediaFile] of new Map(mediaFilesUnmatched)) {
     if (mediaMetadataFiles.has(mediaFilePath)) {
-      consola.error(`Encountered a conflict at the following path: ${mediaFilePath}`);
+      consola.fail(`Encountered a conflict at the following path: ${mediaFilePath}`);
     } else {
       media.set(mediaFilePath, {
         media: mediaFile,
@@ -157,7 +194,7 @@ export function connect(mediaFiles, mediaMetadataFiles) {
 
   // Ensure that we have no metadata files left
   if (mediaMetadataFilesUnmatched.size !== 0) {
-    consola.error("Unmatched metadata files left!");
+    consola.fail(`${mediaMetadataFilesUnmatched.size} unmatched metadata files remaining!`);
   }
 
   return media;
@@ -225,4 +262,52 @@ export function dropExtension(name) {
   }
 
   return name;
+}
+
+export function check({ entries, media, albums, directories, unsupportedEntries }) {
+  const unlinkedMediaFiles = [];
+  const unlinkedMetadataFiles = [];
+  const mediaFiles = [];
+
+  for (const [mediaFilePath, mediaFile] of media) {
+    if (!mediaFile.metadata && !mediaFile.media) {
+      // Encountered an empty entry.
+      consola.fail(`Encountered an empty entry ❌!`, mediaFilePath);
+
+      // Fail early!
+      process.exit(1);
+    } else if (!mediaFile.metadata) {
+      // A case when a media file has no metadata. Video files often don't have associated sidecar/metadata files.
+      unlinkedMediaFiles.push(mediaFile);
+    } else if (!mediaFile.media) {
+      // This is an edge case when media file is not present.
+      unlinkedMetadataFiles.push(mediaFile);
+    } else {
+      // Media file is linked correctly.
+      mediaFiles.push(mediaFile);
+    }
+  }
+
+  if (unlinkedMetadataFiles.length > 0) {
+    // The program should not encounter this case.
+    consola.fail(`Encountered orphan metadata files ❌!`, unlinkedMetadataFiles);
+
+    // If it does, fail early.
+    process.exit(1);
+  }
+
+  // The reason why mediaFiles is multiplied by two is that one entry corresponds to two files: media and metadata files.
+  const totalMediaFiles = mediaFiles.length * 2 + unlinkedMediaFiles.length;
+  const totalFiles = totalMediaFiles + unsupportedEntries.size + directories.size + albums.size;
+
+  if (entries !== totalFiles) {
+    // The total number of files the script encountered, including directories,
+    // has to match what was initially observed on the file system.
+    consola.fail(`Failed the integrity check ❌!`);
+    consola.fail(`Total entries=${entries}, but processed=${totalFiles}`);
+
+    process.exit(1);
+  }
+
+  return true;
 }
