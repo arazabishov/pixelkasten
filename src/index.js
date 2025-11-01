@@ -6,6 +6,7 @@ import { workspace } from "./workspace.js";
 import { extensions } from "./fs.js";
 import { extname } from "path";
 import { deduplicate } from "./organize.js";
+import { dump } from "./dump.js";
 import CliTable3 from "cli-table3";
 
 const program = new Command();
@@ -90,9 +91,12 @@ if (options.source && options.destination) {
   // For a new line
   console.info();
 
-  deduplicate(project);
+  const { library } = deduplicate(project);
 
+  // For a new line
   console.info();
+
+  dump(library, options.destination);
 
   consola.ready("Analysis complete!");
 } else {
