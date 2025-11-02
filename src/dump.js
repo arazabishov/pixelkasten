@@ -7,14 +7,14 @@ export async function dump(library, destination) {
   await mkdir(destination, { recursive: true });
 
   for (const [entryPath, entry] of library) {
-    if (Array.isArray(entry)) {
+    if (entry.items && Array.isArray(entry.items)) {
       // This is an album
       const albumName = basename(entryPath);
       const albumPath = join(destination, albumName);
 
       await mkdir(albumPath, { recursive: true });
 
-      for (const mediaEntry of entry) {
+      for (const mediaEntry of entry.items) {
         await copyEntry(mediaEntry, albumPath);
       }
     } else {
@@ -33,6 +33,8 @@ async function copyEntry(mediaEntry, directory) {
   await copyFile(mediaPathSource, mediaPathDestination);
 
   if (metadata) {
+    // TODO: this is temporary code. Once we start embedding metadata
+    // into image's exif, we will not need to copy .json files over.
     const normalizedMetadataName = `${normalizeMetadataName(metadata.name)}.json`;
 
     const metadataPathSource = join(metadata.path, metadata.name);

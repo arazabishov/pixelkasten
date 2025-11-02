@@ -19,7 +19,10 @@ export function deduplicate(workspace) {
       // Fail early!
       process.exit(1);
     } else {
-      library.set(albumMetadataFile.path, []);
+      library.set(albumMetadataFile.path, {
+        metadata: albumMetadataFile,
+        items: [],
+      });
     }
   }
 
@@ -68,7 +71,7 @@ export function deduplicate(workspace) {
         mediaEntriesCopy.delete(mediaEntryKey);
 
         // Push the entry to an album
-        album.push(mediaEntry);
+        album.items.push(mediaEntry);
       }
 
       mediaEntriesProcessed.push(mediaEntry);
@@ -133,8 +136,8 @@ export function check(media, library, duplicates) {
   let totalMediaFilesInLibrary = 0;
 
   for (const mediaEntry of library.values()) {
-    if (Array.isArray(mediaEntry)) {
-      totalMediaFilesInLibrary += mediaEntry.length;
+    if (mediaEntry.items && Array.isArray(mediaEntry.items)) {
+      totalMediaFilesInLibrary += mediaEntry.items.length;
     } else {
       totalMediaFilesInLibrary += 1;
     }

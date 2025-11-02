@@ -8,6 +8,7 @@ import { extname } from "path";
 import { deduplicate } from "./organize.js";
 import { dump } from "./dump.js";
 import CliTable3 from "cli-table3";
+import { embed } from "./embed.js";
 
 const program = new Command();
 
@@ -96,9 +97,16 @@ if (options.source && options.destination) {
   // For a new line
   console.info();
 
-  dump(library, options.destination);
+  await embed(library);
 
-  consola.ready("Analysis complete!");
+  if (!options.dryRun) {
+    await dump(library, options.destination);
+  }
+
+  // For a new line
+  console.info();
+
+  consola.success("Finished!");
 } else {
   consola.fail("Please specify both source and destination directories.");
   consola.info('Run "pixelkasten --help" for usage information.');

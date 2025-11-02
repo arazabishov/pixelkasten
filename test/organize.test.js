@@ -1,8 +1,15 @@
-import { test, describe } from "node:test";
+import { test, describe, before, after } from "node:test";
 import { strictEqual, ok } from "node:assert";
 import { deduplicate } from "../src/organize.js";
+import { consola } from "consola";
 
 describe("deduplicate", () => {
+  before(() => {
+    consola.mockTypes(() => () => {
+      /* noop */
+    });
+  });
+
   test("should handle empty workspace", () => {
     const workspace = {
       media: new Map(),
@@ -171,8 +178,10 @@ describe("deduplicate", () => {
 
     strictEqual(result.library.size, 1);
     ok(result.library.has("/test/albums/vacation"));
-    ok(Array.isArray(result.library.get("/test/albums/vacation")));
-    strictEqual(result.library.get("/test/albums/vacation").length, 0);
+    const album = result.library.get("/test/albums/vacation");
+    ok(album.metadata);
+    ok(Array.isArray(album.items));
+    strictEqual(album.items.length, 0);
   });
 
   test("should process media files in album directory", () => {
@@ -207,9 +216,9 @@ describe("deduplicate", () => {
     strictEqual(result.library.size, 1);
     ok(result.library.has("/test/albums/vacation"));
     const album = result.library.get("/test/albums/vacation");
-    strictEqual(album.length, 2);
-    strictEqual(album[0].media.entry.name, "photo1.jpg");
-    strictEqual(album[1].media.entry.name, "photo2.jpg");
+    strictEqual(album.items.length, 2);
+    strictEqual(album.items[0].media.entry.name, "photo1.jpg");
+    strictEqual(album.items[1].media.entry.name, "photo2.jpg");
   });
 
   test("should detect duplicates within album", () => {
@@ -243,8 +252,8 @@ describe("deduplicate", () => {
 
     strictEqual(result.library.size, 1);
     const album = result.library.get("/test/albums/vacation");
-    strictEqual(album.length, 1);
-    strictEqual(album[0].media.entry.name, "photo1.jpg");
+    strictEqual(album.items.length, 1);
+    strictEqual(album.items[0].media.entry.name, "photo1.jpg");
     ok(result.duplicates.has("abc123"));
     strictEqual(result.duplicates.get("abc123").length, 1);
     strictEqual(result.duplicates.get("abc123")[0].media.entry.name, "photo1_copy.jpg");
@@ -283,7 +292,7 @@ describe("deduplicate", () => {
     ok(result.library.has("/test/albums/vacation"));
     ok(result.library.has("/test/dir/photo2.jpg"));
     const album = result.library.get("/test/albums/vacation");
-    strictEqual(album.length, 1);
+    strictEqual(album.items.length, 1);
   });
 
   test("should detect duplicates across album and non-album files", () => {
@@ -317,8 +326,8 @@ describe("deduplicate", () => {
 
     strictEqual(result.library.size, 1);
     const album = result.library.get("/test/albums/vacation");
-    strictEqual(album.length, 1);
-    strictEqual(album[0].media.entry.name, "photo1.jpg");
+    strictEqual(album.items.length, 1);
+    strictEqual(album.items[0].media.entry.name, "photo1.jpg");
     ok(result.duplicates.has("abc123"));
     strictEqual(result.duplicates.get("abc123").length, 1);
     strictEqual(result.duplicates.get("abc123")[0].media.entry.name, "photo1_copy.jpg");
@@ -357,8 +366,8 @@ describe("deduplicate", () => {
     strictEqual(result.library.size, 2);
     ok(result.library.has("/test/albums/vacation"));
     ok(result.library.has("/test/albums/birthday"));
-    strictEqual(result.library.get("/test/albums/vacation").length, 1);
-    strictEqual(result.library.get("/test/albums/birthday").length, 1);
+    strictEqual(result.library.get("/test/albums/vacation").items.length, 1);
+    strictEqual(result.library.get("/test/albums/birthday").items.length, 1);
   });
 
   test("should preserve metadata entries with media files", () => {
@@ -454,10 +463,10 @@ describe("deduplicate", () => {
     strictEqual(result.library.size, 3);
 
     const vacation = result.library.get("/albums/vacation");
-    strictEqual(vacation.length, 2);
+    strictEqual(vacation.items.length, 2);
 
     const birthday = result.library.get("/albums/birthday");
-    strictEqual(birthday.length, 1);
+    strictEqual(birthday.items.length, 1);
 
     ok(result.library.has("/standalone/photo4.jpg"));
 
