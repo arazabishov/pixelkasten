@@ -166,6 +166,9 @@ async function readExifMetadata(source) {
       "-Composite:GPSAltitude",
       "-Composite:GPSLatitude",
       "-Composite:GPSLongitude",
+      "-QuickTime:CreationDate",
+      "-QuickTime:CreateDate",
+      "-EXIF:DateTimeOriginal",
       "-json",
       "-n",
       "-r",
@@ -240,11 +243,17 @@ function compareGeoData(exifData, sidecarGeoData, itemTitle) {
 }
 
 function compareDateTime(exifData, sidecarMetadata, itemTitle) {
+  // DateTimeOriginal is normally found in EXIF/image metadata
   const dateTimeOriginal = exifData.DateTimeOriginal;
+
+  // CreationDate is mostly found in metadata files for video.
+  const creationDate = exifData.CreationDate;
+
+  // CreateDate can be found both in videos and images.
   const createDate = exifData.CreateDate;
 
   // Only report if EXIF is missing both date fields
-  if (!dateTimeOriginal && !createDate) {
+  if (!dateTimeOriginal && !createDate && !creationDate) {
     const photoTakenTimestamp = sidecarMetadata.photoTakenTime?.timestamp;
     const creationTimestamp = sidecarMetadata.creationTime?.timestamp;
 
