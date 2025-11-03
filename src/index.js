@@ -92,12 +92,12 @@ if (options.source && options.destination) {
   // For a new line
   console.info();
 
-  const { library } = deduplicate(project);
+  const library = deduplicate(project);
 
   // For a new line
   console.info();
 
-  await embed(library);
+  await embed(library, options.source);
 
   if (!options.dryRun) {
     await dump(library, options.destination);

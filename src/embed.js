@@ -4,6 +4,7 @@ import { join } from "path";
 import { execa } from "execa";
 import cliProgress from "cli-progress";
 import { canShowProgress } from "./logging.js";
+import { extensions } from "./fs.js";
 
 // To ensure that the tool does not miss any critical properties in the sidecar files,
 // we keep track of known properties here.
@@ -22,8 +23,16 @@ const metadataKeys = new Set([
 
 // TODO: this method will likely need to be submerged into organize file, because we want to combine
 // copy and write actions (we don't want to modify original files).
-export async function embed(library) {
-  const totalItems = count(library);
+export async function embed({ library, duplicatesCount }, source) {
+  const allItems = count(library) + duplicatesCount;
+  const allExifMetadata = await readExifMetadata(source);
+
+  if (allItems !== allExifMetadata.size) {
+    consola.fail(
+      `Media file count (${allItems}) doesn't match EXIF metadata count (${allExifMetadata.size})`
+    );
+    process.exit(1);
+  }
 
   // Create progress bar
   const progressBar = canShowProgress()
@@ -40,7 +49,7 @@ export async function embed(library) {
     : null;
 
   if (canShowProgress()) {
-    progressBar.start(totalItems, 0);
+    progressBar.start(allItems, 0);
   }
 
   const processedItems = [];
@@ -56,7 +65,7 @@ export async function embed(library) {
         const mediaItemFilePath = join(item.media.entry.path, item.media.entry.name);
 
         if (item.metadata) {
-          await updateMetadata(item);
+          await updateMetadata(item, allExifMetadata);
         } else {
           consola.debug(`Encountered a media item without metadata=${mediaItemFilePath}`);
         }
@@ -70,7 +79,7 @@ export async function embed(library) {
       const entryFilePath = join(entry.media.entry.path, entry.media.entry.name);
 
       if (entry.metadata) {
-        await updateMetadata(entry);
+        await updateMetadata(entry, allExifMetadata);
       } else {
         consola.debug(`Encountered a media item without metadata=${entryFilePath}`);
       }
@@ -86,7 +95,7 @@ export async function embed(library) {
     progressBar.stop();
   }
 
-  consola.success(`Analyzed metadata of ${totalItems} media files!`);
+  consola.success(`Analyzed metadata of ${allItems} media files!`);
 }
 
 function count(library) {
@@ -103,7 +112,7 @@ function count(library) {
   return totalItems;
 }
 
-async function updateMetadata(item) {
+async function updateMetadata(item, allExifMetadata) {
   const itemMetadataFilePath = join(item.metadata.path, item.metadata.name);
   const itemMetadata = JSON.parse(await readFile(itemMetadataFilePath));
 
@@ -111,7 +120,14 @@ async function updateMetadata(item) {
 
   // Read current EXIF data
   const mediaItemFilePath = join(item.media.entry.path, item.media.entry.name);
-  const exifData = await readExifMetadata(mediaItemFilePath);
+  const exifData = allExifMetadata.get(mediaItemFilePath);
+
+  if (exifData === undefined) {
+    consola.fail(`Missing metadata for ${mediaItemFilePath}`);
+
+    // If we did not find EXIF metadata, something went wrong.
+    process.exit(1);
+  }
 
   // Select the best geo data source from sidecar
   const sidecarGeoData = geoData(itemMetadata);
@@ -136,19 +152,31 @@ function checkMetadata(metadataFilePath, metadata) {
   }
 }
 
-async function readExifMetadata(mediaPath) {
-  try {
-    // The -n flag is used for numeric output for GPS coordinates
-    const { stdout } = await execa("exiftool", ["-json", "-n", mediaPath]);
-    const metadata = JSON.parse(stdout);
+async function readExifMetadata(source) {
+  const extensionArguments = [];
+  for (const extension of extensions.images.concat(extensions.videos)) {
+    extensionArguments.push("-ext");
+    extensionArguments.push(extension);
+  }
 
-    if (metadata.length === 1) {
-      return metadata[0];
-    } else {
-      consola.fail(`Received more EXIF metadata than expected for ${mediaPath}:`, error);
+  try {
+    const { stdout } = await execa("exiftool", [
+      "-json",
+      "-n",
+      "-r",
+      ...extensionArguments,
+      source,
+    ]);
+    const metadata = JSON.parse(stdout);
+    const metadataMap = new Map();
+
+    for (const entry of metadata) {
+      metadataMap.set(entry.SourceFile, entry);
     }
+
+    return metadataMap;
   } catch (error) {
-    consola.fail(`Failed to read EXIF metadata from ${mediaPath}:`, error);
+    consola.fail(`Failed to read EXIF metadata from ${source}:`, error);
 
     // TODO: consider switching to throwing errors instead of explicitly exiting the process
     process.exit(1);

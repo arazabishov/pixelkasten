@@ -124,7 +124,11 @@ export function deduplicate(workspace) {
   if (check(mediaEntries, library, duplicates)) {
     consola.success(`Found ${duplicatesCount} duplicates!`);
 
-    return { library, duplicates };
+    return {
+      library,
+      duplicates,
+      duplicatesCount,
+    };
   } else {
     consola.fail(`Failed the integrity check after deduping ❌!`);
 
