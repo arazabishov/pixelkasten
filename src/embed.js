@@ -160,7 +160,12 @@ async function readExifMetadata(source) {
   }
 
   try {
+    // By reading composite properties, we let exiftool do the heavy lifting and account for differences in metadata formats:
+    // QuickTime stores these values in GPSCoordinates, while EXIF uses separate fields like GPSLatitude.
     const { stdout } = await execa("exiftool", [
+      "-Composite:GPSAltitude",
+      "-Composite:GPSLatitude",
+      "-Composite:GPSLongitude",
       "-json",
       "-n",
       "-r",
@@ -188,7 +193,12 @@ function hasNonZeroGeoData(geoData) {
     return false;
   }
 
-  return geoData.latitude !== 0 || geoData.longitude !== 0;
+  // If you take a look at sidecar files with geoData or geoDataExif, you will see
+  // that these objects also contain latitudeSpan and longitudeSpan fields.
+  // The values of these fields, when present, normally represent GPS accuracy.
+  // There is no direct parallel concept in media file metadata,
+  // so we ignore them.
+  return geoData.latitude !== 0 && geoData.longitude !== 0;
 }
 
 function geoData(sidecarMetadata) {
@@ -215,8 +225,11 @@ function compareGeoData(exifData, sidecarGeoData, itemTitle) {
   const exifLat = exifData.GPSLatitude;
   const exifLon = exifData.GPSLongitude;
 
+  const hasLat = exifLat !== undefined && exifLat !== 0;
+  const hasLon = exifLon !== undefined && exifLon !== 0;
+
   // Only report if EXIF is missing GPS coordinates
-  const hasExifGPS = exifLat !== undefined && exifLon !== undefined;
+  const hasExifGPS = hasLat && hasLon;
 
   if (!hasExifGPS) {
     consola.debug(`Missing GPS coordinates in EXIF for item=${itemTitle}`);
