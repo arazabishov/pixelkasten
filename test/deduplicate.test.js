@@ -18,8 +18,8 @@ describe("deduplicate", () => {
 
     const result = deduplicate(workspace, { verbose: false });
 
-    strictEqual(result.library.size, 0);
-    strictEqual(result.duplicates.size, 0);
+    strictEqual(result.librarySize, 0);
+    strictEqual(result.duplicatesSize, 0);
   });
 
   test("should process single media file without album", () => {
@@ -40,8 +40,8 @@ describe("deduplicate", () => {
 
     const result = deduplicate(workspace, { verbose: false });
 
-    strictEqual(result.library.size, 1);
-    strictEqual(result.duplicates.size, 1);
+    strictEqual(result.librarySize, 1);
+    strictEqual(result.duplicatesSize, 0);
     ok(result.library.has("/test/dir/photo1.jpg"));
     ok(result.duplicates.has("abc123"));
     strictEqual(result.duplicates.get("abc123").length, 0);
@@ -74,8 +74,8 @@ describe("deduplicate", () => {
 
     const result = deduplicate(workspace, { verbose: false });
 
-    strictEqual(result.library.size, 1);
-    strictEqual(result.duplicates.size, 1);
+    strictEqual(result.librarySize, 1);
+    strictEqual(result.duplicatesSize, 1);
     ok(result.library.has("/test/dir/photo1.jpg"));
     ok(result.duplicates.has("abc123"));
     strictEqual(result.duplicates.get("abc123").length, 1);
@@ -118,8 +118,8 @@ describe("deduplicate", () => {
 
     const result = deduplicate(workspace, { verbose: false });
 
-    strictEqual(result.library.size, 1);
-    strictEqual(result.duplicates.size, 1);
+    strictEqual(result.librarySize, 1);
+    strictEqual(result.duplicatesSize, 2);
     strictEqual(result.duplicates.get("abc123").length, 2);
   });
 
@@ -159,8 +159,8 @@ describe("deduplicate", () => {
 
     const result = deduplicate(workspace, { verbose: false });
 
-    strictEqual(result.library.size, 3);
-    strictEqual(result.duplicates.size, 3);
+    strictEqual(result.librarySize, 3);
+    strictEqual(result.duplicatesSize, 0);
     ok(result.library.has("/test/dir/photo1.jpg"));
     ok(result.library.has("/test/dir/photo2.jpg"));
     ok(result.library.has("/test/dir/photo3.jpg"));
@@ -176,7 +176,7 @@ describe("deduplicate", () => {
 
     const result = deduplicate(workspace, { verbose: false });
 
-    strictEqual(result.library.size, 1);
+    strictEqual(result.librarySize, 0);
     ok(result.library.has("/test/albums/vacation"));
     const album = result.library.get("/test/albums/vacation");
     ok(album.metadata);
@@ -213,7 +213,7 @@ describe("deduplicate", () => {
 
     const result = deduplicate(workspace, { verbose: false });
 
-    strictEqual(result.library.size, 1);
+    strictEqual(result.librarySize, 2);
     ok(result.library.has("/test/albums/vacation"));
     const album = result.library.get("/test/albums/vacation");
     strictEqual(album.items.length, 2);
@@ -250,7 +250,8 @@ describe("deduplicate", () => {
 
     const result = deduplicate(workspace, { verbose: false });
 
-    strictEqual(result.library.size, 1);
+    strictEqual(result.librarySize, 1);
+    strictEqual(result.duplicatesSize, 1);
     const album = result.library.get("/test/albums/vacation");
     strictEqual(album.items.length, 1);
     strictEqual(album.items[0].media.entry.name, "photo1.jpg");
@@ -288,7 +289,7 @@ describe("deduplicate", () => {
 
     const result = deduplicate(workspace, { verbose: false });
 
-    strictEqual(result.library.size, 2);
+    strictEqual(result.librarySize, 2);
     ok(result.library.has("/test/albums/vacation"));
     ok(result.library.has("/test/dir/photo2.jpg"));
     const album = result.library.get("/test/albums/vacation");
@@ -324,7 +325,8 @@ describe("deduplicate", () => {
 
     const result = deduplicate(workspace, { verbose: false });
 
-    strictEqual(result.library.size, 1);
+    strictEqual(result.librarySize, 1);
+    strictEqual(result.duplicatesSize, 1);
     const album = result.library.get("/test/albums/vacation");
     strictEqual(album.items.length, 1);
     strictEqual(album.items[0].media.entry.name, "photo1.jpg");
@@ -363,7 +365,7 @@ describe("deduplicate", () => {
 
     const result = deduplicate(workspace, { verbose: false });
 
-    strictEqual(result.library.size, 2);
+    strictEqual(result.librarySize, 2);
     ok(result.library.has("/test/albums/vacation"));
     ok(result.library.has("/test/albums/birthday"));
     strictEqual(result.library.get("/test/albums/vacation").items.length, 1);
@@ -389,6 +391,7 @@ describe("deduplicate", () => {
 
     const result = deduplicate(workspace, { verbose: false });
 
+    strictEqual(result.librarySize, 1);
     const entry = result.library.get("/test/dir/photo1.jpg");
     ok(entry.media);
     ok(entry.metadata);
@@ -460,7 +463,8 @@ describe("deduplicate", () => {
     };
 
     const result = deduplicate(workspace, { verbose: false });
-    strictEqual(result.library.size, 3);
+    strictEqual(result.librarySize, 4);
+    strictEqual(result.duplicatesSize, 2);
 
     const vacation = result.library.get("/albums/vacation");
     strictEqual(vacation.items.length, 2);
@@ -470,7 +474,6 @@ describe("deduplicate", () => {
 
     ok(result.library.has("/standalone/photo4.jpg"));
 
-    strictEqual(result.duplicates.size, 4);
     strictEqual(result.duplicates.get("sha1").length, 1);
     strictEqual(result.duplicates.get("sha4").length, 1);
   });

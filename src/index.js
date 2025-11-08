@@ -91,13 +91,13 @@ if (options.source && options.destination) {
   // For a new line
   console.info();
 
-  const library = deduplicate(project);
+  const mediaLibrary = deduplicate(project);
 
   // For a new line
   console.info();
 
   // Copy and embed metadata at destination
-  await transform(library, options);
+  await transform(mediaLibrary, options);
 
   // For a new line
   console.info();

@@ -116,45 +116,39 @@ export function deduplicate(workspace) {
     progressBar.stop();
   }
 
-  const duplicatesCount = Array.from(duplicates.values()).reduce(
-    (sum, duplicate) => sum + duplicate.length,
-    0
-  );
+  const { totalMediaFiles, totalDuplicates, totalFiles } = introspect(library, duplicates);
 
-  if (check(mediaEntries, library, duplicates)) {
-    consola.success(`Found ${duplicatesCount} duplicates!`);
-
-    return {
-      library,
-      duplicates,
-      duplicatesCount,
-    };
-  } else {
-    consola.fail(`Failed the integrity check after deduping ❌!`);
-
+  if (totalFiles !== mediaEntries.size) {
+    consola.fail(`After dedupe: expected ${mediaEntries.size} files, found ${totalFiles}`);
     process.exit(1);
   }
+
+  return {
+    library: library,
+    librarySize: totalMediaFiles,
+    duplicates: duplicates,
+    duplicatesSize: totalDuplicates,
+  };
 }
 
-export function check(media, library, duplicates) {
-  let totalMediaFilesInLibrary = 0;
-
+function introspect(library, duplicates) {
+  let totalMediaFiles = 0;
   for (const mediaEntry of library.values()) {
     if (mediaEntry.items && Array.isArray(mediaEntry.items)) {
-      totalMediaFilesInLibrary += mediaEntry.items.length;
+      totalMediaFiles += mediaEntry.items.length;
     } else {
-      totalMediaFilesInLibrary += 1;
+      totalMediaFiles += 1;
     }
   }
 
+  let totalDuplicates = 0;
   for (const duplicate of duplicates.values()) {
-    totalMediaFilesInLibrary += duplicate.length;
+    totalDuplicates += duplicate.length;
   }
 
-  if (totalMediaFilesInLibrary !== media.size) {
-    consola.fail(`After dedupe: expected ${media.size} files, found ${totalMediaFilesInLibrary}`);
-    process.exit(1);
-  }
-
-  return true;
+  return {
+    totalMediaFiles: totalMediaFiles,
+    totalDuplicates: totalDuplicates,
+    totalFiles: totalMediaFiles + totalDuplicates,
+  };
 }

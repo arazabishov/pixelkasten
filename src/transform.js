@@ -5,86 +5,13 @@ import { join, basename } from "path";
 import { execa } from "execa";
 import { canShowProgress } from "./logging.js";
 import { extensions } from "./fs.js";
-import { normalizeMetadataName } from "./workspace.js";
 
-// TODO: add support for dryRun
-export async function transform(library, { destination, dryRun }) {
-  // Ensure that directory exists before writing anything to it
-  await mkdir(destination, { recursive: true });
+export async function transform(mediaLibrary, options) {
+  const { library, librarySize, duplicatesSize } = mediaLibrary;
+  const { source, destination, dryRun } = options;
 
-  for (const [entryPath, entry] of library) {
-    if (entry.items && Array.isArray(entry.items)) {
-      // This is an album
-      const albumName = basename(entryPath);
-      const albumPath = join(destination, albumName);
-
-      await mkdir(albumPath, { recursive: true });
-
-      for (const mediaEntry of entry.items) {
-        await copyEntry(mediaEntry, albumPath);
-      }
-    } else {
-      // This is a media file
-      await copyEntry(entry, destination);
-    }
-  }
-}
-
-async function copyEntry(mediaEntry, directory) {
-  const { media, metadata } = mediaEntry;
-
-  const mediaPathSource = join(media.entry.path, media.entry.name);
-  const mediaPathDestination = join(directory, media.entry.name);
-
-  await copyFile(mediaPathSource, mediaPathDestination);
-
-  if (metadata) {
-    // TODO: this is temporary code. Once we start embedding metadata
-    // into image's exif, we will not need to copy .json files over.
-    const normalizedMetadataName = `${normalizeMetadataName(metadata.name)}.json`;
-
-    const metadataPathSource = join(metadata.path, metadata.name);
-    const metadataPathDestination = join(directory, normalizedMetadataName);
-
-    await copyFile(metadataPathSource, metadataPathDestination);
-  }
-}
-
-/**
- * Metadata embedding strategy for Google Photos Takeout files.
- *
- * For images, we target EXIF:DateTimeOriginal as the primary timestamp field. This is the EXIF
- * standard for photo capture time, with timezone stored separately in OffsetTimeOriginal. Empirical
- * observation shows that DateTimeOriginal is always present when CreateDate exists, making it the
- * reliable primary field. When missing, we write photoTakenTime from sidecar files to both
- * DateTimeOriginal and OffsetTimeOriginal.
- *
- * For videos, we target QuickTime:CreationDate as the primary timestamp field. This is the user-facing
- * timestamp for MP4/MOV files and must include timezone information or some applications will fail.
- * While QuickTime:CreateDate is always present in video files, CreationDate is sometimes missing.
- * We avoid modifying CreateDate since it's embedded in the binary header and stored in UTC. When
- * CreationDate is missing, we write photoTakenTime from sidecar files with proper timezone information.
- */
-
-// To ensure that the tool does not miss any critical properties in the sidecar files,
-// we keep track of known properties here.
-const metadataKeys = new Set([
-  "title",
-  "description",
-  "imageViews",
-  "creationTime",
-  "photoTakenTime",
-  "googlePhotosOrigin",
-  "geoDataExif",
-  "geoData",
-  "appSource",
-  "url",
-]);
-
-// TODO: this method will likely need to be submerged into organize file, because we want to combine
-// copy and write actions (we don't want to modify original files).
-export async function embed({ library, duplicatesCount }, source) {
-  const allItems = count(library) + duplicatesCount;
+  // Count all items and compare the result against the result size of exiftool
+  const allItems = librarySize + duplicatesSize;
   const allExifMetadata = await readExifMetadata(source);
 
   if (allItems !== allExifMetadata.size) {
@@ -94,12 +21,16 @@ export async function embed({ library, duplicatesCount }, source) {
     process.exit(1);
   }
 
+  if (!dryRun) {
+    // Ensure that directory exists before writing anything to it
+    await mkdir(destination, { recursive: true });
+  }
+
   // Create progress bar
   const progressBar = canShowProgress()
     ? new cliProgress.SingleBar(
         {
-          format:
-            "⧗ Phase 3: analyzing metadata |{bar}| {percentage}% | {value}/{total} media files",
+          format: `⧗ Phase 3: ${dryRun ? "analyzing" : "embedding"} metadata |{bar}| {percentage}% | {value}/{total} media files`,
           barCompleteChar: "\u2588",
           barIncompleteChar: "\u2591",
           hideCursor: true,
@@ -113,21 +44,25 @@ export async function embed({ library, duplicatesCount }, source) {
   }
 
   const processedItems = [];
-  for (const entry of library.values()) {
+  for (const [entryPath, entry] of library) {
     if (entry.items && Array.isArray(entry.items)) {
-      // We need to parse album metadata files to ensure correct directory names
-      const albumMetadataFilePath = join(entry.metadata.path, entry.metadata.name);
-      const albumMetadata = JSON.parse(await readFile(albumMetadataFilePath));
+      // Extracting the name from the existing directory is more reliable since
+      // album names may contain characters that filesystems don't allow.
+      const albumName = basename(entryPath);
+      const albumDestinationPath = join(destination, albumName);
 
-      consola.debug(`Processing album: ${albumMetadata.title}`);
+      consola.debug(`Processing album: ${albumName}`);
+
+      if (!dryRun) {
+        await mkdir(albumDestinationPath, { recursive: true });
+      }
 
       for (const item of entry.items) {
-        const mediaItemFilePath = join(item.media.entry.path, item.media.entry.name);
-
-        if (item.metadata) {
-          await updateMetadata(item, allExifMetadata);
+        if (!dryRun) {
+          const mediaItemDestinationFilePath = await copyEntry(item, albumDestinationPath);
+          await updateMetadata(allExifMetadata, item, mediaItemDestinationFilePath);
         } else {
-          consola.debug(`Encountered a media item without metadata=${mediaItemFilePath}`);
+          await updateMetadata(allExifMetadata, item);
         }
 
         processedItems.push(item);
@@ -136,12 +71,11 @@ export async function embed({ library, duplicatesCount }, source) {
         }
       }
     } else {
-      const entryFilePath = join(entry.media.entry.path, entry.media.entry.name);
-
-      if (entry.metadata) {
-        await updateMetadata(entry, allExifMetadata);
+      if (!dryRun) {
+        const entryDestinationFilePath = await copyEntry(item, destination);
+        await updateMetadata(allExifMetadata, entry, entryDestinationFilePath);
       } else {
-        consola.debug(`Encountered a media item without metadata=${entryFilePath}`);
+        await updateMetadata(allExifMetadata, entry);
       }
 
       processedItems.push(entry);
@@ -158,58 +92,15 @@ export async function embed({ library, duplicatesCount }, source) {
   consola.success(`Analyzed metadata of ${allItems} media files!`);
 }
 
-function count(library) {
-  // Count total items to process
-  let totalItems = 0;
-  for (const entry of library.values()) {
-    if (entry.items && Array.isArray(entry.items)) {
-      totalItems += entry.items.length;
-    } else {
-      totalItems += 1;
-    }
-  }
+async function copyEntry(mediaEntry, directory) {
+  const { media } = mediaEntry;
 
-  return totalItems;
-}
+  const mediaPathSource = join(media.entry.path, media.entry.name);
+  const mediaPathDestination = join(directory, media.entry.name);
 
-async function updateMetadata(item, allExifMetadata) {
-  const itemMetadataFilePath = join(item.metadata.path, item.metadata.name);
-  const itemMetadata = JSON.parse(await readFile(itemMetadataFilePath));
+  await copyFile(mediaPathSource, mediaPathDestination);
 
-  checkMetadata(itemMetadataFilePath, itemMetadata);
-
-  // Read current EXIF data
-  const mediaItemFilePath = join(item.media.entry.path, item.media.entry.name);
-  const exifData = allExifMetadata.get(mediaItemFilePath);
-
-  if (exifData === undefined) {
-    consola.fail(`Missing metadata for ${mediaItemFilePath}`);
-
-    // If we did not find EXIF metadata, something went wrong.
-    process.exit(1);
-  }
-
-  // Select the best geo data source from sidecar
-  const sidecarGeoData = geoData(itemMetadata);
-
-  // The title will be used only for logging
-  const itemTitle = itemMetadata.title || mediaItemFilePath;
-
-  // Compare GPS data
-  compareGeoData(exifData, sidecarGeoData, itemTitle);
-
-  // Compare date/time
-  compareDateTime(exifData, itemMetadata, itemTitle);
-}
-
-function checkMetadata(metadataFilePath, metadata) {
-  const metadataProperties = new Set(Object.keys(metadata));
-  for (const key of metadataProperties) {
-    if (!metadataKeys.has(key)) {
-      consola.fail(`Encountered an unknown metadata file key=${key} at ${metadataFilePath}`);
-      process.exit(1);
-    }
-  }
+  return mediaPathDestination;
 }
 
 async function readExifMetadata(source) {
@@ -230,14 +121,9 @@ async function readExifMetadata(source) {
       "-Composite:GPSLongitude",
       // This tag is the one that is read by
       "-QuickTime:CreationDate",
-      // It is a part of the QuickTime movie header, which is a part of the binary file.
-      // It is designed to be a universal timestamp, so it is always stored in UTC.
-      "-QuickTime:CreateDate",
       // It is considered to be defacto standard timestamp for images.
       // The timezone value is stored separately in OffsetTimeOriginal.
       "-EXIF:DateTimeOriginal",
-      // Also known as DateTimeDigitized by the EXIF spec.
-      "-EXIF:CreateDate",
       "-json",
       "-n",
       "-r",
@@ -257,6 +143,88 @@ async function readExifMetadata(source) {
 
     // TODO: consider switching to throwing errors instead of explicitly exiting the process
     process.exit(1);
+  }
+}
+
+/**
+ *
+ * For images, we target EXIF:DateTimeOriginal as the primary timestamp field. This is the
+ * EXIF standard for photo capture time, with timezone stored separately in OffsetTimeOriginal.
+ * Empirical observation shows that DateTimeOriginal is always present when CreateDate exists,
+ * making it the reliable primary field. When missing, we write photoTakenTime from sidecar
+ * files to both DateTimeOriginal and OffsetTimeOriginal.
+ *
+ * For videos, we target QuickTime:CreationDate as the primary timestamp field. This is the
+ * user-facing timestamp for MP4/MOV files and must include timezone information or some
+ * applications will fail. While QuickTime:CreateDate is present in video files exported from
+ * Google most of the time, CreationDate is sometimes missing. We avoid modifying CreateDate
+ * since it's embedded in the binary header and stored in UTC. When CreationDate is missing,
+ * we write photoTakenTime from sidecar files with proper timezone information.
+ */
+async function updateMetadata(allExifMetadata, item, itemDestinationFilePath) {
+  const mediaItemFilePath = join(item.media.entry.path, item.media.entry.name);
+
+  if (!item.metadata) {
+    consola.debug(`Encountered a media item without metadata=${mediaItemFilePath}`);
+
+    // If item does not contain metadata, we cannot do much
+    return;
+  }
+
+  const itemMetadataFilePath = join(item.metadata.path, item.metadata.name);
+  const itemMetadata = JSON.parse(await readFile(itemMetadataFilePath));
+
+  checkMetadata(itemMetadataFilePath, itemMetadata);
+
+  // Read current EXIF data
+  const exifData = allExifMetadata.get(mediaItemFilePath);
+
+  if (exifData === undefined) {
+    consola.fail(`Missing metadata for ${mediaItemFilePath}`);
+
+    // If we did not find EXIF metadata, something went wrong.
+    process.exit(1);
+  }
+
+  // Select the best geo data source from sidecar
+  const sidecarGeoData = geoData(itemMetadata);
+
+  // The title will be used only for logging
+  const itemTitle = itemMetadata.title || mediaItemFilePath;
+
+  // Compare date/time
+  const updateDateTimeArgs = updateDateTime(exifData, itemMetadata, itemTitle);
+
+  if (updateDateTimeArgs.length > 0) {
+    console.log("Received args:", updateDateTimeArgs, itemTitle);
+  }
+
+  // Compare GPS data
+  compareGeoData(exifData, sidecarGeoData, itemTitle);
+}
+
+function checkMetadata(metadataFilePath, metadata) {
+  // To ensure that the tool does not miss any critical properties in the sidecar files,
+  // we keep track of known properties here.
+  const metadataKeys = new Set([
+    "title",
+    "description",
+    "imageViews",
+    "creationTime",
+    "photoTakenTime",
+    "googlePhotosOrigin",
+    "geoDataExif",
+    "geoData",
+    "appSource",
+    "url",
+  ]);
+
+  const metadataProperties = new Set(Object.keys(metadata));
+  for (const key of metadataProperties) {
+    if (!metadataKeys.has(key)) {
+      consola.fail(`Encountered an unknown metadata file key=${key} at ${metadataFilePath}`);
+      process.exit(1);
+    }
   }
 }
 
@@ -311,80 +279,73 @@ function compareGeoData(exifData, sidecarGeoData, itemTitle) {
   }
 }
 
-function compareDateTime(exifData, sidecarMetadata, itemTitle) {
-  // DateTimeOriginal is normally found in EXIF/image metadata. It is considered
-  // to be defacto standard timestamp for images. The timezone value is
-  // stored separately in OffsetTimeOriginal.
-  const dateTimeOriginal = exifData.DateTimeOriginal;
+function updateDateTime(metadata, sidecarMetadata, itemTitle) {
+  // This timestamp, if present, points at datetime when media was taken.
+  const photoTakenTimestamp = transformPhotoTakenTime(sidecarMetadata.photoTakenTime);
 
-  // CreateDate can be found both in videos and images.
-  const createDate = exifData.CreateDate;
+  // We need the file extension to prepare appropriate args for exiftool.
+  const extension = `.${metadata.FileTypeExtension.toLowerCase()}`;
 
-  // CreationDate is mostly found in metadata files for video.
-  const creationDate = exifData.CreationDate;
-
-  // TODO: it looks like QuickTime:CreateDate is a critical timestamp and should be
-  // present almost always in .mp4 and .mov files. Let's check if that's true
-  const extension = `.${exifData.FileTypeExtension.toLowerCase()}`;
   if (extensions.videos.includes(extension)) {
-    // if (!creationDate) {
-    //   console.log(exifData);
-    //   console.log(`Missing QuickTime:CreationDate in metadata for item=${itemTitle}`);
-    // }
-    // if (!createDate) {
-    //   console.log(exifData);
-    //   console.log(`Missing QuickTime:CreateDate in metadata for item=${itemTitle}`);
-    // }
-    // ===================================
-    // Observation: it looks like CreateDate is always present in video files, but CreationDate is sometimes missing.
-    // What is also interesting is that when CreationDate is missing, CreateDate matches photoTakenTime available in sidecar.
-    // I think it would make sense to go ahead and write photoTakenTime into CreationDate, and call it a day. Given that
-    // CreateDate is embedded into binary data itself, we likely should not be touching it at all.
-    // ====
-    // - What is not very clear to me, should I overwrite CreateDate in various headers? IMO, it does not make sense?
-    // - CreationDate must have timezone, otherwise some apps freak out.
-  }
+    if (!metadata.CreationDate) {
+      consola.debug(`The video file=${itemTitle} is missing QuickTime:CreationDate`);
 
-  if (extensions.images.includes(extension)) {
-    // if (!dateTimeOriginal) {
-    //   console.log(exifData);
-    //   console.log(`Missing EXIF:DateTimeOriginal in metadata for item=${itemTitle}`);
-    // }
-    // if (!createDate) {
-    //   console.log(exifData);
-    //   console.log(`Missing EXIF:CreateDate in metadata for item=${itemTitle}`);
-    // }
-    // if (createDate && !dateTimeOriginal) {
-    //   console.log(exifData);
-    //   console.log(`Missing EXIF:CreateDate in metadata for item=${itemTitle}`);
-    // }
-    // Observation: it does not look like there is a scenario where CreateDate is present, but DateTimeOriginal does not.
-    // I lean towards an approach where:
-    //   - If DateTimeOriginal is not present, parse photoTakenTime, write its value into DateTimeOriginal + OffsetTimeOriginal (probably always will be UTC).
-    //   - It is not very clear to me, if I should write into CreateDate as well?
-  }
-
-  // Only report if EXIF is missing both date fields
-  if (!dateTimeOriginal && !createDate && !creationDate) {
-    const photoTakenTimestamp = sidecarMetadata.photoTakenTime?.timestamp;
-    const creationTimestamp = sidecarMetadata.creationTime?.timestamp;
-
-    if (photoTakenTimestamp || creationTimestamp) {
-      consola.debug(`Missing date/time in EXIF for item=${itemTitle}`);
-
-      if (photoTakenTimestamp) {
-        const sidecarDate = new Date(parseInt(photoTakenTimestamp) * 1000);
-        consola.debug(
-          `  Sidecar has photoTakenTime: ${sidecarDate.toISOString()} (timestamp=${photoTakenTimestamp})`
-        );
-      }
-
-      if (creationTimestamp) {
-        const sidecarDate = new Date(parseInt(creationTimestamp) * 1000);
-        consola.debug(
-          `  Sidecar has creationTime: ${sidecarDate.toISOString()} (timestamp=${creationTimestamp})`
-        );
-      }
+      // We use CreationDate since that's what most apps use in UX. Also, based on experience,
+      // data taken out from Google Photos almost always has QuickTime:CreateDate set already.
+      return [`-CreationDate="${photoTakenTimestamp}"`];
     }
+  } else if (extensions.images.includes(extension)) {
+    if (!metadata.DateTimeOriginal) {
+      consola.debug(`The image file=${itemTitle} is missing EXIF:DateTimeOriginal`);
+
+      // We use SubSecDateTimeOriginal to update both EXIF:DateTimeOriginal and EXIF:OffsetTimeOriginal properties.
+      // The timezone offset will always be set to +00:00 (UTC), because that's what we get from Google.
+      return [`-SubSecDateTimeOriginal="${photoTakenTimestamp}"`];
+    }
+  } else {
+    // Fail early if we encounter unsupported file type
+    throw new Error(`Encountered unsupported file type=${extension} for file=${itemTitle}`);
   }
+
+  // Returning an empty array means that we do not need to update the datetime timestamps.
+  return [];
+}
+
+export function transformPhotoTakenTime(photoTakenTime) {
+  if (!photoTakenTime || !photoTakenTime.timestamp) {
+    throw new Error("Invalid photoTakenTime: missing timestamp property");
+  }
+
+  const timestamp = photoTakenTime.timestamp;
+
+  // Parse the timestamp (it's in seconds, not milliseconds)
+  const timestampSeconds = parseInt(timestamp);
+
+  // Convert to milliseconds for JavaScript Date constructor
+  const timestampMilliseconds = timestampSeconds * 1000;
+
+  // Create Date object (always in UTC since Unix timestamps are UTC-based)
+  const date = new Date(timestampMilliseconds);
+
+  // Validate that we got a valid date
+  if (isNaN(date.getTime())) {
+    throw new Error(`Failed to parse photoTakenTime timestamp: ${timestamp}`);
+  }
+
+  // Helper function for padding
+  const pad2 = (num) => String(num).padStart(2, "0");
+
+  // Get the parts in UTC
+  const YYYY = date.getUTCFullYear();
+
+  // getUTCMonth() is 0-indexed
+  const MM = pad2(date.getUTCMonth() + 1);
+  const DD = pad2(date.getUTCDate());
+  const HH = pad2(date.getUTCHours());
+  const mm = pad2(date.getUTCMinutes());
+  const ss = pad2(date.getUTCSeconds());
+
+  // Assemble the string: the timezone always will be in UTC,
+  // because that's what we get from Google.
+  return `${YYYY}:${MM}:${DD} ${HH}:${mm}:${ss}+00:00`;
 }
