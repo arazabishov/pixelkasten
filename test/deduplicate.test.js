@@ -1,6 +1,6 @@
 import { test, describe, before, after } from "node:test";
 import { strictEqual, ok } from "node:assert";
-import { deduplicate } from "../src/organize.js";
+import { deduplicate } from "../src/deduplicate.js";
 import { consola } from "consola";
 
 describe("deduplicate", () => {

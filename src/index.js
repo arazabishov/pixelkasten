@@ -5,7 +5,7 @@ import { consola } from "consola";
 import { workspace } from "./workspace.js";
 import { extensions } from "./fs.js";
 import { extname } from "path";
-import { deduplicate } from "./organize.js";
+import { deduplicate } from "./deduplicate.js";
 import CliTable3 from "cli-table3";
 import { embed, dump } from "./export.js";
 
