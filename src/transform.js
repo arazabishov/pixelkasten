@@ -114,16 +114,14 @@ async function readExifMetadata(source) {
     // By reading composite properties, we let exiftool do the heavy lifting and account for differences in metadata formats:
     // QuickTime stores these values in GPSCoordinates, while EXIF uses separate fields like GPSLatitude.
     const { stdout } = await execa("exiftool", [
-      // TODO: remove it when done debugging
       "-File:FileTypeExtension",
       "-Composite:GPSAltitude",
       "-Composite:GPSLatitude",
       "-Composite:GPSLongitude",
-      // This tag is the one that is read by
       "-QuickTime:CreationDate",
-      // It is considered to be defacto standard timestamp for images.
-      // The timezone value is stored separately in OffsetTimeOriginal.
       "-EXIF:DateTimeOriginal",
+      "-api",
+      "largefilesupport=1",
       "-json",
       "-n",
       "-r",
@@ -194,13 +192,12 @@ async function updateMetadata(allExifMetadata, item, itemDestinationFilePath) {
 
   // Compare date/time
   const updateDateTimeArgs = updateDateTime(exifData, itemMetadata, itemTitle);
+  const updateGeoDataArgs = updateGeoData(exifData, sidecarGeoData, itemTitle);
+  const updateArgs = updateDateTimeArgs.concat(updateGeoDataArgs);
 
-  if (updateDateTimeArgs.length > 0) {
-    console.log("Received args:", updateDateTimeArgs, itemTitle);
+  if (updateArgs.length > 0) {
+    console.log("Received args:", updateArgs, itemTitle);
   }
-
-  // Compare GPS data
-  compareGeoData(exifData, sidecarGeoData, itemTitle);
 }
 
 function checkMetadata(metadataFilePath, metadata) {
@@ -238,6 +235,8 @@ function hasNonZeroGeoData(geoData) {
   // The values of these fields, when present, normally represent GPS accuracy.
   // There is no direct parallel concept in media file metadata,
   // so we ignore them.
+
+  // TODO: should this condition be revisited?
   return geoData.latitude !== 0 && geoData.longitude !== 0;
 }
 
@@ -255,28 +254,50 @@ function geoData(sidecarMetadata) {
   return null;
 }
 
-function compareGeoData(exifData, sidecarGeoData, itemTitle) {
+function updateGeoData(metadata, sidecarGeoData, itemTitle) {
   if (!sidecarGeoData) {
     // If there is no sidecar metadata, we can simply return
-    return;
+    return [];
   }
 
-  const { data, source } = sidecarGeoData;
-  const exifLat = exifData.GPSLatitude;
-  const exifLon = exifData.GPSLongitude;
+  const hasLat = metadata.GPSLatitude !== undefined && metadata.GPSLatitude !== 0;
+  const hasLon = metadata.GPSLongitude !== undefined && metadata.GPSLongitude !== 0;
+  const hasMetadataGPS = hasLat || hasLon;
 
-  const hasLat = exifLat !== undefined && exifLat !== 0;
-  const hasLon = exifLon !== undefined && exifLon !== 0;
+  if (!hasMetadataGPS) {
+    const { data, source } = sidecarGeoData;
 
-  // Only report if EXIF is missing GPS coordinates
-  const hasExifGPS = hasLat && hasLon;
-
-  if (!hasExifGPS) {
     consola.debug(`Missing GPS coordinates in EXIF for item=${itemTitle}`);
     consola.debug(
       `  Sidecar has source=${source}: lat=${data.latitude}, lon=${data.longitude}, alt=${data.altitude}`
     );
+
+    // We need the file extension to prepare appropriate args for exiftool.
+    const extension = `.${metadata.FileTypeExtension.toLowerCase()}`;
+
+    if (extensions.videos.includes(extension)) {
+      // TODO: check if this works for MP4 files, and other video types?
+
+      // For QuickTime/MP4 files, coordinates need to be written into tags different compared to images.
+      return [`-Keys:GPSCoordinates="${data.latitude}, ${data.longitude}, ${data.altitude}"`];
+    } else if (extensions.images.includes(extension)) {
+      // For some reason, exiftool does not support writing into Composite:GPSAltitude.
+      // Hence, we need to write into GPSAltitude and GPSAltitudeRef separately. GPSAltitudeRef automatically
+      // assigns correct value based on the passed value of altitude. For example: if > 0, it will
+      // write 0 (above sea level), if < 0, it will write 1 (below sea level).
+      return [
+        `-Composite:GPSLatitude=${data.latitude}`,
+        `-Composite:GPSLongitude=${data.longitude}`,
+        `-GPSAltitude=${data.altitude}`,
+        `-GPSAltitudeRef=${data.altitude}`,
+      ];
+    } else {
+      // Fail early if we encounter unsupported file type
+      throw new Error(`Encountered unsupported file type=${extension} for file=${itemTitle}`);
+    }
   }
+
+  return [];
 }
 
 function updateDateTime(metadata, sidecarMetadata, itemTitle) {
