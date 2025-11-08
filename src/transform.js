@@ -1,16 +1,14 @@
 import consola from "consola";
-import { readFile } from "fs/promises";
-import { join } from "path";
-import { execa } from "execa";
 import cliProgress from "cli-progress";
+import { readFile, mkdir, copyFile } from "fs/promises";
+import { join, basename } from "path";
+import { execa } from "execa";
 import { canShowProgress } from "./logging.js";
 import { extensions } from "./fs.js";
-
-import { mkdir, copyFile } from "fs/promises";
-import { basename, join } from "path";
 import { normalizeMetadataName } from "./workspace.js";
 
-export async function dump(library, destination) {
+// TODO: add support for dryRun
+export async function transform(library, { destination, dryRun }) {
   // Ensure that directory exists before writing anything to it
   await mkdir(destination, { recursive: true });
 

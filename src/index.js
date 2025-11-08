@@ -7,7 +7,7 @@ import { extensions } from "./fs.js";
 import { extname } from "path";
 import { deduplicate } from "./deduplicate.js";
 import CliTable3 from "cli-table3";
-import { embed, dump } from "./export.js";
+import { transform } from "./transform.js";
 
 const program = new Command();
 
@@ -96,11 +96,8 @@ if (options.source && options.destination) {
   // For a new line
   console.info();
 
-  await embed(library, options.source);
-
-  if (!options.dryRun) {
-    await dump(library, options.destination);
-  }
+  // Copy and embed metadata at destination
+  await transform(library, options);
 
   // For a new line
   console.info();
