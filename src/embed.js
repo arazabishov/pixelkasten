@@ -6,6 +6,22 @@ import cliProgress from "cli-progress";
 import { canShowProgress } from "./logging.js";
 import { extensions } from "./fs.js";
 
+/**
+ * Metadata embedding strategy for Google Photos Takeout files.
+ *
+ * For images, we target EXIF:DateTimeOriginal as the primary timestamp field. This is the EXIF
+ * standard for photo capture time, with timezone stored separately in OffsetTimeOriginal. Empirical
+ * observation shows that DateTimeOriginal is always present when CreateDate exists, making it the
+ * reliable primary field. When missing, we write photoTakenTime from sidecar files to both
+ * DateTimeOriginal and OffsetTimeOriginal.
+ *
+ * For videos, we target QuickTime:CreationDate as the primary timestamp field. This is the user-facing
+ * timestamp for MP4/MOV files and must include timezone information or some applications will fail.
+ * While QuickTime:CreateDate is always present in video files, CreationDate is sometimes missing.
+ * We avoid modifying CreateDate since it's embedded in the binary header and stored in UTC. When
+ * CreationDate is missing, we write photoTakenTime from sidecar files with proper timezone information.
+ */
+
 // To ensure that the tool does not miss any critical properties in the sidecar files,
 // we keep track of known properties here.
 const metadataKeys = new Set([
@@ -49,7 +65,7 @@ export async function embed({ library, duplicatesCount }, source) {
     : null;
 
   if (canShowProgress()) {
-    progressBar.start(allItems, 0);
+    // progressBar.start(allItems, 0);
   }
 
   const processedItems = [];
@@ -72,7 +88,7 @@ export async function embed({ library, duplicatesCount }, source) {
 
         processedItems.push(item);
         if (canShowProgress()) {
-          progressBar.update(processedItems.length);
+          // progressBar.update(processedItems.length);
         }
       }
     } else {
@@ -86,13 +102,13 @@ export async function embed({ library, duplicatesCount }, source) {
 
       processedItems.push(entry);
       if (canShowProgress()) {
-        progressBar.update(processedItems.length);
+        // progressBar.update(processedItems.length);
       }
     }
   }
 
   if (canShowProgress()) {
-    progressBar.stop();
+    // progressBar.stop();
   }
 
   consola.success(`Analyzed metadata of ${allItems} media files!`);
@@ -163,12 +179,21 @@ async function readExifMetadata(source) {
     // By reading composite properties, we let exiftool do the heavy lifting and account for differences in metadata formats:
     // QuickTime stores these values in GPSCoordinates, while EXIF uses separate fields like GPSLatitude.
     const { stdout } = await execa("exiftool", [
+      // TODO: remove it when done debugging
+      "-File:FileTypeExtension",
       "-Composite:GPSAltitude",
       "-Composite:GPSLatitude",
       "-Composite:GPSLongitude",
+      // This tag is the one that is read by
       "-QuickTime:CreationDate",
+      // It is a part of the QuickTime movie header, which is a part of the binary file.
+      // It is designed to be a universal timestamp, so it is always stored in UTC.
       "-QuickTime:CreateDate",
+      // It is considered to be defacto standard timestamp for images.
+      // The timezone value is stored separately in OffsetTimeOriginal.
       "-EXIF:DateTimeOriginal",
+      // Also known as DateTimeDigitized by the EXIF spec.
+      "-EXIF:CreateDate",
       "-json",
       "-n",
       "-r",
@@ -243,14 +268,57 @@ function compareGeoData(exifData, sidecarGeoData, itemTitle) {
 }
 
 function compareDateTime(exifData, sidecarMetadata, itemTitle) {
-  // DateTimeOriginal is normally found in EXIF/image metadata
+  // DateTimeOriginal is normally found in EXIF/image metadata. It is considered
+  // to be defacto standard timestamp for images. The timezone value is
+  // stored separately in OffsetTimeOriginal.
   const dateTimeOriginal = exifData.DateTimeOriginal;
+
+  // CreateDate can be found both in videos and images.
+  const createDate = exifData.CreateDate;
 
   // CreationDate is mostly found in metadata files for video.
   const creationDate = exifData.CreationDate;
 
-  // CreateDate can be found both in videos and images.
-  const createDate = exifData.CreateDate;
+  // TODO: it looks like QuickTime:CreateDate is a critical timestamp and should be
+  // present almost always in .mp4 and .mov files. Let's check if that's true
+  const extension = `.${exifData.FileTypeExtension.toLowerCase()}`;
+  if (extensions.videos.includes(extension)) {
+    // if (!creationDate) {
+    //   console.log(exifData);
+    //   console.log(`Missing QuickTime:CreationDate in metadata for item=${itemTitle}`);
+    // }
+    // if (!createDate) {
+    //   console.log(exifData);
+    //   console.log(`Missing QuickTime:CreateDate in metadata for item=${itemTitle}`);
+    // }
+    // ===================================
+    // Observation: it looks like CreateDate is always present in video files, but CreationDate is sometimes missing.
+    // What is also interesting is that when CreationDate is missing, CreateDate matches photoTakenTime available in sidecar.
+    // I think it would make sense to go ahead and write photoTakenTime into CreationDate, and call it a day. Given that
+    // CreateDate is embedded into binary data itself, we likely should not be touching it at all.
+    // ====
+    // - What is not very clear to me, should I overwrite CreateDate in various headers? IMO, it does not make sense?
+    // - CreationDate must have timezone, otherwise some apps freak out.
+  }
+
+  if (extensions.images.includes(extension)) {
+    // if (!dateTimeOriginal) {
+    //   console.log(exifData);
+    //   console.log(`Missing EXIF:DateTimeOriginal in metadata for item=${itemTitle}`);
+    // }
+    // if (!createDate) {
+    //   console.log(exifData);
+    //   console.log(`Missing EXIF:CreateDate in metadata for item=${itemTitle}`);
+    // }
+    // if (createDate && !dateTimeOriginal) {
+    //   console.log(exifData);
+    //   console.log(`Missing EXIF:CreateDate in metadata for item=${itemTitle}`);
+    // }
+    // Observation: it does not look like there is a scenario where CreateDate is present, but DateTimeOriginal does not.
+    // I lean towards an approach where:
+    //   - If DateTimeOriginal is not present, parse photoTakenTime, write its value into DateTimeOriginal + OffsetTimeOriginal (probably always will be UTC).
+    //   - It is not very clear to me, if I should write into CreateDate as well?
+  }
 
   // Only report if EXIF is missing both date fields
   if (!dateTimeOriginal && !createDate && !creationDate) {
