@@ -6,9 +6,8 @@ import { workspace } from "./workspace.js";
 import { extensions } from "./fs.js";
 import { extname } from "path";
 import { deduplicate } from "./organize.js";
-import { dump } from "./dump.js";
 import CliTable3 from "cli-table3";
-import { embed } from "./embed.js";
+import { embed, dump } from "./export.js";
 
 const program = new Command();
 
