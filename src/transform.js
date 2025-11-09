@@ -72,7 +72,7 @@ export async function transform(mediaLibrary, options) {
       }
     } else {
       if (!dryRun) {
-        const entryDestinationFilePath = await copyEntry(item, destination);
+        const entryDestinationFilePath = await copyEntry(entry, destination);
         await updateMetadata(allExifMetadata, entry, entryDestinationFilePath);
       } else {
         await updateMetadata(allExifMetadata, entry);
@@ -196,7 +196,25 @@ async function updateMetadata(allExifMetadata, item, itemDestinationFilePath) {
   const updateArgs = updateDateTimeArgs.concat(updateGeoDataArgs);
 
   if (updateArgs.length > 0) {
-    console.log("Received args:", updateArgs, itemTitle);
+    const args = [itemDestinationFilePath, ...updateArgs, "-api", "largefilesupport=1"];
+
+    console.log();
+    console.log("args:", args);
+
+    try {
+      const { stdout } = await execa("exiftool", args);
+
+      // temporary
+      console.log(stdout);
+    } catch (error) {
+      consola.fail(
+        `Failed to write metadata to destination file ${itemDestinationFilePath}:`,
+        error
+      );
+
+      // TODO: consider switching to throwing errors instead of explicitly exiting the process
+      process.exit(1);
+    }
   }
 }
 
@@ -295,7 +313,7 @@ function updateGeoData(metadata, sidecarGeoData, itemTitle) {
       // TODO: check if this works for MP4 files, and other video types?
 
       // For QuickTime/MP4 files, coordinates need to be written into tags different compared to images.
-      return [`-Keys:GPSCoordinates="${data.latitude}, ${data.longitude}, ${data.altitude}"`];
+      return [`-Keys:GPSCoordinates=${data.latitude}, ${data.longitude}, ${data.altitude}`];
     } else if (extensions.images.includes(extension)) {
       // For some reason, exiftool does not support writing into Composite:GPSAltitude.
       // Hence, we need to write into GPSAltitude and GPSAltitudeRef separately. GPSAltitudeRef automatically
@@ -329,7 +347,7 @@ function updateDateTime(metadata, sidecarMetadata, itemTitle) {
 
       // We use CreationDate since that's what most apps use in UX. Also, based on experience,
       // data taken out from Google Photos almost always has QuickTime:CreateDate set already.
-      return [`-CreationDate="${photoTakenTimestamp}"`];
+      return [`-CreationDate=${photoTakenTimestamp}`];
     }
   } else if (extensions.images.includes(extension)) {
     if (!metadata.DateTimeOriginal) {
@@ -337,7 +355,7 @@ function updateDateTime(metadata, sidecarMetadata, itemTitle) {
 
       // We use SubSecDateTimeOriginal to update both EXIF:DateTimeOriginal and EXIF:OffsetTimeOriginal properties.
       // The timezone offset will always be set to +00:00 (UTC), because that's what we get from Google.
-      return [`-SubSecDateTimeOriginal="${photoTakenTimestamp}"`];
+      return [`-SubSecDateTimeOriginal=${photoTakenTimestamp}`];
     }
   } else {
     // Fail early if we encounter unsupported file type
