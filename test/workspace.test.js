@@ -63,100 +63,116 @@ describe("connect", () => {
   const result = connect(
     new Map([
       [
-        "/test/temporary/directory/IMG_0076.PNG",
-        { sha256: "a1", entry: { path: "/test/temporary/directory", name: "IMG_0076.PNG" } },
+        "/temporary/directory/IMG_0076.PNG",
+        { sha256: "a1", entry: { path: "/temporary/directory", name: "IMG_0076.PNG" } },
       ],
       [
-        "/test/temporary/directory/IMG_0784.MOV",
-        { sha256: "b2", entry: { path: "/test/temporary/directory", name: "IMG_0784.MOV" } },
+        "/temporary/directory/IMG_0784.MOV",
+        { sha256: "b2", entry: { path: "/temporary/directory", name: "IMG_0784.MOV" } },
       ],
       [
-        "/test/temporary/directory/98855-0000.mov",
-        { sha256: "c3", entry: { path: "/test/temporary/directory", name: "98855-0000.mov" } },
+        "/temporary/directory/988555-0000.mov",
+        { sha256: "c3", entry: { path: "/temporary/directory", name: "988555-0000.mov" } },
       ],
       [
-        "/test/temporary/directory/C3D916AEF50.jpg",
-        { sha256: "d4", entry: { path: "/test/temporary/directory", name: "C3D916AEF50.jpg" } },
+        "/temporary/directory/C3D916AEF50.jpg",
+        { sha256: "d4", entry: { path: "/temporary/directory", name: "C3D916AEF50.jpg" } },
       ],
       [
-        "/test/temporary/directory/1804928587.jpg",
-        { sha256: "e5", entry: { path: "/test/temporary/directory", name: "1804928587.jpg" } },
+        "/temporary/directory/1804928587.jpg",
+        { sha256: "e5", entry: { path: "/temporary/directory", name: "1804928587.jpg" } },
       ],
       [
-        "/test/temporary/directory/1804928587(1).jpg",
-        { sha256: "f6", entry: { path: "/test/temporary/directory", name: "1804928587(1).jpg" } },
+        "/temporary/directory/1804928587(1).jpg",
+        { sha256: "f6", entry: { path: "/temporary/directory", name: "1804928587(1).jpg" } },
       ],
       [
-        "/test/temporary/directory/114910784.MP.jpg",
-        { sha256: "g7", entry: { path: "/test/temporary/directory", name: "114910784.MP.jpg" } },
+        "/temporary/directory/11491078.MP.jpg",
+        { sha256: "g7", entry: { path: "/temporary/directory", name: "11491078.MP.jpg" } },
       ],
       [
-        "/test/temporary/directory/FA79581F10E4.jpeg",
-        { sha256: "h8", entry: { path: "/test/temporary/directory", name: "FA79581F10E4.jpeg" } },
+        "/temporary/directory/FA79581F10E4.jpeg",
+        { sha256: "h8", entry: { path: "/temporary/directory", name: "FA79581F10E4.jpeg" } },
       ],
       [
-        "/test/temporary/directory/IMG_0785.HEIC",
-        { sha256: "i9", entry: { path: "/test/temporary/directory", name: "IMG_0785.HEIC" } },
+        "/temporary/directory/IMG_0785.HEIC",
+        { sha256: "i9", entry: { path: "/temporary/directory", name: "IMG_0785.HEIC" } },
       ],
       [
-        "/test/temporary/directory/IMG_0785.MP4",
-        { sha256: "j0", entry: { path: "/test/temporary/directory", name: "IMG_0785.MP4" } },
+        "/temporary/directory/IMG_0785.MP4",
+        { sha256: "j0", entry: { path: "/temporary/directory", name: "IMG_0785.MP4" } },
       ],
       [
-        "/test/temporary/directory/IMG_0792.MP4",
-        { sha256: "k1", entry: { path: "/test/temporary/directory", name: "IMG_0792.MP4" } },
+        "/temporary/directory/IMG_0792.MP4",
+        { sha256: "k1", entry: { path: "/temporary/directory", name: "IMG_0792.MP4" } },
       ],
       [
-        "/test/temporary/directory/114910784.MP",
-        { sha256: "l2", entry: { path: "/test/temporary/directory", name: "114910784.MP" } },
+        "/temporary/directory/11491078.MP",
+        { sha256: "l2", entry: { path: "/temporary/directory", name: "11491078.MP" } },
+      ],
+      [
+        "/temporary/directory/IMG_0076-edited.PNG",
+        { sha256: "m1", entry: { path: "/temporary/directory", name: "IMG_0076-edited.PNG" } },
+      ],
+      [
+        "/temporary/directory/PXL_202501-edited.jpg",
+        { sha256: "n1", entry: { path: "/temporary/directory", name: "PXL_202501-edited.jpg" } },
+      ],
+      [
+        "/temporary/directory/11491078-edited.MP.jpg",
+        { sha256: "o1", entry: { path: "/temporary/directory", name: "11491078-edited.MP.jpg" } },
       ],
     ]),
     new Map([
       [
-        "/test/temporary/directory/IMG_0076.PNG",
-        { path: "/test/temporary/directory", name: "IMG_0076.PNG.supplemental-metadata.json" },
+        "/temporary/directory/IMG_0076.PNG",
+        { path: "/temporary/directory", name: "IMG_0076.PNG.supplemental-metadata.json" },
       ],
       [
-        "/test/temporary/directory/IMG_0784.MOV",
-        { path: "/test/temporary/directory", name: "IMG_0784.MOV.supplemental-metadata.json" },
+        "/temporary/directory/IMG_0784.MOV",
+        { path: "/temporary/directory", name: "IMG_0784.MOV.supplemental-metadata.json" },
       ],
       [
-        "/test/temporary/directory/98855-000",
-        { path: "/test/temporary/directory", name: "98855-000.json" },
+        "/temporary/directory/988555-000",
+        { path: "/temporary/directory", name: "988555-000.json" },
       ],
       [
-        "/test/temporary/directory/C3D916AEF50D.jpg",
-        { path: "/test/temporary/directory", name: "C3D916AEF50D.jpg.suppl.json" },
+        "/temporary/directory/C3D916AEF50D.jpg",
+        { path: "/temporary/directory", name: "C3D916AEF50D.jpg.suppl.json" },
       ],
       [
-        "/test/temporary/directory/1804928587.jpg",
-        { path: "/test/temporary/directory", name: "1804928587.jpg.supplemental-metadata.json" },
+        "/temporary/directory/1804928587.jpg",
+        { path: "/temporary/directory", name: "1804928587.jpg.supplemental-metadata.json" },
       ],
       [
-        "/test/temporary/directory/1804928587(1).jpg",
-        { path: "/test/temporary/directory", name: "1804928587.jpg.supplemental-metadata(1).json" },
+        "/temporary/directory/1804928587(1).jpg",
+        { path: "/temporary/directory", name: "1804928587.jpg.supplemental-metadata(1).json" },
       ],
       [
-        "/test/temporary/directory/114910784.MP.jpg",
-        { path: "/test/temporary/directory", name: "114910784.MP.jpg.supplemental-met.json" },
+        "/temporary/directory/11491078.MP.jpg",
+        { path: "/temporary/directory", name: "11491078.MP.jpg.supplemental-met.json" },
       ],
       [
-        "/test/temporary/directory/FA79581F10E4.jpeg.",
-        { path: "/test/temporary/directory", name: "FA79581F10E4.jpeg..json" },
+        "/temporary/directory/FA79581F10E4.jpeg.",
+        { path: "/temporary/directory", name: "FA79581F10E4.jpeg..json" },
       ],
       [
-        "/test/temporary/directory/IMG_0785.HEIC",
-        { path: "/test/temporary/directory", name: "IMG_0785.HEIC.supplemental-metadata.json" },
+        "/temporary/directory/IMG_0785.HEIC",
+        { path: "/temporary/directory", name: "IMG_0785.HEIC.supplemental-metadata.json" },
+      ],
+      [
+        "/temporary/directory/PXL_202501.jpg",
+        { path: "/temporary/directory", name: "PXL_202501.jpg.json" },
       ],
     ])
   );
 
   test("should return correct total number of media entries", () => {
-    strictEqual(result.size, 12);
+    strictEqual(result.size, 15);
   });
 
   test("should match exact metadata - IMG_0076.PNG", () => {
-    const entry = result.get("/test/temporary/directory/IMG_0076.PNG");
+    const entry = result.get("/temporary/directory/IMG_0076.PNG");
     ok(entry.media);
     ok(entry.metadata);
     strictEqual(entry.media.entry.name, "IMG_0076.PNG");
@@ -165,7 +181,7 @@ describe("connect", () => {
   });
 
   test("should match exact metadata - IMG_0784.MOV", () => {
-    const entry = result.get("/test/temporary/directory/IMG_0784.MOV");
+    const entry = result.get("/temporary/directory/IMG_0784.MOV");
     ok(entry.media);
     ok(entry.metadata);
     strictEqual(entry.media.entry.name, "IMG_0784.MOV");
@@ -173,17 +189,17 @@ describe("connect", () => {
     strictEqual(entry.metadata.name, "IMG_0784.MOV.supplemental-metadata.json");
   });
 
-  test("should match truncated metadata - 98855 video", () => {
-    const entry = result.get("/test/temporary/directory/98855-0000.mov");
+  test("should match truncated metadata - 988555 video", () => {
+    const entry = result.get("/temporary/directory/988555-0000.mov");
     ok(entry.media);
     ok(entry.metadata);
-    strictEqual(entry.media.entry.name, "98855-0000.mov");
+    strictEqual(entry.media.entry.name, "988555-0000.mov");
     strictEqual(entry.media.sha256, "c3");
-    strictEqual(entry.metadata.name, "98855-000.json");
+    strictEqual(entry.metadata.name, "988555-000.json");
   });
 
   test("should match truncated metadata - C3D916", () => {
-    const entry = result.get("/test/temporary/directory/C3D916AEF50.jpg");
+    const entry = result.get("/temporary/directory/C3D916AEF50.jpg");
     ok(entry.media);
     ok(entry.metadata);
     strictEqual(entry.media.entry.name, "C3D916AEF50.jpg");
@@ -192,7 +208,7 @@ describe("connect", () => {
   });
 
   test("should match duplicate marker - original", () => {
-    const entry = result.get("/test/temporary/directory/1804928587.jpg");
+    const entry = result.get("/temporary/directory/1804928587.jpg");
     ok(entry.media);
     ok(entry.metadata);
     strictEqual(entry.media.entry.name, "1804928587.jpg");
@@ -201,7 +217,7 @@ describe("connect", () => {
   });
 
   test("should match duplicate marker - (1)", () => {
-    const entry = result.get("/test/temporary/directory/1804928587(1).jpg");
+    const entry = result.get("/temporary/directory/1804928587(1).jpg");
     ok(entry.media);
     ok(entry.metadata);
     strictEqual(entry.media.entry.name, "1804928587(1).jpg");
@@ -210,16 +226,16 @@ describe("connect", () => {
   });
 
   test("should match double extension - .MP.jpg", () => {
-    const entry = result.get("/test/temporary/directory/114910784.MP.jpg");
+    const entry = result.get("/temporary/directory/11491078.MP.jpg");
     ok(entry.media);
     ok(entry.metadata);
-    strictEqual(entry.media.entry.name, "114910784.MP.jpg");
+    strictEqual(entry.media.entry.name, "11491078.MP.jpg");
     strictEqual(entry.media.sha256, "g7");
-    strictEqual(entry.metadata.name, "114910784.MP.jpg.supplemental-met.json");
+    strictEqual(entry.metadata.name, "11491078.MP.jpg.supplemental-met.json");
   });
 
   test("should match double-dot extension - FA7958", () => {
-    const entry = result.get("/test/temporary/directory/FA79581F10E4.jpeg");
+    const entry = result.get("/temporary/directory/FA79581F10E4.jpeg");
     ok(entry.media);
     ok(entry.metadata);
     strictEqual(entry.media.entry.name, "FA79581F10E4.jpeg");
@@ -228,7 +244,7 @@ describe("connect", () => {
   });
 
   test("should match Live Photo pairs separately - HEIC with metadata", () => {
-    const heic = result.get("/test/temporary/directory/IMG_0785.HEIC");
+    const heic = result.get("/temporary/directory/IMG_0785.HEIC");
     ok(heic.media);
     ok(heic.metadata);
     strictEqual(heic.media.entry.name, "IMG_0785.HEIC");
@@ -236,7 +252,7 @@ describe("connect", () => {
   });
 
   test("should match Live Photo pairs separately - MP4 without metadata", () => {
-    const mp4 = result.get("/test/temporary/directory/IMG_0785.MP4");
+    const mp4 = result.get("/temporary/directory/IMG_0785.MP4");
     ok(mp4.media);
     strictEqual(mp4.metadata, undefined);
     strictEqual(mp4.media.entry.name, "IMG_0785.MP4");
@@ -244,18 +260,45 @@ describe("connect", () => {
   });
 
   test("should include orphan media - IMG_0792.MP4", () => {
-    const entry = result.get("/test/temporary/directory/IMG_0792.MP4");
+    const entry = result.get("/temporary/directory/IMG_0792.MP4");
     ok(entry.media);
     strictEqual(entry.metadata, undefined);
     strictEqual(entry.media.entry.name, "IMG_0792.MP4");
     strictEqual(entry.media.sha256, "k1");
   });
 
-  test("should include orphan media - 114910784.MP", () => {
-    const entry = result.get("/test/temporary/directory/114910784.MP");
+  test("should include orphan media - 11491078.MP", () => {
+    const entry = result.get("/temporary/directory/11491078.MP");
     ok(entry.media);
     strictEqual(entry.metadata, undefined);
-    strictEqual(entry.media.entry.name, "114910784.MP");
+    strictEqual(entry.media.entry.name, "11491078.MP");
     strictEqual(entry.media.sha256, "l2");
+  });
+
+  test("should match edited PNG to original metadata", () => {
+    const entry = result.get("/temporary/directory/IMG_0076-edited.PNG");
+    ok(entry.media);
+    ok(entry.metadata);
+    strictEqual(entry.media.entry.name, "IMG_0076-edited.PNG");
+    strictEqual(entry.media.sha256, "m1");
+    strictEqual(entry.metadata.name, "IMG_0076.PNG.supplemental-metadata.json");
+  });
+
+  test("should match edited PXL photo to original metadata", () => {
+    const entry = result.get("/temporary/directory/PXL_202501-edited.jpg");
+    ok(entry.media);
+    ok(entry.metadata);
+    strictEqual(entry.media.entry.name, "PXL_202501-edited.jpg");
+    strictEqual(entry.media.sha256, "n1");
+    strictEqual(entry.metadata.name, "PXL_202501.jpg.json");
+  });
+
+  test("should match edited double extension file to original metadata", () => {
+    const entry = result.get("/temporary/directory/11491078-edited.MP.jpg");
+    ok(entry.media);
+    ok(entry.metadata);
+    strictEqual(entry.media.entry.name, "11491078-edited.MP.jpg");
+    strictEqual(entry.media.sha256, "o1");
+    strictEqual(entry.metadata.name, "11491078.MP.jpg.supplemental-met.json");
   });
 });

@@ -138,7 +138,7 @@ export function connect(mediaFiles, mediaMetadataFiles) {
     const nameWithoutExt = dropExtension(mediaFile.entry.name);
     const prefix = join(mediaFile.entry.path, nameWithoutExt);
 
-    for (const [metadataFilePath, metadataFile] of mediaMetadataFilesUnmatched) {
+    for (const [metadataFilePath, metadataFile] of new Map(mediaMetadataFilesUnmatched)) {
       if (metadataFilePath.startsWith(prefix)) {
         media.set(mediaFilePath, {
           media: mediaFile,
@@ -162,7 +162,7 @@ export function connect(mediaFiles, mediaMetadataFiles) {
     const nameWithoutExt = dropExtension(metadataFile.name);
     const prefix = join(metadataFile.path, nameWithoutExt);
 
-    for (const [mediaFilePath, mediaFile] of mediaFilesUnmatched) {
+    for (const [mediaFilePath, mediaFile] of new Map(mediaFilesUnmatched)) {
       if (mediaFilePath.startsWith(prefix)) {
         // We use mediaFilePath as a key here since the key always
         // has to point at media file, not metadata one
@@ -181,9 +181,32 @@ export function connect(mediaFiles, mediaMetadataFiles) {
     }
   }
 
-  // Iteration 4: place media files that had no metadata into media map
+  // Iteration 4: match "-edited" files and files that had no metadata into media map
   for (const [mediaFilePath, mediaFile] of new Map(mediaFilesUnmatched)) {
-    if (mediaMetadataFiles.has(mediaFilePath)) {
+    // Remove -edited from the full filename, which might appear before any extension
+    const nameWithoutEditedSuffix = mediaFile.entry.name.replace(/-edited(\.|$)/, "$1");
+    const mediaFilePathWithoutEditedSuffix = join(mediaFile.entry.path, nameWithoutEditedSuffix);
+
+    if (
+      mediaMetadataFiles.has(mediaFilePathWithoutEditedSuffix) ||
+      mediaMetadataFilesUnmatched.has(mediaFilePathWithoutEditedSuffix)
+    ) {
+      const metadataFile = mediaMetadataFiles.get(mediaFilePathWithoutEditedSuffix);
+
+      // We used mediaFilePathWithoutEditedSuffix for look-up of metadata file only. We still use
+      // mediaFilePath as a key since the key always has to point at media file
+      media.set(mediaFilePath, {
+        media: mediaFile,
+        metadata: metadataFile,
+      });
+
+      // Ensure the entry is deleted to pass through the integrity check at the end.
+      mediaMetadataFilesUnmatched.delete(mediaFilePathWithoutEditedSuffix);
+
+      consola.debug("Matched edited media file to metadata file 🎉");
+      consola.debug(`  File:     ${join(mediaFile.entry.path, mediaFile.entry.name)}`);
+      consola.debug(`  Metadata: ${join(metadataFile.path, metadataFile.name)}`);
+    } else if (mediaMetadataFiles.has(mediaFilePath)) {
       consola.fail(`Encountered a conflict at the following path: ${mediaFilePath}`);
     } else {
       media.set(mediaFilePath, {

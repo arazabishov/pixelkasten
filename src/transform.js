@@ -254,6 +254,22 @@ function geoData(sidecarMetadata) {
   return null;
 }
 
+// What other file types can we expect from Google Photos besides the ones that
+// already present in extensions?
+
+// Now, all that works for jpegs, RAW files (.NEF, .CR2), and tiffs. For PNGs, that command would work but
+// most software has poor support of metadata in PNG files, so some minor changes would need
+// to be made. For example, to get the time stamp to show up under windows, you would
+// use PNG:CreationTime instead of Alldates.
+
+// For MP4, Mov, and CR3 files, also, the above command would work, but most of that data might not be in
+// the best place, as exiftool would be mostly writing to the XMP group which Adobe programs would read
+// fine but other programs may not.
+
+// So double-check your files to make sure you're not overwriting the original data, because when it comes
+// to the date/time values, Google saves it as UTC, not the original time. Copying from the Google takeout
+// files overwrites the correct date with an incorrect one.
+
 function updateGeoData(metadata, sidecarGeoData, itemTitle) {
   if (!sidecarGeoData) {
     // If there is no sidecar metadata, we can simply return
