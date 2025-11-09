@@ -292,6 +292,10 @@ export function check({ entries, media, albums, directories, unsupportedEntries 
   const unlinkedMetadataFiles = [];
   const mediaFiles = [];
 
+  // One metadata file can be linked to one or more media files, and that's because -edited
+  // images reference the metadata file of the original.
+  const metadataFiles = new Set();
+
   for (const [mediaFilePath, mediaFile] of media) {
     if (!mediaFile.metadata && !mediaFile.media) {
       // Encountered an empty entry.
@@ -308,6 +312,11 @@ export function check({ entries, media, albums, directories, unsupportedEntries 
     } else {
       // Media file is linked correctly.
       mediaFiles.push(mediaFile);
+
+      const metadataFile = mediaFile.metadata;
+      const metadataFilePath = join(metadataFile.path, metadataFile.name);
+
+      metadataFiles.add(metadataFilePath);
     }
   }
 
@@ -319,8 +328,7 @@ export function check({ entries, media, albums, directories, unsupportedEntries 
     process.exit(1);
   }
 
-  // The reason why mediaFiles is multiplied by two is that one entry corresponds to two files: media and metadata files.
-  const totalMediaFiles = mediaFiles.length * 2 + unlinkedMediaFiles.length;
+  const totalMediaFiles = mediaFiles.length + metadataFiles.size + unlinkedMediaFiles.length;
   const totalFiles = totalMediaFiles + unsupportedEntries.size + directories.size + albums.size;
 
   if (entries !== totalFiles) {
