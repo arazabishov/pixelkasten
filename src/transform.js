@@ -196,7 +196,13 @@ async function updateMetadata(allExifMetadata, item, itemDestinationFilePath) {
   const updateArgs = updateDateTimeArgs.concat(updateGeoDataArgs);
 
   if (updateArgs.length > 0) {
-    const args = [itemDestinationFilePath, ...updateArgs, "-api", "largefilesupport=1"];
+    const args = [
+      itemDestinationFilePath,
+      ...updateArgs,
+      "-api",
+      "largefilesupport=1",
+      "-overwrite_original_in_place",
+    ];
 
     console.log();
     console.log("args:", args);
