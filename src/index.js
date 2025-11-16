@@ -9,6 +9,7 @@ import { deduplicate } from "./deduplicate.js";
 import CliTable3 from "cli-table3";
 import { transform } from "./transform.js";
 import { scan } from "./stages/scan.js";
+import { runPipeline } from "./pipeline.js";
 
 const program = new Command();
 
@@ -44,9 +45,7 @@ if (options.source && options.destination) {
     consola.warn("Dry run mode - no files will be modified");
   }
 
-  // here for testing
-  const directories = await scan(options.source);
-  console.log(directories.filesOtherIgnored);
+  await runPipeline(options);
 
   // // Phase 1: scan files, calculate hashes, and link metadata
   // const project = await workspace(options.source);
