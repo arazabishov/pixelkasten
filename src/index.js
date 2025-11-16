@@ -8,6 +8,7 @@ import { extname } from "path";
 import { deduplicate } from "./deduplicate.js";
 import CliTable3 from "cli-table3";
 import { transform } from "./transform.js";
+import { scan } from "./stages/scan.js";
 
 const program = new Command();
 
@@ -43,64 +44,68 @@ if (options.source && options.destination) {
     consola.warn("Dry run mode - no files will be modified");
   }
 
-  // Phase 1: scan files, calculate hashes, and link metadata
-  const project = await workspace(options.source);
+  // here for testing
+  const directories = await scan(options.source);
+  console.log(directories.filesOtherIgnored);
 
-  // Collect stats for transparency
-  const projectStats = {
-    images: 0,
-    imagesWithoutMetadata: 0,
-    videos: 0,
-    videosWithoutMetadata: 0,
-    others: 0,
-  };
+  // // Phase 1: scan files, calculate hashes, and link metadata
+  // const project = await workspace(options.source);
 
-  for (const mediaFile of project.media.values()) {
-    const { entry } = mediaFile.media;
-    const ext = extname(entry.name).toLowerCase();
+  // // Collect stats for transparency
+  // const projectStats = {
+  //   images: 0,
+  //   imagesWithoutMetadata: 0,
+  //   videos: 0,
+  //   videosWithoutMetadata: 0,
+  //   others: 0,
+  // };
 
-    if (extensions.images.includes(ext)) {
-      projectStats.images += 1;
+  // for (const mediaFile of project.media.values()) {
+  //   const { entry } = mediaFile.media;
+  //   const ext = extname(entry.name).toLowerCase();
 
-      if (!mediaFile.metadata) {
-        projectStats.imagesWithoutMetadata += 1;
-      }
-    } else if (extensions.videos.includes(ext)) {
-      projectStats.videos += 1;
+  //   if (extensions.images.includes(ext)) {
+  //     projectStats.images += 1;
 
-      if (!mediaFile.metadata) {
-        projectStats.videosWithoutMetadata += 1;
-      }
-    } else {
-      projectStats.others += 1;
-    }
-  }
+  //     if (!mediaFile.metadata) {
+  //       projectStats.imagesWithoutMetadata += 1;
+  //     }
+  //   } else if (extensions.videos.includes(ext)) {
+  //     projectStats.videos += 1;
 
-  const projectStatsTable = new CliTable3({ head: ["Category", "Count"] });
-  projectStatsTable.push(
-    ["Total media files", project.media.size],
-    ["Images (total/no metadata)", `${projectStats.images}/${projectStats.imagesWithoutMetadata}`],
-    ["Videos (total/no metadata)", `${projectStats.videos}/${projectStats.videosWithoutMetadata}`],
-    ["Albums", project.albums.size],
-    ["Other files", project.unsupportedEntries.size + projectStats.others]
-  );
+  //     if (!mediaFile.metadata) {
+  //       projectStats.videosWithoutMetadata += 1;
+  //     }
+  //   } else {
+  //     projectStats.others += 1;
+  //   }
+  // }
 
-  // Using console instead of consola here to ensure proper formatting.
-  console.info(projectStatsTable.toString());
+  // const projectStatsTable = new CliTable3({ head: ["Category", "Count"] });
+  // projectStatsTable.push(
+  //   ["Total media files", project.media.size],
+  //   ["Images (total/no metadata)", `${projectStats.images}/${projectStats.imagesWithoutMetadata}`],
+  //   ["Videos (total/no metadata)", `${projectStats.videos}/${projectStats.videosWithoutMetadata}`],
+  //   ["Albums", project.albums.size],
+  //   ["Other files", project.unsupportedEntries.size + projectStats.others]
+  // );
 
-  // For a new line
-  console.info();
+  // // Using console instead of consola here to ensure proper formatting.
+  // console.info(projectStatsTable.toString());
 
-  const mediaLibrary = deduplicate(project);
+  // // For a new line
+  // console.info();
 
-  // For a new line
-  console.info();
+  // const mediaLibrary = deduplicate(project);
 
-  // Copy and embed metadata at destination
-  await transform(mediaLibrary, options);
+  // // For a new line
+  // console.info();
 
-  // For a new line
-  console.info();
+  // // Copy and embed metadata at destination
+  // await transform(mediaLibrary, options);
+
+  // // For a new line
+  // console.info();
 
   consola.success("Finished!");
 } else {
