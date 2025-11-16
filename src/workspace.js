@@ -5,7 +5,7 @@ import { createHash } from "crypto";
 import { createReadStream } from "fs";
 import { consola } from "consola";
 import cliProgress from "cli-progress";
-import { canShowProgress } from "./logging.js";
+import { canShowProgress } from "./logger.js";
 
 export async function workspace(path) {
   const stats = await stat(path);

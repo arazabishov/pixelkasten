@@ -2,7 +2,7 @@ import cliProgress from "cli-progress";
 import { readdir, stat } from "fs/promises";
 import { extname, join } from "path";
 import { allKnownMediaExtensions } from "../handlers/index.js";
-import { canShowProgress } from "../logging.js";
+import { canShowProgress } from "../logger.js";
 
 export async function scan(sourcePath) {
   // Let's ensure that sourcePath exists and it is a directory.

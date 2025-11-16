@@ -10,6 +10,7 @@ import CliTable3 from "cli-table3";
 import { transform } from "./transform.js";
 import { scan } from "./stages/scan.js";
 import { runPipeline } from "./pipeline.js";
+import { logger } from "./logger.js";
 
 const program = new Command();
 
@@ -28,10 +29,11 @@ program.parse(process.argv);
 
 const options = program.opts();
 
-// Set consola log level based on verbose flag
+// Set log level based on verbose flag
 if (options.verbose) {
   // Show debug messages
   consola.level = 4;
+  logger.verbose = true;
 } else {
   // Default: info, warn, error, success
   consola.level = 3;

@@ -1,5 +1,6 @@
 import CliTable3 from "cli-table3";
 import { relative } from "path";
+import { logger } from "../logger.js";
 
 export function logScanReport(rawCollections, sourcePath) {
   const {
@@ -23,8 +24,7 @@ export function logScanReport(rawCollections, sourcePath) {
     ["All files", filesTotal]
   );
 
-  // TODO: replace consola/console, as it ruins the output of CliTable with prefixed icons
-  console.info(stats.toString());
+  logger.info(stats.toString());
 
   const isOthersEmpty = others.length === 0;
   if (isOthersEmpty) {
@@ -40,5 +40,5 @@ export function logScanReport(rawCollections, sourcePath) {
     filesIgnored.push([relative(sourcePath, file)]);
   }
 
-  console.info(filesIgnored.toString());
+  logger.info(filesIgnored.toString());
 }

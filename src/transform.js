@@ -3,7 +3,7 @@ import cliProgress from "cli-progress";
 import { readFile, mkdir, copyFile } from "fs/promises";
 import { join, basename } from "path";
 import { execa } from "execa";
-import { canShowProgress } from "./logging.js";
+import { canShowProgress } from "./logger.js";
 import { extensions } from "./fs.js";
 
 export async function transform(mediaLibrary, options) {
