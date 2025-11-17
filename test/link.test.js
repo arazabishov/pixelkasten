@@ -255,3 +255,384 @@ describe("link with albums", () => {
     strictEqual(entry2.source.name, "Vacation 2024");
   });
 });
+
+describe("link with truncated filenames", () => {
+  const rawCollections = {
+    filesMedia: [
+      "/temporary/directory/a2345678901234567890123456789012345678901.jpg",
+      "/temporary/directory/b23456789012345678901234567890123456789012.jpg",
+      "/temporary/directory/c234567890123456789012345678901234567890123.jpg",
+      "/temporary/directory/d2345678901234567890123456789012345678901234.jpg",
+      "/temporary/directory/e23456789012345678901234567890123456789012345.jpg",
+      "/temporary/directory/f234567890123456789012345678901234567890123456.jpg",
+      "/temporary/directory/g2345678901234567890123456789012345678901234567.jpg",
+      "/temporary/directory/h2345678901234567890123456789012345678901234567.jpg",
+      "/temporary/directory/i2345678901234567890123456789012345678901234567.jpg",
+    ],
+    filesMetadata: [
+      "/temporary/directory/a2345678901234567890123456789012345678901.jpg.json",
+      "/temporary/directory/b23456789012345678901234567890123456789012.jpg.json",
+      "/temporary/directory/c234567890123456789012345678901234567890123.jp.json",
+      "/temporary/directory/d2345678901234567890123456789012345678901234.j.json",
+      "/temporary/directory/e23456789012345678901234567890123456789012345..json",
+      "/temporary/directory/f234567890123456789012345678901234567890123456.json",
+      "/temporary/directory/g234567890123456789012345678901234567890123456.json",
+      "/temporary/directory/h234567890123456789012345678901234567890123456.json",
+      "/temporary/directory/i234567890123456789012345678901234567890123456.json",
+    ],
+    filesMetadataAlbums: [],
+  };
+
+  const result = new Map(link(rawCollections));
+
+  test("should return correct total number of media entries", () => {
+    strictEqual(result.size, 9);
+  });
+
+  test("should match exact filename - a2345678901234567890123456789012345678901.jpg", () => {
+    const entry = result.get("/temporary/directory/a2345678901234567890123456789012345678901.jpg");
+    ok(entry);
+    strictEqual(
+      entry.mediaPath,
+      "/temporary/directory/a2345678901234567890123456789012345678901.jpg"
+    );
+    strictEqual(
+      entry.jsonPath,
+      "/temporary/directory/a2345678901234567890123456789012345678901.jpg.json"
+    );
+    strictEqual(entry.source.type, "loose");
+  });
+
+  test("should match exact filename - b23456789012345678901234567890123456789012.jpg", () => {
+    const entry = result.get("/temporary/directory/b23456789012345678901234567890123456789012.jpg");
+    ok(entry);
+    strictEqual(
+      entry.mediaPath,
+      "/temporary/directory/b23456789012345678901234567890123456789012.jpg"
+    );
+    strictEqual(
+      entry.jsonPath,
+      "/temporary/directory/b23456789012345678901234567890123456789012.jpg.json"
+    );
+    strictEqual(entry.source.type, "loose");
+  });
+
+  test("should match truncated metadata - c234567890123456789012345678901234567890123.jp.json", () => {
+    const entry = result.get(
+      "/temporary/directory/c234567890123456789012345678901234567890123.jpg"
+    );
+    ok(entry);
+    strictEqual(
+      entry.mediaPath,
+      "/temporary/directory/c234567890123456789012345678901234567890123.jpg"
+    );
+    strictEqual(
+      entry.jsonPath,
+      "/temporary/directory/c234567890123456789012345678901234567890123.jp.json"
+    );
+    strictEqual(entry.source.type, "loose");
+  });
+
+  test("should match truncated metadata - d2345678901234567890123456789012345678901234.j.json", () => {
+    const entry = result.get(
+      "/temporary/directory/d2345678901234567890123456789012345678901234.jpg"
+    );
+    ok(entry);
+    strictEqual(
+      entry.mediaPath,
+      "/temporary/directory/d2345678901234567890123456789012345678901234.jpg"
+    );
+    strictEqual(
+      entry.jsonPath,
+      "/temporary/directory/d2345678901234567890123456789012345678901234.j.json"
+    );
+    strictEqual(entry.source.type, "loose");
+  });
+
+  test("should match truncated metadata with double-dot - e23456789012345678901234567890123456789012345..json", () => {
+    const entry = result.get(
+      "/temporary/directory/e23456789012345678901234567890123456789012345.jpg"
+    );
+    ok(entry);
+    strictEqual(
+      entry.mediaPath,
+      "/temporary/directory/e23456789012345678901234567890123456789012345.jpg"
+    );
+    strictEqual(
+      entry.jsonPath,
+      "/temporary/directory/e23456789012345678901234567890123456789012345..json"
+    );
+    strictEqual(entry.source.type, "loose");
+  });
+
+  test("should match truncated media filename - f234567890123456789012345678901234567890123456.json", () => {
+    const entry = result.get(
+      "/temporary/directory/f234567890123456789012345678901234567890123456.jpg"
+    );
+    ok(entry);
+    strictEqual(
+      entry.mediaPath,
+      "/temporary/directory/f234567890123456789012345678901234567890123456.jpg"
+    );
+    strictEqual(
+      entry.jsonPath,
+      "/temporary/directory/f234567890123456789012345678901234567890123456.json"
+    );
+    strictEqual(entry.source.type, "loose");
+  });
+
+  test("should match truncated media filename - g234567890123456789012345678901234567890123456.json", () => {
+    const entry = result.get(
+      "/temporary/directory/g2345678901234567890123456789012345678901234567.jpg"
+    );
+    ok(entry);
+    strictEqual(
+      entry.mediaPath,
+      "/temporary/directory/g2345678901234567890123456789012345678901234567.jpg"
+    );
+    strictEqual(
+      entry.jsonPath,
+      "/temporary/directory/g234567890123456789012345678901234567890123456.json"
+    );
+    strictEqual(entry.source.type, "loose");
+  });
+
+  test("should match truncated media filename - h234567890123456789012345678901234567890123456.json", () => {
+    const entry = result.get(
+      "/temporary/directory/h2345678901234567890123456789012345678901234567.jpg"
+    );
+    ok(entry);
+    strictEqual(
+      entry.mediaPath,
+      "/temporary/directory/h2345678901234567890123456789012345678901234567.jpg"
+    );
+    strictEqual(
+      entry.jsonPath,
+      "/temporary/directory/h234567890123456789012345678901234567890123456.json"
+    );
+    strictEqual(entry.source.type, "loose");
+  });
+
+  test("should match truncated media filename - i234567890123456789012345678901234567890123456.json", () => {
+    const entry = result.get(
+      "/temporary/directory/i2345678901234567890123456789012345678901234567.jpg"
+    );
+    ok(entry);
+    strictEqual(
+      entry.mediaPath,
+      "/temporary/directory/i2345678901234567890123456789012345678901234567.jpg"
+    );
+    strictEqual(
+      entry.jsonPath,
+      "/temporary/directory/i234567890123456789012345678901234567890123456.json"
+    );
+    strictEqual(entry.source.type, "loose");
+  });
+});
+
+describe("link with truncated filenames and edited suffix", () => {
+  const rawCollections = {
+    filesMedia: [
+      "/temporary/directory/j23456789012345678901234567890123456-edited.jpg",
+      "/temporary/directory/k2345678901234567890123456789012345678-edited.jpg",
+      "/temporary/directory/l234567890123456789012345678901234567890-edited.jpg",
+      "/temporary/directory/m23456789012345678901234567890123456789-edited.jpg",
+    ],
+    filesMetadata: [
+      "/temporary/directory/j2345678901234567890123456789012345678901.jpg.json",
+      "/temporary/directory/k234567890123456789012345678901234567890123.jpg.json",
+      "/temporary/directory/l23456789012345678901234567890123456789012.jpg.json",
+      "/temporary/directory/m2345678901234567890123456789012345678901.jpg.json",
+    ],
+    filesMetadataAlbums: [],
+  };
+
+  const result = new Map(link(rawCollections));
+
+  test("should return correct total number of media entries", () => {
+    strictEqual(result.size, 4);
+  });
+
+  test("should match edited file where -edited suffix caused truncation - j case", () => {
+    const entry = result.get(
+      "/temporary/directory/j23456789012345678901234567890123456-edited.jpg"
+    );
+    ok(entry);
+    strictEqual(
+      entry.mediaPath,
+      "/temporary/directory/j23456789012345678901234567890123456-edited.jpg"
+    );
+    strictEqual(
+      entry.jsonPath,
+      "/temporary/directory/j2345678901234567890123456789012345678901.jpg.json"
+    );
+    strictEqual(entry.source.type, "loose");
+  });
+
+  test("should match edited file where -edited suffix caused truncation - k case", () => {
+    const entry = result.get(
+      "/temporary/directory/k2345678901234567890123456789012345678-edited.jpg"
+    );
+    ok(entry);
+    strictEqual(
+      entry.mediaPath,
+      "/temporary/directory/k2345678901234567890123456789012345678-edited.jpg"
+    );
+    strictEqual(
+      entry.jsonPath,
+      "/temporary/directory/k234567890123456789012345678901234567890123.jpg.json"
+    );
+    strictEqual(entry.source.type, "loose");
+  });
+
+  test("should match edited file where -edited suffix caused truncation - l case", () => {
+    const entry = result.get(
+      "/temporary/directory/l234567890123456789012345678901234567890-edited.jpg"
+    );
+    ok(entry);
+    strictEqual(
+      entry.mediaPath,
+      "/temporary/directory/l234567890123456789012345678901234567890-edited.jpg"
+    );
+    strictEqual(
+      entry.jsonPath,
+      "/temporary/directory/l23456789012345678901234567890123456789012.jpg.json"
+    );
+    strictEqual(entry.source.type, "loose");
+  });
+
+  test("should match edited file where -edited suffix caused truncation - m case", () => {
+    const entry = result.get(
+      "/temporary/directory/m23456789012345678901234567890123456789-edited.jpg"
+    );
+    ok(entry);
+    strictEqual(
+      entry.mediaPath,
+      "/temporary/directory/m23456789012345678901234567890123456789-edited.jpg"
+    );
+    strictEqual(
+      entry.jsonPath,
+      "/temporary/directory/m2345678901234567890123456789012345678901.jpg.json"
+    );
+    strictEqual(entry.source.type, "loose");
+  });
+});
+
+describe("link with -edited suffix", () => {
+  const rawCollections = {
+    filesMedia: [
+      "/temporary/directory/photo.jpg",
+      "/temporary/directory/photo-edited.jpg",
+      "/temporary/directory/IMG_1234.PNG",
+      "/temporary/directory/IMG_1234-edited.PNG",
+    ],
+    filesMetadata: [
+      "/temporary/directory/photo.jpg.json",
+      "/temporary/directory/IMG_1234.PNG.json",
+    ],
+    filesMetadataAlbums: [],
+  };
+
+  // TODO: the bug is here (wrong assumption about what link returns)
+  const result = new Map(link(rawCollections));
+
+  test("should return correct total number of media entries", () => {
+    strictEqual(result.size, 4);
+  });
+
+  test("should match original photo to its metadata", () => {
+    const entry = result.get("/temporary/directory/photo.jpg");
+    ok(entry);
+    strictEqual(entry.mediaPath, "/temporary/directory/photo.jpg");
+    strictEqual(entry.jsonPath, "/temporary/directory/photo.jpg.json");
+    strictEqual(entry.source.type, "loose");
+  });
+
+  test("should match photo-edited to original metadata when original exists", () => {
+    const entry = result.get("/temporary/directory/photo-edited.jpg");
+    ok(entry);
+    strictEqual(entry.mediaPath, "/temporary/directory/photo-edited.jpg");
+    strictEqual(entry.jsonPath, "/temporary/directory/photo.jpg.json");
+    strictEqual(entry.source.type, "loose");
+  });
+
+  test("should match original IMG_1234 to its metadata", () => {
+    const entry = result.get("/temporary/directory/IMG_1234.PNG");
+    ok(entry);
+    strictEqual(entry.mediaPath, "/temporary/directory/IMG_1234.PNG");
+    strictEqual(entry.jsonPath, "/temporary/directory/IMG_1234.PNG.json");
+    strictEqual(entry.source.type, "loose");
+  });
+
+  test("should match IMG_1234-edited to original metadata when original exists", () => {
+    const entry = result.get("/temporary/directory/IMG_1234-edited.PNG");
+    ok(entry);
+    strictEqual(entry.mediaPath, "/temporary/directory/IMG_1234-edited.PNG");
+    strictEqual(entry.jsonPath, "/temporary/directory/IMG_1234.PNG.json");
+    strictEqual(entry.source.type, "loose");
+  });
+});
+
+describe("link with Copy and Copy-edited files", () => {
+  const rawCollections = {
+    filesMedia: [
+      "/temporary/directory/IMG_1809 Copy Copy.JPG",
+      "/temporary/directory/IMG_1809.HEIC",
+      "/temporary/directory/IMG_1809 Copy-edited.JPG",
+      "/temporary/directory/IMG_1809 Copy.JPG",
+    ],
+    filesMetadata: [
+      "/temporary/directory/IMG_1809 Copy.JPG.supplemental-metadata.json",
+      "/temporary/directory/IMG_1809 Copy Copy.JPG.supplemental-metadata.json",
+      "/temporary/directory/IMG_1809.HEIC.supplemental-metadata.json",
+    ],
+    filesMetadataAlbums: [],
+  };
+
+  const result = new Map(link(rawCollections));
+
+  test("should return correct total number of media entries", () => {
+    strictEqual(result.size, 4);
+  });
+
+  test("should match IMG_1809 Copy Copy.JPG to its metadata", () => {
+    const entry = result.get("/temporary/directory/IMG_1809 Copy Copy.JPG");
+    ok(entry);
+    strictEqual(entry.mediaPath, "/temporary/directory/IMG_1809 Copy Copy.JPG");
+    strictEqual(
+      entry.jsonPath,
+      "/temporary/directory/IMG_1809 Copy Copy.JPG.supplemental-metadata.json"
+    );
+    strictEqual(entry.source.type, "loose");
+  });
+
+  test("should match IMG_1809.HEIC to its metadata", () => {
+    const entry = result.get("/temporary/directory/IMG_1809.HEIC");
+    ok(entry);
+    strictEqual(entry.mediaPath, "/temporary/directory/IMG_1809.HEIC");
+    strictEqual(entry.jsonPath, "/temporary/directory/IMG_1809.HEIC.supplemental-metadata.json");
+    strictEqual(entry.source.type, "loose");
+  });
+
+  test("should match IMG_1809 Copy-edited.JPG to IMG_1809 Copy.JPG metadata", () => {
+    const entry = result.get("/temporary/directory/IMG_1809 Copy-edited.JPG");
+    ok(entry);
+    strictEqual(entry.mediaPath, "/temporary/directory/IMG_1809 Copy-edited.JPG");
+    strictEqual(
+      entry.jsonPath,
+      "/temporary/directory/IMG_1809 Copy.JPG.supplemental-metadata.json"
+    );
+    strictEqual(entry.source.type, "loose");
+  });
+
+  test("should match IMG_1809 Copy.JPG to its metadata", () => {
+    const entry = result.get("/temporary/directory/IMG_1809 Copy.JPG");
+    ok(entry);
+    strictEqual(entry.mediaPath, "/temporary/directory/IMG_1809 Copy.JPG");
+    strictEqual(
+      entry.jsonPath,
+      "/temporary/directory/IMG_1809 Copy.JPG.supplemental-metadata.json"
+    );
+    strictEqual(entry.source.type, "loose");
+  });
+});
