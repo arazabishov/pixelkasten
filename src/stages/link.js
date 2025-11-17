@@ -1,6 +1,6 @@
-import { basename, dirname, join } from "path";
+import { basename, dirname, join, extname } from "path";
 
-export function linkBackup(rawCollections) {
+export function link(rawCollections) {
   const { filesMedia, filesMetadata, filesMetadataAlbums } = rawCollections;
 
   // Pass 1: build a map of metadata files with normalized names.
@@ -8,7 +8,7 @@ export function linkBackup(rawCollections) {
   for (const metadataFilePath of filesMetadata) {
     const metadataFileName = basename(metadataFilePath);
     const metadataFileDir = dirname(metadataFilePath);
-    const key = join(metadataFileDir, normalizeMetadataName(metadataFileName));
+    const key = join(metadataFileDir, getNormalizedMetadataName(metadataFileName));
 
     // The key most of the time should match to the path of media file it belongs to.
     metadataFiles.set(key, metadataFilePath);
@@ -25,268 +25,84 @@ export function linkBackup(rawCollections) {
   }
 
   const manifest = new Map();
-  const unmatchedMediaFiles = new Set();
   const unmatchedMetadataFiles = new Set(metadataFiles.keys());
+  const unmatchedMediaEditedFiles = new Set();
+  const unmatchedMediaFiles = new Set();
 
-  // Pass 3: construct empty manifest entries and perform the first metadata look-up.
+  // Pass 3: construct manifest entries and partition media files.
   for (const mediaFilePath of filesMedia) {
     const mediaFileDir = dirname(mediaFilePath);
-    const mediaEntry = {
-      mediaPath: mediaFilePath,
-    };
-
-    if (metadataFiles.has(mediaFilePath)) {
-      mediaEntry.jsonPath = metadataFiles.get(mediaFilePath);
-      unmatchedMetadataFiles.delete(mediaFilePath);
-    } else {
-      unmatchedMediaFiles.add(mediaFilePath);
-    }
-
-    if (albums.has(mediaFileDir)) {
-      mediaEntry.source = {
-        type: "album",
-        name: albums.get(mediaFileDir),
-      };
-    } else {
-      mediaEntry.source = {
-        type: "loose",
-      };
-    }
-
-    manifest.set(mediaFilePath, mediaEntry);
-  }
-
-  // Pass 4: link unmatched media files
-  for (const mediaFilePath of new Set(unmatchedMediaFiles)) {
-    // If there was no exact match, we can try to do a prefix search
-    const mediaFileName = basename(mediaFilePath);
-    const mediaFileDir = dirname(mediaFilePath);
-
-    // Drop the extension and create a new path out of it.
-    const nameWithoutExt = dropExtension(mediaFileName);
-    const prefix = join(mediaFileDir, nameWithoutExt);
-
-    for (const metadataFilePath of new Set(unmatchedMetadataFiles)) {
-      if (metadataFilePath.startsWith(prefix)) {
-        const entry = manifest.get(mediaFilePath);
-        entry.jsonPath = metadataFiles.get(metadataFilePath);
-
-        unmatchedMediaFiles.delete(mediaFilePath);
-        unmatchedMetadataFiles.delete(metadataFilePath);
-
-        break;
-      }
-    }
-  }
-
-  // Pass 5: link unmatched metadata files
-  for (const metadataFilePath of new Set(unmatchedMetadataFiles)) {
-    // If there was no exact match, we can try to do a prefix search
-    const metadataFileName = basename(metadataFilePath);
-    const metadataFileDir = dirname(metadataFilePath);
-
-    // Drop the extension and create a new path out of it.
-    const nameWithoutExt = dropExtension(metadataFileName);
-    const prefix = join(metadataFileDir, nameWithoutExt);
-
-    for (const mediaFilePath of new Set(unmatchedMediaFiles)) {
-      if (mediaFilePath.startsWith(prefix)) {
-        const entry = manifest.get(mediaFilePath);
-        entry.jsonPath = metadataFiles.get(metadataFilePath);
-
-        unmatchedMediaFiles.delete(mediaFilePath);
-        unmatchedMetadataFiles.delete(metadataFilePath);
-
-        break;
-      }
-    }
-  }
-
-  // TODO: consider calling link recursively, but second time only for -edited files?
-  // Or better, extract steps above into its own files, and let -edited files handled separately?
-
-  // Pass 6: handling media files with "-edited" suffix
-  for (const mediaFilePath of new Set(unmatchedMediaFiles)) {
-    const mediaFileName = basename(mediaFilePath);
-    const mediaFileDir = dirname(mediaFilePath);
-
-    // Remove -edited from the full filename, which might appear before any extension
-    const mediaFileNameWithoutEditedSuffix = mediaFileName.replace(/-edited(\.|$)/, "$1");
-    const mediaFilePathWithoutEditedSuffix = join(mediaFileDir, mediaFileNameWithoutEditedSuffix);
-
-    if (mediaFileName === mediaFileNameWithoutEditedSuffix) {
-      // Skipping this iteration because this pass is focused only on "-edited" files
-      continue;
-    }
-
-    // Trying the exact match first
-    if (metadataFiles.has(mediaFilePathWithoutEditedSuffix)) {
-      const metadataFilePath = metadataFiles.get(mediaFilePathWithoutEditedSuffix);
-
-      // We used mediaFilePathWithoutEditedSuffix for look-up of metadata file only.
-      // We still use mediaFilePath as a key since the key always has to point at media file.
-      const entry = manifest.get(mediaFilePath);
-      entry.jsonPath = metadataFilePath;
-
-      // Ensure the entry is deleted to pass through the integrity check at the end.
-      unmatchedMetadataFiles.delete(mediaFilePathWithoutEditedSuffix);
-    } else {
-      // Drop the extension and create a new path out of it.
-      const nameWithoutExt = dropExtension(mediaFileNameWithoutEditedSuffix);
-      const prefix = join(mediaFileDir, nameWithoutExt);
-
-      for (const metadataFilePath of metadataFiles.keys()) {
-        if (metadataFilePath.startsWith(prefix)) {
-          const entry = manifest.get(mediaFilePath);
-          entry.jsonPath = metadataFiles.get(metadataFilePath);
-
-          unmatchedMediaFiles.delete(mediaFilePath);
-          unmatchedMetadataFiles.delete(metadataFilePath);
-
-          break;
-        }
-      }
-    }
-  }
-
-  return Array.from(manifest.values());
-}
-
-/**
- * Removes the '-edited' suffix from a media file path.
- * e.g., /path/to/IMG_001-edited.jpg -> /path/to/IMG_001.jpg
- * If no '-edited' suffix is present, it returns the original path.
- */
-function getNonEditedPath(mediaFilePath) {
-  const mediaFileDir = dirname(mediaFilePath);
-  const mediaFileName = basename(mediaFilePath);
-
-  // Remove -edited from the full filename, which might appear before any extension
-  const mediaFileNameWithoutEditedSuffix = mediaFileName.replace(/-edited(\.|$)/, "$1");
-
-  if (mediaFileName === mediaFileNameWithoutEditedSuffix) {
-    return mediaFilePath; // Not an edited file
-  }
-
-  return join(mediaFileDir, mediaFileNameWithoutEditedSuffix);
-}
-
-/**
- * Gets the full path of a file without its extension.
- * e.g., /path/to/IMG_001.jpg -> /path/to/IMG_001
- */
-function getPathPrefix(filePath) {
-  const fileDir = dirname(filePath);
-  const fileName = basename(filePath);
-  const nameWithoutExt = dropExtension(fileName);
-  return join(fileDir, nameWithoutExt);
-}
-
-export function link(rawCollections) {
-  const { filesMedia, filesMetadata, filesMetadataAlbums } = rawCollections;
-
-  // Pass 1: Build a map of metadata files with normalized names.
-  const metadataFiles = new Map();
-  for (const metadataFilePath of filesMetadata) {
-    const metadataFileName = basename(metadataFilePath);
-    const metadataFileDir = dirname(metadataFilePath);
-    const key = join(metadataFileDir, normalizeMetadataName(metadataFileName));
-    metadataFiles.set(key, metadataFilePath);
-  }
-
-  // Pass 2: Build a map of album directories.
-  const albums = new Map();
-  for (const metadataFilePath of filesMetadataAlbums) {
-    const metadataFileDir = dirname(metadataFilePath);
-    const albumName = basename(metadataFileDir);
-    albums.set(metadataFileDir, albumName);
-  }
-
-  // --- Manifest Generation ---
-
-  const manifest = new Map();
-  const unmatchedMetadata = new Set(metadataFiles.keys());
-
-  // Pass 3: Create initial manifest entries AND partition media files.
-  const unlinkedEditedMedia = new Set();
-  const unlinkedOriginalMedia = new Set();
-
-  for (const mediaFilePath of filesMedia) {
-    const mediaFileDir = dirname(mediaFilePath);
-    const mediaEntry = {
+    manifest.set(mediaFilePath, {
       mediaPath: mediaFilePath,
       source: albums.has(mediaFileDir)
         ? { type: "album", name: albums.get(mediaFileDir) }
         : { type: "loose" },
-    };
-    manifest.set(mediaFilePath, mediaEntry);
+    });
 
     const nonEditedPath = getNonEditedPath(mediaFilePath);
     if (mediaFilePath !== nonEditedPath) {
-      unlinkedEditedMedia.add(mediaFilePath);
+      unmatchedMediaEditedFiles.add(mediaFilePath);
     } else {
-      unlinkedOriginalMedia.add(mediaFilePath);
+      unmatchedMediaFiles.add(mediaFilePath);
     }
   }
 
-  // --- Linking Passes ---
-  // We now run four distinct, prioritized passes.
-
-  // Pass 4: Exact Match - Edited Files (non-consuming)
-  for (const mediaFilePath of unlinkedEditedMedia) {
-    const entry = manifest.get(mediaFilePath);
+  // Pass 4: exact match - edited files (non-consuming)
+  for (const mediaFilePath of unmatchedMediaEditedFiles) {
     const nonEditedPath = getNonEditedPath(mediaFilePath);
 
-    if (unmatchedMetadata.has(nonEditedPath)) {
+    if (unmatchedMetadataFiles.has(nonEditedPath)) {
+      const entry = manifest.get(mediaFilePath);
       entry.jsonPath = metadataFiles.get(nonEditedPath);
-      unlinkedEditedMedia.delete(mediaFilePath); // Linked!
+
+      unmatchedMediaEditedFiles.delete(mediaFilePath);
     }
   }
 
-  // Pass 5: Exact Match - Original Files (consuming)
-  for (const mediaFilePath of unlinkedOriginalMedia) {
-    const entry = manifest.get(mediaFilePath);
-    if (unmatchedMetadata.has(mediaFilePath)) {
+  // Pass 5: exact match - original files (consuming)
+  for (const mediaFilePath of unmatchedMediaFiles) {
+    if (unmatchedMetadataFiles.has(mediaFilePath)) {
+      const entry = manifest.get(mediaFilePath);
       entry.jsonPath = metadataFiles.get(mediaFilePath);
-      unmatchedMetadata.delete(mediaFilePath); // Consume the key
-      unlinkedOriginalMedia.delete(mediaFilePath); // Linked!
+
+      // Remove both metadata and media files
+      unmatchedMetadataFiles.delete(mediaFilePath);
+      unmatchedMediaFiles.delete(mediaFilePath);
     }
   }
 
-  // Pass 6: Fuzzy Match - Edited Files (non-consuming)
-  for (const mediaFilePath of unlinkedEditedMedia) {
-    const entry = manifest.get(mediaFilePath);
+  // TODO: is it okay to iterate over collection that you're deleting from?
+  // Pass 6: fuzzy match - edited Files (non-consuming)
+  for (const mediaFilePath of unmatchedMediaEditedFiles) {
     const nonEditedPath = getNonEditedPath(mediaFilePath);
     const nonEditedPrefix = getPathPrefix(nonEditedPath);
 
-    for (const metadataKey of unmatchedMetadata) {
+    for (const metadataKey of unmatchedMetadataFiles) {
       const metadataPrefix = getPathPrefix(metadataKey);
-      const isMatch =
-        metadataKey.startsWith(nonEditedPrefix) || nonEditedPath.startsWith(metadataPrefix);
 
-      if (isMatch) {
+      if (metadataKey.startsWith(nonEditedPrefix) || nonEditedPath.startsWith(metadataPrefix)) {
+        const entry = manifest.get(mediaFilePath);
         entry.jsonPath = metadataFiles.get(metadataKey);
-        unlinkedEditedMedia.delete(mediaFilePath);
-        // DO NOT consume metadata
+
+        unmatchedMediaEditedFiles.delete(mediaFilePath);
         break;
       }
     }
   }
 
-  // Pass 7: Fuzzy Match - Original Files (consuming)
-  for (const mediaFilePath of unlinkedOriginalMedia) {
-    const entry = manifest.get(mediaFilePath);
+  // Pass 7: fuzzy match - original files (consuming)
+  for (const mediaFilePath of unmatchedMediaFiles) {
     const mediaPrefix = getPathPrefix(mediaFilePath);
 
-    for (const metadataKey of new Set(unmatchedMetadata)) {
+    for (const metadataKey of new Set(unmatchedMetadataFiles)) {
       const metadataPrefix = getPathPrefix(metadataKey);
-      const isMatch =
-        metadataKey.startsWith(mediaPrefix) || mediaFilePath.startsWith(metadataPrefix);
 
-      if (isMatch) {
+      if (metadataKey.startsWith(mediaPrefix) || mediaFilePath.startsWith(metadataPrefix)) {
+        const entry = manifest.get(mediaFilePath);
         entry.jsonPath = metadataFiles.get(metadataKey);
-        unmatchedMetadata.delete(metadataKey); // Consume the key
-        unlinkedOriginalMedia.delete(mediaFilePath);
+
+        unmatchedMetadataFiles.delete(metadataKey);
+        unmatchedMediaFiles.delete(mediaFilePath);
         break;
       }
     }
@@ -295,47 +111,55 @@ export function link(rawCollections) {
   return Array.from(manifest.values());
 }
 
-export function normalizeMetadataName(fileName) {
+// Removes an '-edited' suffix from a file path's basename, if present.
+// For example: '/path/to/image-edited.jpg' -> '/path/to/image.jpg'
+function getNonEditedPath(filePath) {
+  return join(dirname(filePath), basename(filePath).replace(/-edited(\.|$)/, "$1"));
+}
+
+// Gets the full path of a file without its file extension.
+// For example: '/path/to/file.txt' -> '/path/to/file'
+function getPathPrefix(filePath) {
+  return join(dirname(filePath), basename(filePath, extname(filePath)));
+}
+
+export function getNormalizedMetadataName(fileName) {
   if (!fileName) {
     return fileName;
   }
 
-  const segments = fileName.split(".");
-  if (segments.length === 0) {
+  // 1. Guard: check for .json extension (case-insensitive)
+  const ext = extname(fileName);
+  if (ext.toLowerCase() !== ".json") {
     return fileName;
   }
 
-  const extension = segments.pop();
-  if (extension.toLowerCase() !== "json") {
-    return fileName;
+  // 2. Get the name part *without* the extension: "A.B.C (1)" or "A.B.C" or "A"
+  const head = basename(fileName, ext);
+
+  // 3. Split the name part into its segments
+  const segments = head.split(".");
+
+  // 4. Handle simple case where there are no dots.
+  if (segments.length === 1) {
+    return head;
   }
 
-  if (segments.length > 1) {
-    const supplementalMarker = segments.pop();
-    if (supplementalMarker) {
-      const match = supplementalMarker.match(/\(\d+\)/);
+  // 5. Handle complex cases: "A.B.C (1).json" or "A.B.C.json". We pop the last part to inspect it.
+  const tail = segments.pop();
+  const match = tail.match(/\(\d+\)/);
 
-      if (match && match[0]) {
-        const base = segments.shift();
-        const duplicateMarker = match[0];
-
-        segments.unshift(`${base}${duplicateMarker}`);
-      }
-    }
-
-    return segments.join(".");
+  if (match) {
+    // Case: "A.B.C (1).json"
+    // We want to transform "A.B" -> "A(1).B"
+    const duplicateMarker = match[0]; // e.g., "(1)"
+    const base = segments.shift(); // e.g., "A"
+    segments.unshift(`${base}${duplicateMarker}`); // segments is now ["A(1)", "B"]
+    return segments.join("."); // "A(1).B"
   } else {
-    return segments[0];
+    // Case: "A.B.C.json"
+    // We want "A.B"
+    // `segments` is already ["A", "B"] because of the .pop()
+    return segments.join("."); // "A.B"
   }
-}
-
-export function dropExtension(name) {
-  const segments = name.split(".");
-
-  if (segments.length > 1) {
-    segments.pop();
-    return segments.join(".");
-  }
-
-  return name;
 }

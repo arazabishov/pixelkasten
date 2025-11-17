@@ -91,7 +91,7 @@ export async function runPipeline(options) {
   logScanReport(rawCollections, options.source);
 
   const manifest = link(rawCollections);
-  logger.info(manifest);
+  // logger.info(manifest);
 
   // Phase 2: linking metadata to media files
 }

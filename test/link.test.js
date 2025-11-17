@@ -1,60 +1,62 @@
 import { test, describe } from "node:test";
 import { strictEqual, ok } from "node:assert";
-import { normalizeMetadataName, link } from "../src/stages/link.js";
+import { getNormalizedMetadataName, link } from "../src/stages/link.js";
 
 describe("normalizeMetadataName", () => {
   test("should normalize .suppl.json metadata files", () => {
-    const result = normalizeMetadataName("3D06C8D1-7637-4625-BEBE-C3D916AEF50D.jpg.suppl.json");
+    const result = getNormalizedMetadataName("3D06C8D1-7637-4625-BEBE-C3D916AEF50D.jpg.suppl.json");
     strictEqual(result, "3D06C8D1-7637-4625-BEBE-C3D916AEF50D.jpg");
   });
 
   test("should normalize .supplemental-metada.json metadata files", () => {
-    const result = normalizeMetadataName("PXL_20241231_114900266.jpg.supplemental-metada.json");
+    const result = getNormalizedMetadataName("PXL_20241231_114900266.jpg.supplemental-metada.json");
     strictEqual(result, "PXL_20241231_114900266.jpg");
   });
 
   test("should normalize .supplemental-met.json metadata files with two file extensions", () => {
-    const result = normalizeMetadataName("PXL_20241231_114910784.MP.jpg.supplemental-met.json");
+    const result = getNormalizedMetadataName("PXL_20241231_114910784.MP.jpg.supplemental-met.json");
     strictEqual(result, "PXL_20241231_114910784.MP.jpg");
   });
 
   test("should normalize .supplemental-metadata(N).json with duplicate markers", () => {
-    const result = normalizeMetadataName("camphoto_33463914.jpg.supplemental-metadata(4).json");
+    const result = getNormalizedMetadataName("camphoto_33463914.jpg.supplemental-metadata(4).json");
     strictEqual(result, "camphoto_33463914(4).jpg");
   });
 
   test("should normalize .supplemental-metadata(N).json with duplicate markers and two extensions", () => {
-    const result = normalizeMetadataName("camphoto_33463914.MP.jpg.supplemental-metadata(4).json");
+    const result = getNormalizedMetadataName(
+      "camphoto_33463914.MP.jpg.supplemental-metadata(4).json"
+    );
     strictEqual(result, "camphoto_33463914(4).MP.jpg");
   });
 
   test("should normalize .(N).json with duplicate markers", () => {
-    const result = normalizeMetadataName("camphoto_33463914.jpg.(4).json");
+    const result = getNormalizedMetadataName("camphoto_33463914.jpg.(4).json");
     strictEqual(result, "camphoto_33463914(4).jpg");
   });
 
   test("should return original file name if file name has no extensions", () => {
-    const result = normalizeMetadataName("camphoto_33463914");
+    const result = getNormalizedMetadataName("camphoto_33463914");
     strictEqual(result, "camphoto_33463914");
   });
 
   test("should return original file name if file extension is not .json", () => {
-    const result = normalizeMetadataName("PXL_20241231_114900266.jpg");
+    const result = getNormalizedMetadataName("PXL_20241231_114900266.jpg");
     strictEqual(result, "PXL_20241231_114900266.jpg");
   });
 
   test("should return filename without extension if the only extension is .json", () => {
-    const result = normalizeMetadataName("29407C9C-7528-4FF1-AD5F-08EAA7F9738E-98855-000.json");
+    const result = getNormalizedMetadataName("29407C9C-7528-4FF1-AD5F-08EAA7F9738E-98855-000.json");
     strictEqual(result, "29407C9C-7528-4FF1-AD5F-08EAA7F9738E-98855-000");
   });
 
   test("should return an empty string if empty string is provided", () => {
-    const result = normalizeMetadataName("");
+    const result = getNormalizedMetadataName("");
     strictEqual(result, "");
   });
 
   test("should return undefined if undefined is supplied", () => {
-    const result = normalizeMetadataName(undefined);
+    const result = getNormalizedMetadataName(undefined);
     strictEqual(result, undefined);
   });
 });
