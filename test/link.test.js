@@ -93,7 +93,7 @@ describe("link", () => {
     filesMetadataAlbums: [],
   };
 
-  const result = new Map(link(rawCollections));
+  const result = new Map(link(rawCollections).map((entry) => [entry.mediaPath, entry]));
 
   test("should return correct total number of media entries", () => {
     strictEqual(result.size, 15);
@@ -241,7 +241,7 @@ describe("link with albums", () => {
     ],
   };
 
-  const result = new Map(link(rawCollections));
+  const result = new Map(link(rawCollections).map((entry) => [entry.mediaPath, entry]));
 
   test("should identify album sources correctly", () => {
     const entry1 = result.get("/temporary/directory/My Album/IMG_0076.PNG");
@@ -283,7 +283,7 @@ describe("link with truncated filenames", () => {
     filesMetadataAlbums: [],
   };
 
-  const result = new Map(link(rawCollections));
+  const result = new Map(link(rawCollections).map((entry) => [entry.mediaPath, entry]));
 
   test("should return correct total number of media entries", () => {
     strictEqual(result.size, 9);
@@ -447,7 +447,7 @@ describe("link with truncated filenames and edited suffix", () => {
     filesMetadataAlbums: [],
   };
 
-  const result = new Map(link(rawCollections));
+  const result = new Map(link(rawCollections).map((entry) => [entry.mediaPath, entry]));
 
   test("should return correct total number of media entries", () => {
     strictEqual(result.size, 4);
@@ -533,8 +533,7 @@ describe("link with -edited suffix", () => {
     filesMetadataAlbums: [],
   };
 
-  // TODO: the bug is here (wrong assumption about what link returns)
-  const result = new Map(link(rawCollections));
+  const result = new Map(link(rawCollections).map((entry) => [entry.mediaPath, entry]));
 
   test("should return correct total number of media entries", () => {
     strictEqual(result.size, 4);
@@ -589,7 +588,7 @@ describe("link with Copy and Copy-edited files", () => {
     filesMetadataAlbums: [],
   };
 
-  const result = new Map(link(rawCollections));
+  const result = new Map(link(rawCollections).map((entry) => [entry.mediaPath, entry]));
 
   test("should return correct total number of media entries", () => {
     strictEqual(result.size, 4);

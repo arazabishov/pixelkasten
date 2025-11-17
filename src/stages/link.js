@@ -37,9 +37,6 @@ export function link(rawCollections) {
 
     if (metadataFiles.has(mediaFilePath)) {
       mediaEntry.jsonPath = metadataFiles.get(mediaFilePath);
-
-      // Once we a metadata file to a media file, we can remove it from
-      // a set to reduce search space in the next pass.
       unmatchedMetadataFiles.delete(mediaFilePath);
     } else {
       unmatchedMediaFiles.add(mediaFilePath);
@@ -74,7 +71,6 @@ export function link(rawCollections) {
         const entry = manifest.get(mediaFilePath);
         entry.jsonPath = metadataFiles.get(metadataFilePath);
 
-        // Reduce the problem space further to reduce the cost of next iterations
         unmatchedMediaFiles.delete(mediaFilePath);
         unmatchedMetadataFiles.delete(metadataFilePath);
 
@@ -98,7 +94,6 @@ export function link(rawCollections) {
         const entry = manifest.get(mediaFilePath);
         entry.jsonPath = metadataFiles.get(metadataFilePath);
 
-        // Reduce the problem space further to reduce the cost of next iterations
         unmatchedMediaFiles.delete(mediaFilePath);
         unmatchedMetadataFiles.delete(metadataFilePath);
 
@@ -107,18 +102,24 @@ export function link(rawCollections) {
     }
   }
 
-  // TODO: do we want to perform a full blown search similar to the last
-  // two loops above on a file name that lost -edited prefix?
+  // TODO: consider calling link recursively, but second time only for -edited files?
+  // Or better, extract steps above into its own files, and let -edited files handled separately?
 
-  // Pass 6: match "-edited" files and files that had no metadata.
+  // Pass 6: handling media files with "-edited" suffix
   for (const mediaFilePath of new Set(unmatchedMediaFiles)) {
     const mediaFileName = basename(mediaFilePath);
     const mediaFileDir = dirname(mediaFilePath);
 
     // Remove -edited from the full filename, which might appear before any extension
-    const nameWithoutEditedSuffix = mediaFileName.replace(/-edited(\.|$)/, "$1");
-    const mediaFilePathWithoutEditedSuffix = join(mediaFileDir, nameWithoutEditedSuffix);
+    const mediaFileNameWithoutEditedSuffix = mediaFileName.replace(/-edited(\.|$)/, "$1");
+    const mediaFilePathWithoutEditedSuffix = join(mediaFileDir, mediaFileNameWithoutEditedSuffix);
 
+    if (mediaFileName === mediaFileNameWithoutEditedSuffix) {
+      // Skipping this iteration because this pass is focused only on "-edited" files
+      continue;
+    }
+
+    // Trying the exact match first
     if (metadataFiles.has(mediaFilePathWithoutEditedSuffix)) {
       const metadataFilePath = metadataFiles.get(mediaFilePathWithoutEditedSuffix);
 
@@ -129,10 +130,26 @@ export function link(rawCollections) {
 
       // Ensure the entry is deleted to pass through the integrity check at the end.
       unmatchedMetadataFiles.delete(mediaFilePathWithoutEditedSuffix);
+    } else {
+      // Drop the extension and create a new path out of it.
+      const nameWithoutExt = dropExtension(mediaFileNameWithoutEditedSuffix);
+      const prefix = join(mediaFileDir, nameWithoutExt);
+
+      for (const metadataFilePath of metadataFiles.keys()) {
+        if (metadataFilePath.startsWith(prefix)) {
+          const entry = manifest.get(mediaFilePath);
+          entry.jsonPath = metadataFiles.get(metadataFilePath);
+
+          unmatchedMediaFiles.delete(mediaFilePath);
+          unmatchedMetadataFiles.delete(metadataFilePath);
+
+          break;
+        }
+      }
     }
   }
 
-  return Array.from(manifest);
+  return Array.from(manifest.values());
 }
 
 export function normalizeMetadataName(fileName) {
