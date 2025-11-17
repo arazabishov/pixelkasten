@@ -1,6 +1,6 @@
 import { basename, dirname, join } from "path";
 
-export function link(rawCollections) {
+export function linkBackup(rawCollections) {
   const { filesMedia, filesMetadata, filesMetadataAlbums } = rawCollections;
 
   // Pass 1: build a map of metadata files with normalized names.
@@ -145,6 +145,149 @@ export function link(rawCollections) {
 
           break;
         }
+      }
+    }
+  }
+
+  return Array.from(manifest.values());
+}
+
+/**
+ * Removes the '-edited' suffix from a media file path.
+ * e.g., /path/to/IMG_001-edited.jpg -> /path/to/IMG_001.jpg
+ * If no '-edited' suffix is present, it returns the original path.
+ */
+function getNonEditedPath(mediaFilePath) {
+  const mediaFileDir = dirname(mediaFilePath);
+  const mediaFileName = basename(mediaFilePath);
+
+  // Remove -edited from the full filename, which might appear before any extension
+  const mediaFileNameWithoutEditedSuffix = mediaFileName.replace(/-edited(\.|$)/, "$1");
+
+  if (mediaFileName === mediaFileNameWithoutEditedSuffix) {
+    return mediaFilePath; // Not an edited file
+  }
+
+  return join(mediaFileDir, mediaFileNameWithoutEditedSuffix);
+}
+
+/**
+ * Gets the full path of a file without its extension.
+ * e.g., /path/to/IMG_001.jpg -> /path/to/IMG_001
+ */
+function getPathPrefix(filePath) {
+  const fileDir = dirname(filePath);
+  const fileName = basename(filePath);
+  const nameWithoutExt = dropExtension(fileName);
+  return join(fileDir, nameWithoutExt);
+}
+
+export function link(rawCollections) {
+  const { filesMedia, filesMetadata, filesMetadataAlbums } = rawCollections;
+
+  // Pass 1: Build a map of metadata files with normalized names.
+  const metadataFiles = new Map();
+  for (const metadataFilePath of filesMetadata) {
+    const metadataFileName = basename(metadataFilePath);
+    const metadataFileDir = dirname(metadataFilePath);
+    const key = join(metadataFileDir, normalizeMetadataName(metadataFileName));
+    metadataFiles.set(key, metadataFilePath);
+  }
+
+  // Pass 2: Build a map of album directories.
+  const albums = new Map();
+  for (const metadataFilePath of filesMetadataAlbums) {
+    const metadataFileDir = dirname(metadataFilePath);
+    const albumName = basename(metadataFileDir);
+    albums.set(metadataFileDir, albumName);
+  }
+
+  // --- Manifest Generation ---
+
+  const manifest = new Map();
+  const unmatchedMetadata = new Set(metadataFiles.keys());
+
+  // Pass 3: Create initial manifest entries AND partition media files.
+  const unlinkedEditedMedia = new Set();
+  const unlinkedOriginalMedia = new Set();
+
+  for (const mediaFilePath of filesMedia) {
+    const mediaFileDir = dirname(mediaFilePath);
+    const mediaEntry = {
+      mediaPath: mediaFilePath,
+      source: albums.has(mediaFileDir)
+        ? { type: "album", name: albums.get(mediaFileDir) }
+        : { type: "loose" },
+    };
+    manifest.set(mediaFilePath, mediaEntry);
+
+    const nonEditedPath = getNonEditedPath(mediaFilePath);
+    if (mediaFilePath !== nonEditedPath) {
+      unlinkedEditedMedia.add(mediaFilePath);
+    } else {
+      unlinkedOriginalMedia.add(mediaFilePath);
+    }
+  }
+
+  // --- Linking Passes ---
+  // We now run four distinct, prioritized passes.
+
+  // Pass 4: Exact Match - Edited Files (non-consuming)
+  for (const mediaFilePath of unlinkedEditedMedia) {
+    const entry = manifest.get(mediaFilePath);
+    const nonEditedPath = getNonEditedPath(mediaFilePath);
+
+    if (unmatchedMetadata.has(nonEditedPath)) {
+      entry.jsonPath = metadataFiles.get(nonEditedPath);
+      unlinkedEditedMedia.delete(mediaFilePath); // Linked!
+    }
+  }
+
+  // Pass 5: Exact Match - Original Files (consuming)
+  for (const mediaFilePath of unlinkedOriginalMedia) {
+    const entry = manifest.get(mediaFilePath);
+    if (unmatchedMetadata.has(mediaFilePath)) {
+      entry.jsonPath = metadataFiles.get(mediaFilePath);
+      unmatchedMetadata.delete(mediaFilePath); // Consume the key
+      unlinkedOriginalMedia.delete(mediaFilePath); // Linked!
+    }
+  }
+
+  // Pass 6: Fuzzy Match - Edited Files (non-consuming)
+  for (const mediaFilePath of unlinkedEditedMedia) {
+    const entry = manifest.get(mediaFilePath);
+    const nonEditedPath = getNonEditedPath(mediaFilePath);
+    const nonEditedPrefix = getPathPrefix(nonEditedPath);
+
+    for (const metadataKey of unmatchedMetadata) {
+      const metadataPrefix = getPathPrefix(metadataKey);
+      const isMatch =
+        metadataKey.startsWith(nonEditedPrefix) || nonEditedPath.startsWith(metadataPrefix);
+
+      if (isMatch) {
+        entry.jsonPath = metadataFiles.get(metadataKey);
+        unlinkedEditedMedia.delete(mediaFilePath);
+        // DO NOT consume metadata
+        break;
+      }
+    }
+  }
+
+  // Pass 7: Fuzzy Match - Original Files (consuming)
+  for (const mediaFilePath of unlinkedOriginalMedia) {
+    const entry = manifest.get(mediaFilePath);
+    const mediaPrefix = getPathPrefix(mediaFilePath);
+
+    for (const metadataKey of new Set(unmatchedMetadata)) {
+      const metadataPrefix = getPathPrefix(metadataKey);
+      const isMatch =
+        metadataKey.startsWith(mediaPrefix) || mediaFilePath.startsWith(metadataPrefix);
+
+      if (isMatch) {
+        entry.jsonPath = metadataFiles.get(metadataKey);
+        unmatchedMetadata.delete(metadataKey); // Consume the key
+        unlinkedOriginalMedia.delete(mediaFilePath);
+        break;
       }
     }
   }
