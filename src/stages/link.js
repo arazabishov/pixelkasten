@@ -3,107 +3,126 @@ import { basename, dirname, join, extname } from "path";
 export function link(rawCollections) {
   const { filesMedia, filesMetadata, filesMetadataAlbums } = rawCollections;
 
-  // Pass 1: build a map of metadata files with normalized names.
+  // Pass 1: Build a map of metadata files with normalized names.
   const metadataFiles = new Map();
   for (const metadataFilePath of filesMetadata) {
     const metadataFileName = basename(metadataFilePath);
     const metadataFileDir = dirname(metadataFilePath);
     const key = join(metadataFileDir, getNormalizedMetadataName(metadataFileName));
-
-    // The key most of the time should match to the path of media file it belongs to.
     metadataFiles.set(key, metadataFilePath);
   }
 
-  // Pass 2: build a map of albums directories
+  // Pass 2: Build a map of album directories.
   const albums = new Map();
   for (const metadataFilePath of filesMetadataAlbums) {
     const metadataFileDir = dirname(metadataFilePath);
     const albumName = basename(metadataFileDir);
-
-    // We will need the album name at later point when constructing manifest entries.
     albums.set(metadataFileDir, albumName);
   }
 
-  const manifest = new Map();
-  const unmatchedMetadataFiles = new Set(metadataFiles.keys());
-  const unmatchedMediaEditedFiles = new Set();
-  const unmatchedMediaFiles = new Set();
+  // --- Manifest Generation ---
 
-  // Pass 3: construct manifest entries and partition media files.
+  const manifest = new Map();
+  const unmatchedMetadata = new Set(metadataFiles.keys());
+
+  // Pass 3: Create initial manifest entries AND partition media files.
+  const unlinkedEditedMedia = new Set();
+  const unlinkedOriginalMedia = new Set();
+
   for (const mediaFilePath of filesMedia) {
     const mediaFileDir = dirname(mediaFilePath);
-    manifest.set(mediaFilePath, {
+    const mediaEntry = {
       mediaPath: mediaFilePath,
       source: albums.has(mediaFileDir)
         ? { type: "album", name: albums.get(mediaFileDir) }
         : { type: "loose" },
-    });
+    };
+    manifest.set(mediaFilePath, mediaEntry);
 
     const nonEditedPath = getNonEditedPath(mediaFilePath);
     if (mediaFilePath !== nonEditedPath) {
-      unmatchedMediaEditedFiles.add(mediaFilePath);
+      unlinkedEditedMedia.add(mediaFilePath);
     } else {
-      unmatchedMediaFiles.add(mediaFilePath);
+      unlinkedOriginalMedia.add(mediaFilePath);
     }
   }
 
-  // Pass 4: exact match - edited files (non-consuming)
-  for (const mediaFilePath of unmatchedMediaEditedFiles) {
+  // --- Linking Passes ---
+
+  // Pass 4: Exact Match - Edited Files (non-consuming)
+  for (const mediaFilePath of unlinkedEditedMedia) {
+    const entry = manifest.get(mediaFilePath);
     const nonEditedPath = getNonEditedPath(mediaFilePath);
 
-    if (unmatchedMetadataFiles.has(nonEditedPath)) {
-      const entry = manifest.get(mediaFilePath);
+    if (unmatchedMetadata.has(nonEditedPath)) {
       entry.jsonPath = metadataFiles.get(nonEditedPath);
-
-      unmatchedMediaEditedFiles.delete(mediaFilePath);
+      unlinkedEditedMedia.delete(mediaFilePath); // Linked!
     }
   }
 
-  // Pass 5: exact match - original files (consuming)
-  for (const mediaFilePath of unmatchedMediaFiles) {
-    if (unmatchedMetadataFiles.has(mediaFilePath)) {
-      const entry = manifest.get(mediaFilePath);
+  // Pass 5: Exact Match - Original Files (NON-CONSUMING)
+  // This is the FIX. We make this non-consuming to allow
+  // dependent files (like .MP) to also link to this metadata.
+  for (const mediaFilePath of unlinkedOriginalMedia) {
+    const entry = manifest.get(mediaFilePath);
+    if (unmatchedMetadata.has(mediaFilePath)) {
       entry.jsonPath = metadataFiles.get(mediaFilePath);
-
-      // Remove both metadata and media files
-      unmatchedMetadataFiles.delete(mediaFilePath);
-      unmatchedMediaFiles.delete(mediaFilePath);
+      // unmatchedMetadata.delete(mediaFilePath); // <-- REMOVED
+      unlinkedOriginalMedia.delete(mediaFilePath); // Linked!
     }
   }
 
-  // TODO: is it okay to iterate over collection that you're deleting from?
-  // Pass 6: fuzzy match - edited Files (non-consuming)
-  for (const mediaFilePath of unmatchedMediaEditedFiles) {
+  // Pass 6: Fuzzy Match - Edited Files (non-consuming)
+  for (const mediaFilePath of unlinkedEditedMedia) {
+    const entry = manifest.get(mediaFilePath);
     const nonEditedPath = getNonEditedPath(mediaFilePath);
     const nonEditedPrefix = getPathPrefix(nonEditedPath);
 
-    for (const metadataKey of unmatchedMetadataFiles) {
+    for (const metadataKey of new Set(unmatchedMetadata)) {
       const metadataPrefix = getPathPrefix(metadataKey);
+      const isMatch =
+        metadataKey.startsWith(nonEditedPrefix) || nonEditedPath.startsWith(metadataPrefix);
 
-      if (metadataKey.startsWith(nonEditedPrefix) || nonEditedPath.startsWith(metadataPrefix)) {
-        const entry = manifest.get(mediaFilePath);
+      if (isMatch) {
         entry.jsonPath = metadataFiles.get(metadataKey);
-
-        unmatchedMediaEditedFiles.delete(mediaFilePath);
+        unlinkedEditedMedia.delete(mediaFilePath);
         break;
       }
     }
   }
 
-  // Pass 7: fuzzy match - original files (consuming)
-  for (const mediaFilePath of unmatchedMediaFiles) {
+  // Pass 7: Fuzzy Match - Original Files (non-consuming)
+  // This will now successfully link the .MP file.
+  for (const mediaFilePath of unlinkedOriginalMedia) {
+    const entry = manifest.get(mediaFilePath);
     const mediaPrefix = getPathPrefix(mediaFilePath);
 
-    for (const metadataKey of new Set(unmatchedMetadataFiles)) {
+    for (const metadataKey of new Set(unmatchedMetadata)) {
       const metadataPrefix = getPathPrefix(metadataKey);
+      const isMatch =
+        metadataKey.startsWith(mediaPrefix) || mediaFilePath.startsWith(metadataPrefix);
 
-      if (metadataKey.startsWith(mediaPrefix) || mediaFilePath.startsWith(metadataPrefix)) {
-        const entry = manifest.get(mediaFilePath);
+      if (isMatch) {
         entry.jsonPath = metadataFiles.get(metadataKey);
-
-        unmatchedMetadataFiles.delete(metadataKey);
-        unmatchedMediaFiles.delete(mediaFilePath);
+        // We make this pass non-consuming as well to be safe.
+        // unmatchedMetadata.delete(metadataKey); // <-- Ensure this is non-consuming
+        unlinkedOriginalMedia.delete(mediaFilePath);
         break;
+      }
+    }
+  }
+
+  // Pass 8: [NEW] Metadata Cleanup Pass (consuming)
+  // Any "main" file (e.g., .jpg) that was linked in Pass 5
+  // can now "claim" its metadata from the unmatched set.
+  for (const metadataKey of new Set(unmatchedMetadata)) {
+    // If a media file exists with the *exact* name as this metadata key...
+    if (manifest.has(metadataKey)) {
+      // ...and that media file *was successfully linked* (to this key)...
+      const entry = manifest.get(metadataKey);
+      if (entry.jsonPath === metadataFiles.get(metadataKey)) {
+        // ...then we consume the key.
+        unmatchedMetadata.delete(metadataKey);
       }
     }
   }
