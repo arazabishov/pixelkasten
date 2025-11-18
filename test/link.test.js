@@ -676,3 +676,20 @@ describe("link with prefix collision - MP and MP.jpg", () => {
     strictEqual(entry.source.type, "loose");
   });
 });
+
+describe("link with sibling directory false positive", () => {
+  const rawCollections = {
+    filesMedia: ["/Photos/Vacation.jpg"],
+    filesMetadata: ["/Photos/Vacation 2024/IMG_123.json"],
+    filesMetadataAlbums: [],
+  };
+
+  const result = new Map(link(rawCollections).map((entry) => [entry.mediaPath, entry]));
+
+  test("should NOT match media to metadata in a sibling directory that shares a prefix", () => {
+    const entry = result.get("/Photos/Vacation.jpg");
+    ok(entry);
+    // Should be undefined because strict directory checking prevents the false positive
+    strictEqual(entry.jsonPath, undefined);
+  });
+});

@@ -4,7 +4,9 @@ import { basename, dirname, join, extname } from "path";
 export function link(rawCollections) {
   const { filesMedia, filesMetadata, filesMetadataAlbums } = rawCollections;
 
-  // Pass 1: Build a map of metadata files with normalized names.
+  // --- Step 1: Indexing ---
+
+  // Map: Normalized Metadata Key (Full Path) -> Original JSON Path
   const metadataFiles = new Map();
   for (const metadataFilePath of filesMetadata) {
     const metadataFileName = basename(metadataFilePath);
@@ -13,95 +15,85 @@ export function link(rawCollections) {
     metadataFiles.set(key, metadataFilePath);
   }
 
-  // Pass 2: Build a map of album directories.
+  // Map: Album Directory -> Album Name
   const albums = new Map();
   for (const metadataFilePath of filesMetadataAlbums) {
-    const metadataFileDir = dirname(metadataFilePath);
-    const albumName = basename(metadataFileDir);
-    albums.set(metadataFileDir, albumName);
+    const dir = dirname(metadataFilePath);
+    albums.set(dir, basename(dir));
   }
 
-  // --- Manifest Generation ---
+  // --- Step 2: Linking (Single Pass) ---
 
-  const manifest = new Map();
-  const unmatchedMetadata = new Set(metadataFiles.keys());
-  const unlinkedMedia = new Set(); // Back to a single set!
+  const manifest = [];
 
-  // Pass 3: Create initial manifest entries
+  // We maintain a Set of all available metadata keys to iterate over for fuzzy matching.
+  // Note: We do NOT remove items from this set during the loop. This enables
+  // "One-to-Many" matching (e.g., Original + Edited + Live Video all matching one JSON).
+  const allMetadataKeys = new Set(metadataFiles.keys());
+
   for (const mediaFilePath of filesMedia) {
-    const mediaFileDir = dirname(mediaFilePath);
-    const mediaEntry = {
+    const mediaDir = dirname(mediaFilePath);
+
+    const entry = {
       mediaPath: mediaFilePath,
-      source: albums.has(mediaFileDir)
-        ? { type: "album", name: albums.get(mediaFileDir) }
+      source: albums.has(mediaDir)
+        ? { type: "album", name: albums.get(mediaDir) }
         : { type: "loose" },
     };
-    manifest.set(mediaFilePath, mediaEntry);
-    unlinkedMedia.add(mediaFilePath); // All media starts as unlinked
-  }
 
-  // --- Linking Passes ---
+    // 1. Determine the "Target"
+    // This unifies logic for Original and Edited files.
+    const targetPath = getNonEditedPath(mediaFilePath);
 
-  // Pass 4: All Exact Matches (Non-consuming)
-  // We combine old Passes 4 & 5 into one.
-  for (const mediaFilePath of new Set(unlinkedMedia)) {
-    const entry = manifest.get(mediaFilePath);
-    const nonEditedPath = getNonEditedPath(mediaFilePath);
-    const isEditedFile = mediaFilePath !== nonEditedPath;
+    if (metadataFiles.has(targetPath)) {
+      // 2. Attempt Exact Match (Fast O(1))
+      entry.jsonPath = metadataFiles.get(targetPath);
+    } else {
+      // 3. Attempt Fuzzy Match (Fallback)
+      // Necessary for truncated filenames or mismatched extensions
+      const targetPrefix = getPathPrefix(targetPath);
 
-    // Strategy 1: Edited file exact match
-    if (isEditedFile && unmatchedMetadata.has(nonEditedPath)) {
-      entry.jsonPath = metadataFiles.get(nonEditedPath);
-      unlinkedMedia.delete(mediaFilePath);
-    }
-    // Strategy 2: Original file exact match
-    else if (unmatchedMetadata.has(mediaFilePath)) {
-      entry.jsonPath = metadataFiles.get(mediaFilePath);
-      unlinkedMedia.delete(mediaFilePath);
-    }
-  }
+      for (const metadataKey of allMetadataKeys) {
+        // STRICT CHECK: Only consider metadata in the exact same directory.
+        // This prevents the "Sibling Directory" false positive AND optimizes performance.
+        if (dirname(metadataKey) !== mediaDir) {
+          continue;
+        }
 
-  // Pass 5: All Fuzzy Matches (Non-consuming)
-  // We combine old Passes 6 & 7 into one.
-  for (const mediaFilePath of new Set(unlinkedMedia)) {
-    const entry = manifest.get(mediaFilePath);
-    const mediaPrefix = getPathPrefix(mediaFilePath);
+        const metadataPrefix = getPathPrefix(metadataKey);
 
-    const nonEditedPath = getNonEditedPath(mediaFilePath);
-    const isEditedFile = mediaFilePath !== nonEditedPath;
-    const nonEditedPrefix = isEditedFile ? getPathPrefix(nonEditedPath) : null;
+        // Bi-directional check:
+        // A) Metadata starts with Media (e.g. media="img.jpg", meta="img.jpg.json")
+        // B) Media starts with Metadata (e.g. media="img.MOV", meta="img.json")
+        const isMatch =
+          metadataKey.startsWith(targetPrefix) || targetPath.startsWith(metadataPrefix);
 
-    for (const metadataKey of new Set(unmatchedMetadata)) {
-      const metadataPrefix = getPathPrefix(metadataKey);
-
-      const matchOnEdited =
-        isEditedFile &&
-        (metadataKey.startsWith(nonEditedPrefix) || nonEditedPath.startsWith(metadataPrefix));
-
-      const matchOnOriginal =
-        !isEditedFile &&
-        (metadataKey.startsWith(mediaPrefix) || mediaFilePath.startsWith(metadataPrefix));
-
-      if (matchOnEdited || matchOnOriginal) {
-        entry.jsonPath = metadataFiles.get(metadataKey);
-        unlinkedMedia.delete(mediaFilePath);
-        break; // Stop searching for this media file
+        if (isMatch) {
+          entry.jsonPath = metadataFiles.get(metadataKey);
+          break; // Found a match, stop searching for this file
+        }
       }
     }
+
+    manifest.push(entry);
   }
 
-  // Pass 6: Metadata Cleanup Pass (Consuming)
-  // (This is the same as our previous "Pass 8")
-  for (const metadataKey of new Set(unmatchedMetadata)) {
-    if (manifest.has(metadataKey)) {
-      const entry = manifest.get(metadataKey);
-      if (entry.jsonPath === metadataFiles.get(metadataKey)) {
-        unmatchedMetadata.delete(metadataKey);
-      }
+  // --- Step 3: Cleanup / Reporting ---
+
+  // Now we calculate which metadata files were *actually* consumed.
+  // We return the full manifest, but this logic allows us to know
+  // strictly which JSON files are left over (unmatched).
+  const usedMetadata = new Set();
+  for (const entry of manifest) {
+    if (entry.jsonPath) {
+      usedMetadata.add(entry.jsonPath);
     }
   }
 
-  return Array.from(manifest.values());
+  // Note: In a real reporting scenario, you would compare 'usedMetadata'
+  // against 'filesMetadata' to list the orphans.
+
+  return manifest;
 }
 
 // Removes an '-edited' suffix from a file path's basename, if present.
