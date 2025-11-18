@@ -1,39 +1,61 @@
 import { basename, dirname, join, extname } from "path";
 
-// TODO: thoroughly document what and why we are doing here, including -edited scenario. .mp, .mp.jpg conflict scenarios, etc.
+/**
+ * The link stage is responsible for associating media files with their corresponding
+ * JSON sidecar metadata files. It handles complex matching scenarios including:
+ *  - Exact filename matches.
+ *  - Truncated filenames (common in Google Takeout).
+ *  - Duplicate markers (e.g., file(1).jpg).
+ *  - Edited versions of files (e.g., file-edited.jpg).
+ *
+ * It also determines the source of the media file (album vs loose) based on directory
+ * structure.
+ *
+ * @param {Object} rawCollections The collection of file paths to process.
+ * @param {string[]} rawCollections.filesMedia List of absolute paths to media files.
+ * @param {string[]} rawCollections.filesMetadata List of absolute paths to metadata files.
+ * @param {string[]} rawCollections.filesMetadataAlbums List of absolute paths to album metadata files.
+ * @returns {{
+ *   manifest: Array<{
+ *     mediaPath: string,
+ *     jsonPath?: string,
+ *     source: { type: 'album', name: string } | { type: 'loose' }
+ *   }>,
+ *   stats: {
+ *     unmatchedMetadataFiles: Set<string>,
+ *     unmatchedMediaFiles: Set<string>
+ *   }
+ * }} The linked manifest and processing statistics.
+ */
 export function link(rawCollections) {
   const { filesMedia, filesMetadata, filesMetadataAlbums } = rawCollections;
 
-  // --- Step 1: Indexing ---
-
-  // Map: Normalized Metadata Key (Full Path) -> Original JSON Path
+  // Pass 1: map metadata files to path based on normalized name.
   const metadataFiles = new Map();
   for (const metadataFilePath of filesMetadata) {
     const metadataFileName = basename(metadataFilePath);
     const metadataFileDir = dirname(metadataFilePath);
-    const key = join(metadataFileDir, getNormalizedMetadataName(metadataFileName));
-    metadataFiles.set(key, metadataFilePath);
+    const metadataFileKey = join(metadataFileDir, getNormalizedMetadataName(metadataFileName));
+
+    metadataFiles.set(metadataFileKey, {
+      path: metadataFilePath,
+      dir: metadataFileDir,
+    });
   }
 
-  // Map: Album Directory -> Album Name
+  // Pass 2: map album directories to their names.
   const albums = new Map();
   for (const metadataFilePath of filesMetadataAlbums) {
-    const dir = dirname(metadataFilePath);
-    albums.set(dir, basename(dir));
+    const albumDir = dirname(metadataFilePath);
+    const albumName = basename(albumDir);
+
+    albums.set(albumDir, albumName);
   }
 
-  // --- Step 2: Linking (Single Pass) ---
-
+  // Pass 3: linking media files to their metadata files.
   const manifest = [];
-
-  // We maintain a Set of all available metadata keys to iterate over for fuzzy matching.
-  // Note: We do NOT remove items from this set during the loop. This enables
-  // "One-to-Many" matching (e.g., Original + Edited + Live Video all matching one JSON).
-  const allMetadataKeys = new Set(metadataFiles.keys());
-
   for (const mediaFilePath of filesMedia) {
     const mediaDir = dirname(mediaFilePath);
-
     const entry = {
       mediaPath: mediaFilePath,
       source: albums.has(mediaDir)
@@ -41,36 +63,31 @@ export function link(rawCollections) {
         : { type: "loose" },
     };
 
-    // 1. Determine the "Target"
-    // This unifies logic for Original and Edited files.
+    // Determine the "target" path: accounts for original and edited files.
     const targetPath = getNonEditedPath(mediaFilePath);
-
     if (metadataFiles.has(targetPath)) {
-      // 2. Attempt Exact Match (Fast O(1))
-      entry.jsonPath = metadataFiles.get(targetPath);
+      // Matching metadata to media file based on map look-up.
+      const metadataFile = metadataFiles.get(targetPath);
+      entry.jsonPath = metadataFile.path;
     } else {
-      // 3. Attempt Fuzzy Match (Fallback)
-      // Necessary for truncated filenames or mismatched extensions
-      const targetPrefix = getPathPrefix(targetPath);
-
-      for (const metadataKey of allMetadataKeys) {
-        // STRICT CHECK: Only consider metadata in the exact same directory.
-        // This prevents the "Sibling Directory" false positive AND optimizes performance.
-        if (dirname(metadataKey) !== mediaDir) {
+      // Trying to match files based on prefix search.
+      for (const [metadataKey, metadataFile] of metadataFiles) {
+        // We only consider metadata files that are in the exact same directory.
+        // It handles the "sibling directory" false positive and optimizes
+        // performance by skipping unrelated files.
+        if (metadataFile.dir !== mediaDir) {
           continue;
         }
 
+        const targetPrefix = getPathPrefix(targetPath);
         const metadataPrefix = getPathPrefix(metadataKey);
 
-        // Bi-directional check:
-        // A) Metadata starts with Media (e.g. media="img.jpg", meta="img.jpg.json")
-        // B) Media starts with Metadata (e.g. media="img.MOV", meta="img.json")
-        const isMatch =
-          metadataKey.startsWith(targetPrefix) || targetPath.startsWith(metadataPrefix);
-
-        if (isMatch) {
-          entry.jsonPath = metadataFiles.get(metadataKey);
-          break; // Found a match, stop searching for this file
+        // Bi-directional check handles both truncation scenarios:
+        //  - metadata > media: "very-long-name-full.json" matches "very-long-name.jpg".
+        //  - media > metadata: "very-long-name-full.mov" matches "very-long-name.json".
+        if (metadataKey.startsWith(targetPrefix) || targetPath.startsWith(metadataPrefix)) {
+          entry.jsonPath = metadataFile.path;
+          break;
         }
       }
     }
@@ -78,32 +95,34 @@ export function link(rawCollections) {
     manifest.push(entry);
   }
 
-  // --- Step 3: Cleanup / Reporting ---
+  // Pass 4: determine umatched files, mostly for reporting.
+  const unmatchedMetadataFiles = new Set(filesMetadata);
+  const unmatchedMediaFiles = new Set(filesMedia);
 
-  // Now we calculate which metadata files were *actually* consumed.
-  // We return the full manifest, but this logic allows us to know
-  // strictly which JSON files are left over (unmatched).
-  const usedMetadata = new Set();
-  for (const entry of manifest) {
-    if (entry.jsonPath) {
-      usedMetadata.add(entry.jsonPath);
+  for (const { mediaPath, jsonPath } of manifest) {
+    if (jsonPath) {
+      unmatchedMetadataFiles.delete(jsonPath);
+      unmatchedMediaFiles.delete(mediaPath);
     }
   }
 
-  // Note: In a real reporting scenario, you would compare 'usedMetadata'
-  // against 'filesMetadata' to list the orphans.
-
-  return manifest;
+  return {
+    manifest,
+    stats: {
+      unmatchedMetadataFiles,
+      unmatchedMediaFiles,
+    },
+  };
 }
 
 // Removes an '-edited' suffix from a file path's basename, if present.
-// For example: '/path/to/image-edited.jpg' -> '/path/to/image.jpg'
+// For example: '/path/to/image-edited.jpg' -> '/path/to/image.jpg'.
 function getNonEditedPath(filePath) {
   return join(dirname(filePath), basename(filePath).replace(/-edited(\.|$)/, "$1"));
 }
 
 // Gets the full path of a file without its file extension.
-// For example: '/path/to/file.txt' -> '/path/to/file'
+// For example: '/path/to/file.txt' -> '/path/to/file'.
 function getPathPrefix(filePath) {
   return join(dirname(filePath), basename(filePath, extname(filePath)));
 }
@@ -113,38 +132,50 @@ export function getNormalizedMetadataName(fileName) {
     return fileName;
   }
 
-  // 1. Guard: check for .json extension (case-insensitive)
+  // Guard: Check for .json extension (case-insensitive).
   const ext = extname(fileName);
   if (ext.toLowerCase() !== ".json") {
     return fileName;
   }
 
-  // 2. Get the name part *without* the extension: "A.B.C (1)" or "A.B.C" or "A"
+  // Get the name part *without* the extension.
+  // For example: "IMG_123.jpg.supplemental-metadata(1)" or "IMG_123.jpg".
   const head = basename(fileName, ext);
 
-  // 3. Split the name part into its segments
+  // Split the name part into its segments.
   const segments = head.split(".");
 
-  // 4. Handle simple case where there are no dots.
+  // Handle simple case where there are no dots.
   if (segments.length === 1) {
     return head;
   }
 
-  // 5. Handle complex cases: "A.B.C (1).json" or "A.B.C.json". We pop the last part to inspect it.
+  // Handle complex cases: "IMG_123.jpg.supplemental-metadata(1).json", "IMG_123.jpg.json".
   const tail = segments.pop();
+
+  // We pop the last part to inspect it.
   const match = tail.match(/\(\d+\)/);
 
   if (match) {
-    // Case: "A.B.C (1).json"
-    // We want to transform "A.B" -> "A(1).B"
-    const duplicateMarker = match[0]; // e.g., "(1)"
-    const base = segments.shift(); // e.g., "A"
-    segments.unshift(`${base}${duplicateMarker}`); // segments is now ["A(1)", "B"]
-    return segments.join("."); // "A(1).B"
+    // Case: "IMG_123.jpg.supplemental-metadata(1).json".
+    // We want to transform "IMG_123.jpg" -> "IMG_123(1).jpg".
+
+    // Example: "(1)".
+    const duplicateMarker = match[0];
+
+    // Example: "IMG_123".
+    const baseSegment = segments.shift();
+
+    // Segments is now ["IMG_123(1)", "jpg"].
+    segments.unshift(`${baseSegment}${duplicateMarker}`);
+
+    // Result: "IMG_123(1).jpg".
+    return segments.join(".");
   } else {
-    // Case: "A.B.C.json"
-    // We want "A.B"
-    // `segments` is already ["A", "B"] because of the .pop()
-    return segments.join("."); // "A.B"
+    // Example: "IMG_123.jpg.json", but we want "IMG_123.jpg" without extension.
+    // We already have only ["IMG_123", "jpg"] because of the .pop().
+
+    // Result: "IMG_123.jpg".
+    return segments.join(".");
   }
 }

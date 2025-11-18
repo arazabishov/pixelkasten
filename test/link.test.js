@@ -95,7 +95,7 @@ describe("link", () => {
     filesMetadataAlbums: [],
   };
 
-  const result = new Map(link(rawCollections).map((entry) => [entry.mediaPath, entry]));
+  const result = new Map(link(rawCollections).manifest.map((entry) => [entry.mediaPath, entry]));
 
   test("should return correct total number of media entries", () => {
     strictEqual(result.size, 14);
@@ -243,7 +243,7 @@ describe("link with albums", () => {
     ],
   };
 
-  const result = new Map(link(rawCollections).map((entry) => [entry.mediaPath, entry]));
+  const result = new Map(link(rawCollections).manifest.map((entry) => [entry.mediaPath, entry]));
 
   test("should identify album sources correctly", () => {
     const entry1 = result.get("/temporary/directory/My Album/IMG_0076.PNG");
@@ -285,7 +285,7 @@ describe("link with truncated filenames", () => {
     filesMetadataAlbums: [],
   };
 
-  const result = new Map(link(rawCollections).map((entry) => [entry.mediaPath, entry]));
+  const result = new Map(link(rawCollections).manifest.map((entry) => [entry.mediaPath, entry]));
 
   test("should return correct total number of media entries", () => {
     strictEqual(result.size, 9);
@@ -449,7 +449,7 @@ describe("link with truncated filenames and edited suffix", () => {
     filesMetadataAlbums: [],
   };
 
-  const result = new Map(link(rawCollections).map((entry) => [entry.mediaPath, entry]));
+  const result = new Map(link(rawCollections).manifest.map((entry) => [entry.mediaPath, entry]));
 
   test("should return correct total number of media entries", () => {
     strictEqual(result.size, 4);
@@ -535,7 +535,7 @@ describe("link with -edited suffix", () => {
     filesMetadataAlbums: [],
   };
 
-  const result = new Map(link(rawCollections).map((entry) => [entry.mediaPath, entry]));
+  const result = new Map(link(rawCollections).manifest.map((entry) => [entry.mediaPath, entry]));
 
   test("should return correct total number of media entries", () => {
     strictEqual(result.size, 4);
@@ -590,7 +590,7 @@ describe("link with Copy and Copy-edited files", () => {
     filesMetadataAlbums: [],
   };
 
-  const result = new Map(link(rawCollections).map((entry) => [entry.mediaPath, entry]));
+  const result = new Map(link(rawCollections).manifest.map((entry) => [entry.mediaPath, entry]));
 
   test("should return correct total number of media entries", () => {
     strictEqual(result.size, 4);
@@ -648,7 +648,7 @@ describe("link with prefix collision - MP and MP.jpg", () => {
     filesMetadataAlbums: [],
   };
 
-  const result = new Map(link(rawCollections).map((entry) => [entry.mediaPath, entry]));
+  const result = new Map(link(rawCollections).manifest.map((entry) => [entry.mediaPath, entry]));
 
   test("should return correct total number of media entries", () => {
     strictEqual(result.size, 2);
@@ -684,7 +684,7 @@ describe("link with sibling directory false positive", () => {
     filesMetadataAlbums: [],
   };
 
-  const result = new Map(link(rawCollections).map((entry) => [entry.mediaPath, entry]));
+  const result = new Map(link(rawCollections).manifest.map((entry) => [entry.mediaPath, entry]));
 
   test("should NOT match media to metadata in a sibling directory that shares a prefix", () => {
     const entry = result.get("/Photos/Vacation.jpg");
