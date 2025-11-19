@@ -41,6 +41,11 @@ export async function dedupeHash(manifest) {
   }
 }
 
+export async function dedupeResolve(manifest) {
+  // TODO: add a flag that controls which duplicates live and which should be removed
+  // TODO: figure out which files to keep and which to delete
+}
+
 function calculateFileSha256(filePath) {
   return new Promise((resolve, reject) => {
     const hash = createHash("sha256");

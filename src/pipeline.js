@@ -1,9 +1,8 @@
 import { link } from "./stages/link.js";
 import { scan } from "./stages/scan.js";
 import { logScanReport } from "./stages/scan.report.js";
-import { logger } from "./logger.js";
 import { logLinkReport } from "./stages/link.report.js";
-import { dedupeHash } from "./stages/dedupe.js";
+import { dedupeHash, dedupeResolve } from "./stages/dedupe.js";
 
 // TODO: manifest structure
 
@@ -97,7 +96,10 @@ export async function runPipeline(options) {
   logLinkReport(matches);
 
   if (!options.skipDedupe) {
-    // Phase 3: calculate hash values for media files
+    // Phase 3.1: calculate hash values for media files
     await dedupeHash(matches.manifest);
+
+    // Phase 3.2: use hashes to dedupe files
+    await dedupeResolve(matches.manifest);
   }
 }
