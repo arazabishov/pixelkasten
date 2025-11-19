@@ -127,7 +127,7 @@ function getPathPrefix(filePath) {
   return join(dirname(filePath), basename(filePath, extname(filePath)));
 }
 
-export function getNormalizedMetadataName(fileName) {
+function getNormalizedMetadataName(fileName) {
   if (!fileName) {
     return fileName;
   }
