@@ -2,6 +2,7 @@ import { link } from "./stages/link.js";
 import { scan } from "./stages/scan.js";
 import { logScanReport } from "./stages/scan.report.js";
 import { logger } from "./logger.js";
+import { logLinkReport } from "./stages/link.report.js";
 
 // TODO: manifest structure
 
@@ -90,8 +91,7 @@ export async function runPipeline(options) {
   const rawCollections = await scan(options.source);
   logScanReport(rawCollections, options.source);
 
-  const manifest = link(rawCollections);
-  // logger.info(manifest);
-
-  // Phase 2: linking metadata to media files
+  // Phase 2: link media to sidecar files
+  const matches = link(rawCollections);
+  logLinkReport(matches);
 }

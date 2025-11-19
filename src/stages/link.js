@@ -1,4 +1,6 @@
 import { basename, dirname, join, extname } from "path";
+import { canShowProgress } from "../logger.js";
+import cliProgress from "cli-progress";
 
 /**
  * The link stage is responsible for associating media files with their corresponding
@@ -52,9 +54,29 @@ export function link(rawCollections) {
     albums.set(albumDir, albumName);
   }
 
+  const progressBar = canShowProgress()
+    ? new cliProgress.SingleBar(
+        {
+          format: "⧗ Phase 2: linking files |{bar}| {percentage}% | {value}/{total} files",
+          hideCursor: true,
+        },
+        cliProgress.Presets.shades_classic
+      )
+    : null;
+
+  if (canShowProgress()) {
+    progressBar.start(filesMedia.length, 0);
+  }
+
   // Pass 3: linking media files to their metadata files.
   const manifest = [];
-  for (const mediaFilePath of filesMedia) {
+  for (let index = 0; index < filesMedia.length; index++) {
+    const mediaFilePath = filesMedia[index];
+
+    if (canShowProgress()) {
+      progressBar.update(index + 1);
+    }
+
     const mediaDir = dirname(mediaFilePath);
     const entry = {
       mediaPath: mediaFilePath,
@@ -93,6 +115,10 @@ export function link(rawCollections) {
     }
 
     manifest.push(entry);
+  }
+
+  if (canShowProgress()) {
+    progressBar.stop();
   }
 
   // Pass 4: determine umatched files, mostly for reporting.

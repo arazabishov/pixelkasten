@@ -8,6 +8,7 @@ const handlerMap = {
   ".png": dummyHandler,
   ".mp4": dummyHandler,
   ".mov": dummyHandler,
+  ".mp": dummyHandler,
 };
 
 // A list of common media file extensions that we recognize but do not currently support.

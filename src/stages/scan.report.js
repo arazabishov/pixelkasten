@@ -40,5 +40,5 @@ export function logScanReport(rawCollections, sourcePath) {
     filesIgnored.push([relative(sourcePath, file)]);
   }
 
-  logger.info(filesIgnored.toString());
+  logger.info(`${filesIgnored.toString()}\n`);
 }
