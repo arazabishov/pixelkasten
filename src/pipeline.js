@@ -3,6 +3,7 @@ import { scan } from "./stages/scan.js";
 import { logScanReport } from "./stages/scan.report.js";
 import { logger } from "./logger.js";
 import { logLinkReport } from "./stages/link.report.js";
+import { dedupeHash } from "./stages/dedupe.js";
 
 // TODO: manifest structure
 
@@ -94,4 +95,9 @@ export async function runPipeline(options) {
   // Phase 2: link media to sidecar files
   const matches = link(rawCollections);
   logLinkReport(matches);
+
+  if (!options.skipDedupe) {
+    // Phase 3: calculate hash values for media files
+    await dedupeHash(matches.manifest);
+  }
 }
