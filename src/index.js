@@ -23,11 +23,22 @@ program
   .option("-s, --source <path>", "source directory containing takout from Google Photos")
   .option("-d, --destination <path>", "destination directory for organized photos")
   .option("-v, --verbose", "enable verbose output")
-  .option("--dry-run", "preview changes without modifying files");
+  .option("--dry-run", "preview changes without modifying files")
+  .option(
+    "--prefer <type>",
+    "prefer which files to keep when deduplicating: 'album' or 'loose'",
+    "album"
+  );
 
 program.parse(process.argv);
 
 const options = program.opts();
+
+// Validate --prefer option
+if (options.prefer && !["album", "loose"].includes(options.prefer)) {
+  consola.fail(`Invalid --prefer value: "${options.prefer}". Must be either "album" or "loose".`);
+  process.exit(1);
+}
 
 // Set log level based on verbose flag
 if (options.verbose) {

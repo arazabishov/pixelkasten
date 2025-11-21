@@ -13,7 +13,9 @@ export function logScanReport(rawCollections, sourcePath) {
 
   const stats = new CliTable3({
     head: ["Category", "Count"],
-    style: { head: ["cyan"] },
+    style: {
+      head: ["cyan"],
+    },
   });
 
   stats.push(
@@ -24,16 +26,20 @@ export function logScanReport(rawCollections, sourcePath) {
     ["All files", filesTotal]
   );
 
-  logger.info(stats.toString());
-
   const isOthersEmpty = others.length === 0;
+
+  // We do not want a trailing \n if this is not the last table to print.
+  logger.info(isOthersEmpty ? `${stats.toString()}\n` : stats.toString());
+
   if (isOthersEmpty) {
     return;
   }
 
   const filesIgnored = new CliTable3({
     head: ["Other files"],
-    style: { head: ["cyan"] },
+    style: {
+      head: ["cyan"],
+    },
   });
 
   for (const file of others) {

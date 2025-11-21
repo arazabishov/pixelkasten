@@ -9,7 +9,9 @@ export function logLinkReport(matches) {
 
   const stats = new CliTable3({
     head: ["Category", "Count"],
-    style: { head: ["cyan"] },
+    style: {
+      head: ["cyan"],
+    },
   });
 
   stats.push(
@@ -18,5 +20,5 @@ export function logLinkReport(matches) {
     ["Unmatched metadata files", unmatchedMetadataFiles.size]
   );
 
-  logger.info(stats.toString());
+  logger.info(`${stats.toString()}\n`);
 }
