@@ -94,9 +94,20 @@ export async function dedupeResolve(manifest, options) {
       // Unique file - always keep
       duplicates[0].dedupe.action = "keep";
     } else {
-      // Multiple files with same hash - apply preference
-      for (const entry of duplicates) {
-        entry.dedupe.action = entry.source.type === options.prefer ? "keep" : "delete";
+      // Multiple files with same hash - check if mixed types
+      const hasPreferred = duplicates.some((e) => e.source.type === options.prefer);
+      const hasOther = duplicates.some((e) => e.source.type !== options.prefer);
+
+      if (hasPreferred && hasOther) {
+        // Mixed types - keep preferred, delete other
+        for (const entry of duplicates) {
+          entry.dedupe.action = entry.source.type === options.prefer ? "keep" : "delete";
+        }
+      } else {
+        // Same type - keep all
+        for (const entry of duplicates) {
+          entry.dedupe.action = "keep";
+        }
       }
     }
 
