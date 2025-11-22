@@ -4,6 +4,8 @@ import { logScanReport } from "./stages/scan.report.js";
 import { logLinkReport } from "./stages/link.report.js";
 import { dedupeHash, dedupeResolve } from "./stages/dedupe.js";
 import { logDuplicatesReport } from "./stages/dedupe.report.js";
+import { reconcile } from "./stages/reconcile.js";
+import { logReconcileReport } from "./stages/reconcile.report.js";
 
 // TODO: manifest structure
 
@@ -87,6 +89,7 @@ import { logDuplicatesReport } from "./stages/dedupe.report.js";
 //   }
 // }
 
+// TODO: you should stop using numbered phases, because they can be skipped / ommitted
 export async function runPipeline(options) {
   // Phase 1: scan files
   const rawCollections = await scan(options.source);
@@ -105,4 +108,19 @@ export async function runPipeline(options) {
     await dedupeResolve(manifest, options);
     logDuplicatesReport(manifest);
   }
+
+  if (!options.skipEmbed || !options.skipRename) {
+    await reconcile(manifest);
+    logReconcileReport(manifest);
+  }
+
+  if (!options.skipEmbed) {
+    // TODO: call embed functions
+  }
+
+  if (!options.skipRename) {
+    // TODO: call rename functions
+  }
+
+  // TODO: call apply function that applies changes
 }
