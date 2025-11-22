@@ -98,10 +98,10 @@ export async function runPipeline(options) {
 
   const { manifest } = matches;
   if (!options.skipDedupe) {
-    // Phase 3.1: calculate hash values for media files
+    // Phase 3: calculate hash values for media files
     await dedupeHash(manifest);
 
-    // Phase 3.2: use hashes to dedupe files
+    // Phase 4: use hashes to dedupe files
     await dedupeResolve(manifest, options);
     logDuplicatesReport(manifest);
   }
