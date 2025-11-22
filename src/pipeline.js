@@ -109,7 +109,7 @@ export async function runPipeline(options) {
   }
 
   if (!options.skipEmbed || !options.skipRename) {
-    await reconcile(manifest);
+    await reconcile(manifest, options.source);
     logReconcileReport(manifest);
   }
 

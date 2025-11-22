@@ -1,14 +1,15 @@
-const dummyHandler = {};
+import { exifHandler } from "./formats/exif.js";
+import { quicktimeHandler } from "./formats/quicktime.js";
 
 // The master map linking supported extensions to their metadata-handling logic.
 const handlerMap = {
-  ".heic": dummyHandler,
-  ".jpeg": dummyHandler,
-  ".jpg": dummyHandler,
-  ".png": dummyHandler,
-  ".mp4": dummyHandler,
-  ".mov": dummyHandler,
-  ".mp": dummyHandler,
+  ".heic": exifHandler,
+  ".jpeg": exifHandler,
+  ".jpg": exifHandler,
+  ".png": exifHandler,
+  ".mp4": quicktimeHandler,
+  ".mov": quicktimeHandler,
+  ".mp": exifHandler,
 };
 
 // A list of common media file extensions that we recognize but do not currently support.
@@ -36,6 +37,6 @@ export const allKnownMediaExtensions = new Set([
 ]);
 
 /**
- * The map of extensions to their handler functions.
+ * An array of handler functions.
  */
-export const handlers = handlerMap;
+export const handlers = Object.values(handlerMap);
