@@ -57,7 +57,7 @@ export function link(rawCollections) {
   const progressBar = canShowProgress()
     ? new cliProgress.SingleBar(
         {
-          format: "⧗ Phase 2: linking files |{bar}| {percentage}% | {value}/{total} files",
+          format: "⧗ Linking files |{bar}| {percentage}% | {value}/{total} files",
           hideCursor: true,
         },
         cliProgress.Presets.shades_classic

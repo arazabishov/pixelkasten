@@ -89,7 +89,6 @@ import { logReconcileReport } from "./stages/reconcile.report.js";
 //   }
 // }
 
-// TODO: you should stop using numbered phases, because they can be skipped / ommitted
 export async function runPipeline(options) {
   // Phase 1: scan files
   const rawCollections = await scan(options.source);

@@ -24,7 +24,7 @@ export async function scan(sourcePath) {
   const progressBar = canShowProgress()
     ? new cliProgress.SingleBar(
         {
-          format: "⧗ Phase 1: scanning files |{bar}| {percentage}% | {value}/{total} entries",
+          format: "⧗ Scanning files |{bar}| {percentage}% | {value}/{total} entries",
           hideCursor: true,
         },
         cliProgress.Presets.shades_classic

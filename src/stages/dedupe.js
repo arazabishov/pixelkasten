@@ -23,7 +23,7 @@ export async function dedupeHash(manifest) {
   const progressBar = canShowProgress()
     ? new cliProgress.SingleBar(
         {
-          format: "⧗ Phase 3: calculating hashes |{bar}| {percentage}% | {value}/{total} entries",
+          format: "⧗ Calculating hashes |{bar}| {percentage}% | {value}/{total} entries",
           hideCursor: true,
         },
         cliProgress.Presets.shades_classic
@@ -102,7 +102,7 @@ export async function dedupeResolve(manifest, options) {
   const progressBar = canShowProgress()
     ? new cliProgress.SingleBar(
         {
-          format: "⧗ Phase 4: resolving duplicates |{bar}| {percentage}% | {value}/{total} entries",
+          format: "⧗ Resolving duplicates |{bar}| {percentage}% | {value}/{total} entries",
           hideCursor: true,
         },
         cliProgress.Presets.shades_classic
