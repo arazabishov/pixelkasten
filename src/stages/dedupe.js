@@ -150,7 +150,7 @@ export async function dedupeResolve(manifest, options) {
     }
 
     if (canShowProgress()) {
-      progressBar.update(index);
+      progressBar.update(index + 1);
     }
   }
 
