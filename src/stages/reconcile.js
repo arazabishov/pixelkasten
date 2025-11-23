@@ -1,8 +1,9 @@
-import { logger } from "../logger.js";
+import { logger, canShowProgress } from "../logger.js";
 import { readMetadata } from "../core/exiftool.js";
 import { supportedExtensions, handlers } from "../handlers/index.js";
 import { readFile } from "fs/promises";
 import { extname } from "path";
+import cliProgress from "cli-progress";
 
 export async function reconcile(manifest, options) {
   // Stage 1: filter keepers. We use optional chaining (?.) to be safe if dedupe object is missing.
@@ -25,12 +26,28 @@ export async function reconcile(manifest, options) {
   ];
   const args = [...readTags, ...extensions];
 
-  // Stage 3: sliding window loop to process files in chunks to prevent OOM.
-  for (let offset = 0; offset < keepers.length; offset += 512) {
-    // Stage 3.1: slice the batch
-    const batch = keepers.slice(offset, offset + 512);
+  // Calculate total number of batches needed (round up for partial batches)
+  const batchSize = 512;
+  const batches = Math.ceil(keepers.length / batchSize);
 
-    console.log("... batch", offset, batch.length);
+  const progressBar = canShowProgress()
+    ? new cliProgress.SingleBar(
+        {
+          format: "⧗ Reconciling metadata |{bar}| {percentage}% | {value}/{total} batches",
+          hideCursor: true,
+        },
+        cliProgress.Presets.shades_classic
+      )
+    : null;
+
+  if (canShowProgress()) {
+    progressBar.start(batches, 0);
+  }
+
+  // Stage 3: sliding window loop to process files in chunks to prevent OOM.
+  for (let offset = 0; offset < keepers.length; offset += batchSize) {
+    // Stage 3.1: slice the batch (up to batchSize items)
+    const batch = keepers.slice(offset, offset + batchSize);
 
     // Stage 3.2: prepare paths for exiftool.
     const batchPaths = batch.map((entry) => entry.mediaPath);
@@ -68,9 +85,16 @@ export async function reconcile(manifest, options) {
     });
 
     await Promise.all(tasks);
+
+    if (canShowProgress()) {
+      // Calculate current batch number: divide offset by batch size and add 1 for 1-based indexing
+      progressBar.update(Math.floor(offset / batchSize) + 1);
+    }
   }
 
-  console.log("Here");
+  if (canShowProgress()) {
+    progressBar.stop();
+  }
 }
 
 async function fetchSidecarData(jsonPath) {
