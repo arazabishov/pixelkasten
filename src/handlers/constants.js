@@ -3,7 +3,7 @@
  * underlying sources (EXIF, XMP, QuickTime) automatically.
  */
 export const compositeGeoTags = [
-  "-Composite:GPSAltitude",
-  "-Composite:GPSLatitude",
-  "-Composite:GPSLongitude",
+  "Composite:GPSAltitude",
+  "Composite:GPSLatitude",
+  "Composite:GPSLongitude",
 ];
