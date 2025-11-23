@@ -1,7 +1,6 @@
-import cliProgress from "cli-progress";
 import { createHash } from "crypto";
 import { createReadStream } from "fs";
-import { canShowProgress } from "../logger.js";
+import { progressBar } from "../core/progress.js";
 
 /**
  * Calculates SHA-256 hashes for all media files in the manifest.
@@ -20,19 +19,9 @@ import { canShowProgress } from "../logger.js";
  */
 export async function dedupeHash(manifest) {
   // Create progress bar (only if not in verbose mode)
-  const progressBar = canShowProgress()
-    ? new cliProgress.SingleBar(
-        {
-          format: "⧗ Calculating hashes |{bar}| {percentage}% | {value}/{total} entries",
-          hideCursor: true,
-        },
-        cliProgress.Presets.shades_classic
-      )
-    : null;
+  const bar = progressBar("⧗ Calculating hashes |{bar}| {percentage}% | {value}/{total} entries");
 
-  if (canShowProgress()) {
-    progressBar.start(manifest.length, 0);
-  }
+  bar.start(manifest.length, 0);
 
   for (let index = 0; index < manifest.length; index++) {
     const entry = manifest[index];
@@ -46,14 +35,10 @@ export async function dedupeHash(manifest) {
       },
     };
 
-    if (canShowProgress()) {
-      progressBar.update(index + 1);
-    }
+    bar.update(index + 1);
   }
 
-  if (canShowProgress()) {
-    progressBar.stop();
-  }
+  bar.stop();
 }
 
 function calculateHash(filePath) {
@@ -99,15 +84,7 @@ function calculateHash(filePath) {
  * @throws {Error} If any entry ends up with an invalid action state after resolution.
  */
 export async function dedupeResolve(manifest, options) {
-  const progressBar = canShowProgress()
-    ? new cliProgress.SingleBar(
-        {
-          format: "⧗ Resolving duplicates |{bar}| {percentage}% | {value}/{total} entries",
-          hideCursor: true,
-        },
-        cliProgress.Presets.shades_classic
-      )
-    : null;
+  const bar = progressBar("⧗ Resolving duplicates |{bar}| {percentage}% | {value}/{total} entries");
 
   // Group entries by hash
   const hashes = new Map();
@@ -119,9 +96,7 @@ export async function dedupeResolve(manifest, options) {
     hashes.get(hash).push(entry);
   }
 
-  if (canShowProgress()) {
-    progressBar.start(hashes.size, 0);
-  }
+  bar.start(hashes.size, 0);
 
   // Resolve duplicates
   const hashGroups = Array.from(hashes.values());
@@ -149,14 +124,10 @@ export async function dedupeResolve(manifest, options) {
       }
     }
 
-    if (canShowProgress()) {
-      progressBar.update(index + 1);
-    }
+    bar.update(index + 1);
   }
 
-  if (canShowProgress()) {
-    progressBar.stop();
-  }
+  bar.stop();
 
   checkInvariants(manifest);
 }

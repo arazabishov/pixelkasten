@@ -1,6 +1,5 @@
 import { basename, dirname, join, extname } from "path";
-import { canShowProgress } from "../logger.js";
-import cliProgress from "cli-progress";
+import { progressBar } from "../core/progress.js";
 
 /**
  * The link stage is responsible for associating media files with their corresponding
@@ -54,28 +53,15 @@ export function link(rawCollections) {
     albums.set(albumDir, albumName);
   }
 
-  const progressBar = canShowProgress()
-    ? new cliProgress.SingleBar(
-        {
-          format: "⧗ Linking files |{bar}| {percentage}% | {value}/{total} files",
-          hideCursor: true,
-        },
-        cliProgress.Presets.shades_classic
-      )
-    : null;
-
-  if (canShowProgress()) {
-    progressBar.start(filesMedia.length, 0);
-  }
+  const bar = progressBar("⧗ Linking files |{bar}| {percentage}% | {value}/{total} files");
+  bar.start(filesMedia.length, 0);
 
   // Pass 3: linking media files to their metadata files.
   const manifest = [];
   for (let index = 0; index < filesMedia.length; index++) {
     const mediaFilePath = filesMedia[index];
 
-    if (canShowProgress()) {
-      progressBar.update(index + 1);
-    }
+    bar.update(index + 1);
 
     const mediaDir = dirname(mediaFilePath);
     const entry = {
@@ -117,9 +103,7 @@ export function link(rawCollections) {
     manifest.push(entry);
   }
 
-  if (canShowProgress()) {
-    progressBar.stop();
-  }
+  bar.stop();
 
   // Pass 4: determine umatched files, mostly for reporting.
   const unmatchedMetadataFiles = new Set(filesMetadata);

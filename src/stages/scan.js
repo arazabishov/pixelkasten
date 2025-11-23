@@ -1,8 +1,7 @@
-import cliProgress from "cli-progress";
 import { readdir, stat } from "fs/promises";
 import { extname, join } from "path";
 import { allKnownMediaExtensions } from "../handlers/index.js";
-import { canShowProgress } from "../logger.js";
+import { progressBar } from "../core/progress.js";
 
 export async function scan(sourcePath) {
   // Let's ensure that sourcePath exists and it is a directory.
@@ -21,28 +20,16 @@ export async function scan(sourcePath) {
   const dirents = await readdir(sourcePath, { withFileTypes: true, recursive: true });
 
   // Create progress bar (only if not in verbose mode)
-  const progressBar = canShowProgress()
-    ? new cliProgress.SingleBar(
-        {
-          format: "⧗ Scanning files |{bar}| {percentage}% | {value}/{total} entries",
-          hideCursor: true,
-        },
-        cliProgress.Presets.shades_classic
-      )
-    : null;
+  const bar = progressBar("⧗ Scanning files |{bar}| {percentage}% | {value}/{total} entries");
 
-  if (canShowProgress()) {
-    progressBar.start(dirents.length, 0);
-  }
+  bar.start(dirents.length, 0);
 
   // Walk through entries and categorize them into buckets.
   for (let index = 0; index < dirents.length; index++) {
     const dirent = dirents[index];
 
     // Update the progress here to account for the 'continue' below.
-    if (canShowProgress()) {
-      progressBar.update(index + 1);
-    }
+    bar.update(index + 1);
 
     // We only care about files. Skip directories, symlinks, etc.
     if (!dirent.isFile()) {
@@ -72,9 +59,7 @@ export async function scan(sourcePath) {
     }
   }
 
-  if (canShowProgress()) {
-    progressBar.stop();
-  }
+  bar.stop();
 
   checkInvariants(stats);
 

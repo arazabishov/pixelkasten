@@ -1,9 +1,9 @@
-import { logger, canShowProgress } from "../logger.js";
+import { logger } from "../logger.js";
+import { progressBar } from "../core/progress.js";
 import { readMetadata } from "../core/exiftool.js";
 import { supportedExtensions, handlers } from "../handlers/index.js";
 import { readFile } from "fs/promises";
 import { extname } from "path";
-import cliProgress from "cli-progress";
 
 export async function reconcile(manifest, options) {
   // Stage 1: filter keepers. We use optional chaining (?.) to be safe if dedupe object is missing.
@@ -30,19 +30,9 @@ export async function reconcile(manifest, options) {
   const batchSize = 512;
   const batches = Math.ceil(keepers.length / batchSize);
 
-  const progressBar = canShowProgress()
-    ? new cliProgress.SingleBar(
-        {
-          format: "⧗ Reconciling metadata |{bar}| {percentage}% | {value}/{total} batches",
-          hideCursor: true,
-        },
-        cliProgress.Presets.shades_classic
-      )
-    : null;
+  const bar = progressBar("⧗ Reconciling metadata |{bar}| {percentage}% | {value}/{total} batches");
 
-  if (canShowProgress()) {
-    progressBar.start(batches, 0);
-  }
+  bar.start(batches, 0);
 
   // Stage 3: sliding window loop to process files in chunks to prevent OOM.
   for (let offset = 0; offset < keepers.length; offset += batchSize) {
@@ -86,15 +76,11 @@ export async function reconcile(manifest, options) {
 
     await Promise.all(tasks);
 
-    if (canShowProgress()) {
-      // Convert offset to 1-based batch number.
-      progressBar.update(Math.floor(offset / batchSize) + 1);
-    }
+    // Convert offset to 1-based batch number.
+    bar.update(Math.floor(offset / batchSize) + 1);
   }
 
-  if (canShowProgress()) {
-    progressBar.stop();
-  }
+  bar.stop();
 }
 
 async function fetchSidecarData(jsonPath) {
