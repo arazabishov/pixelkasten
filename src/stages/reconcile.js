@@ -59,7 +59,7 @@ export async function reconcile(manifest, options) {
     const tasks = batch.map(async (entry) => {
       // If exiftool has not reported on a file, we should not try to continue processing it.
       if (!batchExifMap.has(entry.mediaPath)) {
-        const error = `ExifTool failed to report on file: ${file.mediaPath}. Skipping to prevent overwrite.`;
+        const error = `ExifTool did not report on ${entry.mediaPath}, skipping.`;
 
         if (options.strict) {
           throw new Error(error);
@@ -87,7 +87,7 @@ export async function reconcile(manifest, options) {
     await Promise.all(tasks);
 
     if (canShowProgress()) {
-      // Calculate current batch number: divide offset by batch size and add 1 for 1-based indexing
+      // Convert offset to 1-based batch number.
       progressBar.update(Math.floor(offset / batchSize) + 1);
     }
   }
