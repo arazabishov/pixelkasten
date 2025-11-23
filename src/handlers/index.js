@@ -37,6 +37,6 @@ export const allKnownMediaExtensions = new Set([
 ]);
 
 /**
- * An array of handler functions.
+ * An object of handler functions.
  */
-export const handlers = Object.values(handlerMap);
+export const handlers = handlerMap;
