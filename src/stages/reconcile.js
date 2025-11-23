@@ -1,9 +1,10 @@
+import { logger } from "../logger.js";
 import { readMetadata } from "../core/exiftool.js";
 import { supportedExtensions, handlers } from "../handlers/index.js";
 import { readFile } from "fs/promises";
 import { extname } from "path";
 
-export async function reconcile(manifest) {
+export async function reconcile(manifest, options) {
   // Stage 1: filter keepers. We use optional chaining (?.) to be safe if dedupe object is missing.
   // If dedupe was skipped, action is 'pending' or undefined, so !== 'delete' is true.
   const keepers = manifest.filter((entry) => entry.dedupe?.action !== "delete");
@@ -37,12 +38,22 @@ export async function reconcile(manifest) {
     // Stage 3.3: contains a Map<Path, ExifObject>.
     const batchExifMap = await readMetadata(batchPaths, args);
 
-    // TODO: do we need to assert on batch and exif map sizes?
-
     // Stage 3.4: process the batch in parallel using promises.
     const tasks = batch.map(async (entry) => {
-      const ext = extname(entry.mediaPath).toLowerCase();
-      const handler = handlers[ext];
+      // If exiftool has not reported on a file, we should not try to continue processing it.
+      if (!batchExifMap.has(entry.mediaPath)) {
+        const error = `ExifTool failed to report on file: ${file.mediaPath}. Skipping to prevent overwrite.`;
+
+        if (options.strict) {
+          throw new Error(error);
+        }
+
+        logger.error(error);
+        return;
+      }
+
+      const extension = extname(entry.mediaPath).toLowerCase();
+      const handler = handlers[extension];
 
       // Look up tags returned by exiftool.
       const rawDiskTags = batchExifMap.get(entry.mediaPath);
