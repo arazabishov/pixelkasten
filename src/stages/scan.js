@@ -1,7 +1,7 @@
 import { readdir, stat } from "fs/promises";
 import { extname, join } from "path";
 import { allKnownMediaExtensions } from "../handlers/index.js";
-import { progressBar } from "../core/progress.js";
+import { progressBar } from "../utils/progress.js";
 
 export async function scan(sourcePath) {
   // Let's ensure that sourcePath exists and it is a directory.

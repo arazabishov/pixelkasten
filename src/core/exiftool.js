@@ -14,7 +14,7 @@ export async function readMetadata(filePaths, tags = []) {
     // Increase processing speed by not parsing all metadata
     "-fast",
     // Specify which metadata tags to extract
-    ...tags,
+    ...tags.map((t) => `-${t}`),
     // Read file list from stdin
     "-@",
     // Read from stdin

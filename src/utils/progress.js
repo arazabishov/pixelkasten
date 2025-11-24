@@ -1,5 +1,5 @@
 import cliProgress from "cli-progress";
-import { logger } from "../logger.js";
+import { logger } from "./logger.js";
 
 export function progressBar(format) {
   const bar = !logger.verbose

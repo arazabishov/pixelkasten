@@ -1,5 +1,5 @@
 import { basename, dirname, join, extname } from "path";
-import { progressBar } from "../core/progress.js";
+import { progressBar } from "../utils/progress.js";
 
 /**
  * The link stage is responsible for associating media files with their corresponding

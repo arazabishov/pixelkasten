@@ -1,6 +1,6 @@
 import { createHash } from "crypto";
 import { createReadStream } from "fs";
-import { progressBar } from "../core/progress.js";
+import { progressBar } from "../utils/progress.js";
 
 /**
  * Calculates SHA-256 hashes for all media files in the manifest.
