@@ -61,7 +61,6 @@ export async function reconcile(manifest, options) {
 
     await Promise.all(tasks);
 
-    // Convert offset to 1-based batch number.
     bar.increment();
   }
 
