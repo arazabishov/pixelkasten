@@ -58,10 +58,8 @@ export function link(rawCollections) {
 
   // Pass 3: linking media files to their metadata files.
   const manifest = [];
-  for (let index = 0; index < filesMedia.length; index++) {
-    const mediaFilePath = filesMedia[index];
-
-    bar.update(index + 1);
+  for (const mediaFilePath of filesMedia) {
+    bar.increment();
 
     const mediaDir = dirname(mediaFilePath);
     const entry = {

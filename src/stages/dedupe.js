@@ -23,8 +23,7 @@ export async function dedupeHash(manifest) {
 
   bar.start(manifest.length, 0);
 
-  for (let index = 0; index < manifest.length; index++) {
-    const entry = manifest[index];
+  for (const [index, entry] of manifest.entries()) {
     const sha256 = await calculateHash(entry.mediaPath);
 
     manifest[index] = {
@@ -35,7 +34,7 @@ export async function dedupeHash(manifest) {
       },
     };
 
-    bar.update(index + 1);
+    bar.increment();
   }
 
   bar.stop();
@@ -100,9 +99,7 @@ export async function dedupeResolve(manifest, options) {
 
   // Resolve duplicates
   const hashGroups = Array.from(hashes.values());
-  for (let index = 0; index < hashGroups.length; index++) {
-    const duplicates = hashGroups[index];
-
+  for (const duplicates of hashGroups) {
     if (duplicates.length === 1) {
       // Unique file - always keep
       duplicates[0].dedupe.action = "keep";
@@ -124,7 +121,7 @@ export async function dedupeResolve(manifest, options) {
       }
     }
 
-    bar.update(index + 1);
+    bar.increment();
   }
 
   bar.stop();

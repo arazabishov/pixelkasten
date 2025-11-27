@@ -16,8 +16,8 @@ export function progressBar(format) {
     start: (...args) => {
       bar?.start(...args);
     },
-    update: (...args) => {
-      bar?.update(...args);
+    increment: (...args) => {
+      bar?.increment(...args);
     },
     stop: (...args) => {
       bar?.stop(...args);

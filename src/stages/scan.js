@@ -25,11 +25,9 @@ export async function scan(sourcePath) {
   bar.start(dirents.length, 0);
 
   // Walk through entries and categorize them into buckets.
-  for (let index = 0; index < dirents.length; index++) {
-    const dirent = dirents[index];
-
+  for (const dirent of dirents) {
     // Update the progress here to account for the 'continue' below.
-    bar.update(index + 1);
+    bar.increment();
 
     // We only care about files. Skip directories, symlinks, etc.
     if (!dirent.isFile()) {
