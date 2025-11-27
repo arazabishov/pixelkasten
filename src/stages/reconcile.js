@@ -93,11 +93,8 @@ async function resolve(mediaPath, jsonPath, rawDiskTags) {
   // Normalize raw, file type specific tags to a common shape.
   const diskData = handler.parse(rawDiskTags);
 
-  const metadata = {
-    status: "noop",
-    writeTags: [],
-    dates: [...diskData.dates],
-  };
+  // The starting point for the metadata object. If no writes happen, the status is "noop".
+  const metadata = { status: "noop", writeTags: [], dates: [...diskData.dates] };
 
   // If there is no primary timestamp on disk, we can embed the value from sidecar.
   if (!diskData.timestamp && sidecarData.timestamp) {
