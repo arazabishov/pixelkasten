@@ -2,7 +2,7 @@ import { logger } from "../utils/logger.js";
 import { progressBar } from "../utils/progress.js";
 import { readMetadata } from "../core/exiftool.js";
 import { readSidecar } from "../core/sidecar.js";
-import { supportedExtensions, handlers } from "../handlers/index.js";
+import { handlers } from "../handlers/index.js";
 import { extname } from "path";
 import { transformPhotoTakenTime } from "../core/datetime.js";
 
@@ -40,71 +40,23 @@ export async function reconcile(manifest, options) {
 
     // Stage 3.4: process the batch in parallel using promises.
     const tasks = batch.map(async (entry) => {
-      entry.metadata = {
-        status: "pending",
-        writeTags: [],
-        dates: [],
-      };
-
-      // If exiftool has not reported on a file, we should not try to continue processing it.
-      if (!batchExifMap.has(entry.mediaPath)) {
-        const message = `ExifTool did not report on ${entry.mediaPath}, skipping.`;
-        if (options.strict) {
-          throw new Error(message);
-        }
-
-        logger.error(message);
-        entry.metadata.status = "error";
-
-        return;
-      }
-
-      const extension = extname(entry.mediaPath).toLowerCase();
-      const handler = handlers[extension];
-
-      if (!handler) {
-        const message = `Encountered file of unsupported type ${extension}, skipping.`;
-        if (options.strict) {
-          throw new Error(message);
-        }
-
-        logger.error(message);
-        file.metadata.status = "unsupported";
-
-        return;
-      }
-
-      // Retrieve and parse sidecar data.
-      const sidecarData = await readSidecar(entry.jsonPath);
-
-      // If there is no sidecar data, there is no point to continue.
-      if (!sidecarData) {
-        file.metadata.status = "noop";
-
-        return;
-      }
-
       // Look up tags returned by exiftool.
       const rawDiskTags = batchExifMap.get(entry.mediaPath);
 
-      // Normalize raw, file type specific tags to a common shape.
-      const diskData = handler.parse(rawDiskTags);
+      try {
+        entry.metadata = await resolve(entry.mediaPath, entry.jsonPath, rawDiskTags);
+      } catch (error) {
+        if (options.strict) {
+          throw error;
+        }
 
-      // If there is no primary timestamp on disk, we can embed the value from sidecar.
-      if (!diskData.timestamp) {
-        const timestamp = transformPhotoTakenTime(sidecarData.timestamp);
-        entry.metadata.writeTags = [...entry.metadata.writeTags, ...handler.timestamp(timestamp)];
-
-        // TODO: who will be processing dates into a proper shape? I think it should be done at the handler stage ...
-        // TODO: remember that you will need to unshift / insert the primary disk timestamp, because it is not a part of the dates array!
-        entry.metadata.dates = [timestamp, ...entry.metadata.dates];
+        logger.error(error.message);
+        entry.metadata = {
+          status: "error",
+          writeTags: [],
+          dates: [],
+        };
       }
-
-      if (!diskData.geo) {
-        entry.metadata.writeTags = [...entry.metadata.writeTags, ...handler.geo(sidecarData.geo)];
-      }
-
-      entry.metadata.status = entry.metadata.writeTags.length === 0 ? "noop" : "processed";
     });
 
     await Promise.all(tasks);
@@ -115,4 +67,57 @@ export async function reconcile(manifest, options) {
   }
 
   bar.stop();
+}
+
+async function resolve(mediaPath, jsonPath, rawDiskTags) {
+  // If exiftool has not reported on a file, then something went wrong.
+  if (!rawDiskTags) {
+    throw new Error(`ExifTool did not report on ${mediaPath}, skipping.`);
+  }
+
+  const extension = extname(mediaPath).toLowerCase();
+  const handler = handlers[extension];
+
+  // If there is no handler for a file type, pixelkasten will not be able to process it.
+  if (!handler) {
+    throw new Error(`Encountered file of unsupported type ${extension}, skipping.`);
+  }
+
+  // Retrieve and parse sidecar data.
+  const sidecarData = await readSidecar(jsonPath);
+
+  // If there is no sidecar data, there is nothing to resolve.
+  if (!sidecarData) {
+    return { status: "noop", writeTags: [], dates: [] };
+  }
+
+  // Normalize raw, file type specific tags to a common shape.
+  const diskData = handler.parse(rawDiskTags);
+
+  const metadata = {
+    status: "noop",
+    writeTags: [],
+    dates: [...diskData.dates],
+  };
+
+  // If there is no primary timestamp on disk, we can embed the value from sidecar.
+  if (!diskData.timestamp && sidecarData.timestamp) {
+    const timestamp = transformPhotoTakenTime(sidecarData.timestamp);
+
+    // Ensure that new timestamp gets written back to the file.
+    metadata.writeTags.push(...handler.timestamp(timestamp));
+
+    // Make sure that timestamp is stored as the primary date
+    metadata.dates.unshift(timestamp);
+  }
+
+  if (!diskData.geo && sidecarData.geo) {
+    metadata.writeTags.push(...handler.geo(sidecarData.geo));
+  }
+
+  if (metadata.writeTags.length > 0) {
+    metadata.status = "processed";
+  }
+
+  return metadata;
 }
