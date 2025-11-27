@@ -10,7 +10,7 @@ import CliTable3 from "cli-table3";
 import { transform } from "./transform.js";
 import { scan } from "./stages/scan.js";
 import { runPipeline } from "./pipeline.js";
-import { logger } from "./logger.js";
+import { logger } from "./utils/logger.js";
 
 const program = new Command();
 

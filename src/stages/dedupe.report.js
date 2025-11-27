@@ -1,5 +1,5 @@
 import CliTable3 from "cli-table3";
-import { logger } from "../logger.js";
+import { logger } from "../utils/logger.js";
 
 export function logDuplicatesReport(manifest) {
   const toDelete = manifest.filter((entry) => entry.dedupe.action === "delete").length;

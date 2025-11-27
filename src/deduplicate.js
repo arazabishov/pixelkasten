@@ -1,7 +1,7 @@
 import { join } from "path";
 import { consola } from "consola";
 import cliProgress from "cli-progress";
-import { canShowProgress } from "./logger.js";
+import { canShowProgress } from "./utils/logger.js";
 
 export function deduplicate(workspace) {
   const { media: mediaEntries, albums: albumMetadataFiles } = workspace;

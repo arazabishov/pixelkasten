@@ -1,4 +1,4 @@
-import { logger } from "../logger.js";
+import { logger } from "../utils/logger.js";
 import CliTable3 from "cli-table3";
 
 export function logLinkReport(matches) {

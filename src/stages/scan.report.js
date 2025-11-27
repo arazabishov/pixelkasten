@@ -1,6 +1,6 @@
 import CliTable3 from "cli-table3";
 import { relative } from "path";
-import { logger } from "../logger.js";
+import { logger } from "../utils/logger.js";
 
 export function logScanReport(rawCollections, sourcePath) {
   const {
