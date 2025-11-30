@@ -179,6 +179,72 @@ describe("link", () => {
     });
   });
 
+  describe("distance-based fuzzy matching with duplicate markers", () => {
+    const rawCollections = {
+      filesMedia: [
+        "/tmp/IMG_0449.MP4",
+        "/tmp/IMG_0449(1).HEIC",
+        "/tmp/IMG_0449(1).MP4",
+        "/tmp/IMG_0450.MP4",
+        "/tmp/IMG_0450(1).HEIC",
+        "/tmp/IMG_0450(1).MP4",
+      ],
+      filesMetadata: [
+        "/tmp/IMG_0449.HEIC.supplemental-metadata.json",
+        "/tmp/IMG_0449.HEIC.supplemental-metadata(1).json",
+        "/tmp/IMG_0450.HEIC.supplemental-metadata.json",
+        "/tmp/IMG_0450.HEIC.supplemental-metadata(1).json",
+      ],
+      filesMetadataAlbums: [],
+    };
+
+    const { manifest } = link(rawCollections);
+    const map = new Map(manifest.map((entry) => [entry.mediaPath, entry]));
+
+    test("should match file without marker to metadata without marker - IMG_0449.MP4", () => {
+      const entry = map.get("/tmp/IMG_0449.MP4");
+
+      // Verify file without marker matches metadata without marker (distance 0)
+      // instead of metadata with (1) marker (distance 3)
+      strictEqual(entry.jsonPath, "/tmp/IMG_0449.HEIC.supplemental-metadata.json");
+    });
+
+    test("should match file with (1) marker to metadata with (1) marker - IMG_0449(1).HEIC", () => {
+      const entry = map.get("/tmp/IMG_0449(1).HEIC");
+
+      // Verify file with marker matches metadata with same marker (distance 0)
+      strictEqual(entry.jsonPath, "/tmp/IMG_0449.HEIC.supplemental-metadata(1).json");
+    });
+
+    test("should match file with (1) marker to metadata with (1) marker - IMG_0449(1).MP4", () => {
+      const entry = map.get("/tmp/IMG_0449(1).MP4");
+
+      // Verify MP4 variant with marker also matches correctly (distance 0)
+      strictEqual(entry.jsonPath, "/tmp/IMG_0449.HEIC.supplemental-metadata(1).json");
+    });
+
+    test("should match file without marker to metadata without marker - IMG_0450.MP4", () => {
+      const entry = map.get("/tmp/IMG_0450.MP4");
+
+      // Verify second example also matches correctly
+      strictEqual(entry.jsonPath, "/tmp/IMG_0450.HEIC.supplemental-metadata.json");
+    });
+
+    test("should match file with (1) marker to metadata with (1) marker - IMG_0450(1).HEIC", () => {
+      const entry = map.get("/tmp/IMG_0450(1).HEIC");
+
+      // Verify second HEIC variant matches correctly
+      strictEqual(entry.jsonPath, "/tmp/IMG_0450.HEIC.supplemental-metadata(1).json");
+    });
+
+    test("should match file with (1) marker to metadata with (1) marker - IMG_0450(1).MP4", () => {
+      const entry = map.get("/tmp/IMG_0450(1).MP4");
+
+      // Verify second MP4 variant matches correctly
+      strictEqual(entry.jsonPath, "/tmp/IMG_0450.HEIC.supplemental-metadata(1).json");
+    });
+  });
+
   describe("edited files", () => {
     const rawCollections = {
       filesMedia: [

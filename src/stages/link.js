@@ -77,6 +77,10 @@ export function link(rawCollections) {
       entry.jsonPath = metadataFile.path;
     } else {
       // Trying to match files based on prefix search.
+      // Use distance-based matching: prefer candidates with smallest prefix length difference.
+      let bestDistance = Infinity;
+      let bestMatch = null;
+
       for (const [metadataKey, metadataFile] of metadataFiles) {
         // We only consider metadata files that are in the exact same directory.
         // It handles the "sibling directory" false positive and optimizes
@@ -85,16 +89,27 @@ export function link(rawCollections) {
           continue;
         }
 
-        const targetPrefix = getPathPrefix(targetPath);
         const metadataPrefix = getPathPrefix(metadataKey);
+        const targetPrefix = getPathPrefix(targetPath);
 
         // Bi-directional check handles both truncation scenarios:
         //  - metadata > media: "very-long-name-full.json" matches "very-long-name.jpg".
         //  - media > metadata: "very-long-name-full.mov" matches "very-long-name.json".
+        // Distance is the difference in prefix lengths - smaller is better.
+        // Distance 0 = exact prefix match (ideal case).
+        let distance = Infinity;
         if (metadataKey.startsWith(targetPrefix) || targetPath.startsWith(metadataPrefix)) {
-          entry.jsonPath = metadataFile.path;
-          break;
+          distance = Math.abs(metadataPrefix.length - targetPrefix.length);
         }
+
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          bestMatch = metadataFile;
+        }
+      }
+
+      if (bestMatch) {
+        entry.jsonPath = bestMatch.path;
       }
     }
 
