@@ -81,19 +81,19 @@ async function resolve(mediaPath, jsonPath, rawDiskTags) {
     throw new Error(`Encountered file of unsupported type ${extension}, skipping.`);
   }
 
-  // Retrieve and parse sidecar data.
-  const sidecarData = await readSidecar(jsonPath);
-
-  // If there is no sidecar data, there is nothing to resolve.
-  if (!sidecarData) {
-    return { status: "noop", writeTags: [], dates: [] };
-  }
-
   // Normalize raw, file type specific tags to a common shape.
   const diskData = handler.parse(rawDiskTags);
 
   // The starting point for the metadata object. If no writes happen, the status is "noop".
   const metadata = { status: "noop", writeTags: [], dates: [...diskData.dates] };
+
+  // Retrieve and parse sidecar data.
+  const sidecarData = await readSidecar(jsonPath);
+
+  // If there is no sidecar data, there is nothing to resolve.
+  if (!sidecarData) {
+    return metadata;
+  }
 
   // If there is no primary timestamp on disk, we can embed the value from sidecar.
   if (!diskData.timestamp && sidecarData.timestamp) {

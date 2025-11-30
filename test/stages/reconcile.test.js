@@ -101,6 +101,12 @@ describe("reconcile", () => {
     readMetadataMock.mock.mockImplementation(async () => {
       return new Map([["test.jpg", { CreateDate: "2023:01:01 12:00:00" }]]);
     });
+    handlerMock.parse.mock.mockImplementation(() => {
+      return {
+        timestamp: "2023-01-01T12:00:00.000Z",
+        dates: ["2023-01-01T12:00:00.000Z"],
+      };
+    });
 
     await reconcile(manifest, {});
 
@@ -120,6 +126,12 @@ describe("reconcile", () => {
     readMetadataMock.mock.mockImplementation(async () => {
       return new Map([["/path/image.jpg", { CreateDate: "2023:01:01 12:00:00" }]]);
     });
+    handlerMock.parse.mock.mockImplementation(() => {
+      return {
+        timestamp: "2023-01-01T12:00:00.000Z",
+        dates: ["2023-01-01T12:00:00.000Z"],
+      };
+    });
 
     await reconcile(manifest, {});
 
@@ -128,6 +140,9 @@ describe("reconcile", () => {
 
     // Verify no tags were queued for writing
     strictEqual(manifest[0].metadata.writeTags.length, 0);
+
+    // Verify dates from disk are preserved even without sidecar
+    deepStrictEqual(manifest[0].metadata.dates, ["2023-01-01T12:00:00.000Z"]);
   });
 
   test("should not queue metadata writes when disk already has sidecar data", async () => {
