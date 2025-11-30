@@ -81,6 +81,8 @@ export function link(rawCollections) {
       let bestDistance = Infinity;
       let bestMatch = null;
 
+      // Pre-calculate target prefix to avoid repeated calls.
+      const targetPrefix = getPathPrefix(targetPath);
       for (const [metadataKey, metadataFile] of metadataFiles) {
         // We only consider metadata files that are in the exact same directory.
         // It handles the "sibling directory" false positive and optimizes
@@ -90,7 +92,6 @@ export function link(rawCollections) {
         }
 
         const metadataPrefix = getPathPrefix(metadataKey);
-        const targetPrefix = getPathPrefix(targetPath);
 
         // Bi-directional check handles both truncation scenarios:
         //  - metadata > media: "very-long-name-full.json" matches "very-long-name.jpg".
@@ -105,6 +106,11 @@ export function link(rawCollections) {
         if (distance < bestDistance) {
           bestDistance = distance;
           bestMatch = metadataFile;
+
+          // Perfect match found, can't do better.
+          if (distance === 0) {
+            break;
+          }
         }
       }
 
