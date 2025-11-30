@@ -1,4 +1,5 @@
 import { compositeGeoTags, parseCompositeGeo } from "../composite.js";
+import { normalizeDiskDate } from "../../core/datetime.js";
 
 export const exifHandler = {
   readTags: [
@@ -13,7 +14,7 @@ export const exifHandler = {
 
   parse(raw) {
     return {
-      timestamp: raw["EXIF:DateTimeOriginal"],
+      timestamp: normalizeDiskDate(raw["EXIF:DateTimeOriginal"]),
       dates: [
         raw["EXIF:DateTimeOriginal"],
         raw["EXIF:CreateDate"],
@@ -21,7 +22,9 @@ export const exifHandler = {
         raw["EXIF:ModifyDate"],
         raw["File:FileCreateDate"],
         raw["File:FileModifyDate"],
-      ].filter(Boolean),
+      ]
+        .map(normalizeDiskDate)
+        .filter(Boolean),
       geo: parseCompositeGeo(raw),
     };
   },
