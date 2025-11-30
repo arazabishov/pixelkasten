@@ -112,6 +112,14 @@ export async function runPipeline(options) {
     // Phase 5: resolve disk and sidecar metadata
     await reconcile(manifest);
     logReconcileReport(manifest);
+
+    // console.log(manifest);
+
+    for (const entry of manifest) {
+      if (entry.metadata?.status === "processed") {
+        console.log(entry);
+      }
+    }
   }
 
   if (!options.skipEmbed) {

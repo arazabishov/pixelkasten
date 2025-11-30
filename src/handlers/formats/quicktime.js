@@ -1,27 +1,29 @@
 import { compositeGeoTags, parseCompositeGeo } from "../composite.js";
+import { normalizeDiskDate } from "../../core/datetime.js";
 
-// TODO: consider bring back the prefix dash?
 export const quicktimeHandler = {
   readTags: [
     ...compositeGeoTags,
     "QuickTime:CreationDate",
     "QuickTime:CreateDate",
+    "QuickTime:GPSDateTime",
     "QuickTime:ModifyDate",
     "File:FileCreateDate",
     "File:FileModifyDate",
   ],
 
   parse(raw) {
+    const dates = [
+      raw["QuickTime:CreationDate"],
+      raw["QuickTime:CreateDate"],
+      raw["QuickTime:GPSDateTime"],
+      raw["QuickTime:ModifyDate"],
+      raw["File:FileCreateDate"],
+      raw["File:FileModifyDate"],
+    ];
     return {
-      timestamp: raw["QuickTime:CreationDate"],
-      dates: [
-        raw["QuickTime:CreationDate"],
-        raw["QuickTime:CreateDate"],
-        raw["Composite:GPSDateTime"],
-        raw["QuickTime:ModifyDate"],
-        raw["File:FileCreateDate"],
-        raw["File:FileModifyDate"],
-      ].filter(Boolean),
+      timestamp: normalizeDiskDate(raw["QuickTime:CreationDate"]),
+      dates: dates.map(normalizeDiskDate).filter(Boolean),
       geo: parseCompositeGeo(raw),
     };
   },
