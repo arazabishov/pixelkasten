@@ -174,6 +174,13 @@ describe("normalizeDiskDate", () => {
       // Verify subseconds are ignored (matched up to seconds)
       strictEqual(result, "2023-05-20T14:30:00");
     });
+
+    test("should ignore both subseconds and timezone offset", () => {
+      const result = normalizeDiskDate("2024:09:02 20:14:59.925+02:00");
+
+      // Verify Composite:SubSecDateTimeOriginal format (subseconds + timezone) is normalized
+      strictEqual(result, "2024-09-02T20:14:59");
+    });
   });
 });
 
