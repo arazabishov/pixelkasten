@@ -1,3 +1,44 @@
+/**
+ * Normalizes raw date strings from ExifTool to ISO format (YYYY-MM-DDTHH:MM:SS) for file renaming.
+ * Preserves "wall clock" time by ignoring timezone offsets to match user expectations.
+ *
+ * Examples:
+ * - "2023:05:20 14:30:00"       -> "2023-05-20T14:30:00"
+ * - "2023:05:20 14:30:00-05:00" -> "2023-05-20T14:30:00" (offset ignored)
+ * - "2023:05:20 14:30:00Z"      -> "2023-05-20T14:30:00" (Z ignored)
+ *
+ * Uses regex extraction to avoid timezone drift from Date.parse().
+ *
+ * @param {string} date - Raw date string from ExifTool
+ * @returns {string|null} ISO formatted date string or null if invalid
+ */
+export function normalizeDiskDate(date) {
+  if (!date || typeof date !== "string") {
+    return null;
+  }
+
+  // Regex to capture: YYYY : MM : DD (space) HH : MM : SS
+  // Matches delimiters : or - to be flexible with different tag standards.
+  const match = date.trim().match(/^(\d{4})[:\-](\d{2})[:\-](\d{2})\s+(\d{2}):(\d{2}):(\d{2})/);
+
+  if (match) {
+    const [_, y, m, d, h, min, s] = match;
+
+    // Return standard ISO format: YYYY-MM-DDTHH:MM:SS
+    return `${y}-${m}-${d}T${h}:${min}:${s}`;
+  }
+
+  return null;
+}
+
+/**
+ * Converts a Unix epoch timestamp to both ISO and EXIF datetime formats.
+ *
+ * @param {string|number} timestamp - Unix epoch timestamp in seconds
+ * @returns {{ iso: string, exif: string }} Datetime in both formats:
+ *   - iso: "2023-05-20T19:30:00" (for renaming, UTC)
+ *   - exif: "2023:05:20 19:30:00+00:00" (for metadata writing, UTC explicit)
+ */
 export function parsePhotoTakenTime(timestamp) {
   // Parse the timestamp (it's in seconds, not milliseconds)
   const timestampSeconds = parseInt(timestamp);
@@ -13,9 +54,6 @@ export function parsePhotoTakenTime(timestamp) {
     throw new Error(`Failed to parse photoTakenTime timestamp: ${timestamp}`);
   }
 
-  // ISO format for renaming candidates. Strips .ms and Z to match the "wall clock" standard.
-  const iso = date.toISOString().replace(/\.\d+Z$/, "");
-
   // Helper function for padding
   const pad2 = (num) => String(num).padStart(2, "0");
 
@@ -29,9 +67,8 @@ export function parsePhotoTakenTime(timestamp) {
   const mm = pad2(date.getUTCMinutes());
   const ss = pad2(date.getUTCSeconds());
 
-  // Assemble the string: the timezone always will be in UTC,
-  // because that's what we get from Google.
-  const exif = `${YYYY}:${MM}:${DD} ${HH}:${mm}:${ss}+00:00`;
-
-  return { iso, exif };
+  return {
+    iso: `${YYYY}-${MM}-${DD}T${HH}:${mm}:${ss}`,
+    exif: `${YYYY}:${MM}:${DD} ${HH}:${mm}:${ss}+00:00`,
+  };
 }
