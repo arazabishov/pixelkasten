@@ -72,7 +72,9 @@ describe("reconcile", () => {
     ].forEach((m) => m.mock.resetCalls());
 
     // Set default mock: no sidecar file exists (most common case)
-    readSidecarMock.mock.mockImplementation(async () => null);
+    readSidecarMock.mock.mockImplementation(async () => {
+      return null;
+    });
   });
 
   test("should not perform disk operations when manifest is empty", async () => {
@@ -96,9 +98,9 @@ describe("reconcile", () => {
       { dedupe: { action: "keep" }, mediaPath: "test.jpg" },
     ];
 
-    readMetadataMock.mock.mockImplementation(
-      async () => new Map([["test.jpg", { CreateDate: "2023:01:01 12:00:00" }]])
-    );
+    readMetadataMock.mock.mockImplementation(async () => {
+      return new Map([["test.jpg", { CreateDate: "2023:01:01 12:00:00" }]]);
+    });
 
     await reconcile(manifest, {});
 
@@ -115,9 +117,9 @@ describe("reconcile", () => {
   test("should not queue metadata writes when no sidecar exists", async () => {
     const manifest = [{ mediaPath: "/path/image.jpg", jsonPath: "/path/image.json" }];
 
-    readMetadataMock.mock.mockImplementation(
-      async () => new Map([["/path/image.jpg", { CreateDate: "2023:01:01 12:00:00" }]])
-    );
+    readMetadataMock.mock.mockImplementation(async () => {
+      return new Map([["/path/image.jpg", { CreateDate: "2023:01:01 12:00:00" }]]);
+    });
 
     await reconcile(manifest, {});
 
@@ -131,14 +133,18 @@ describe("reconcile", () => {
   test("should not queue metadata writes when disk already has sidecar data", async () => {
     const manifest = [{ mediaPath: "/path/image.jpg", jsonPath: "/path/image.json" }];
 
-    readMetadataMock.mock.mockImplementation(
-      async () => new Map([["/path/image.jpg", { CreateDate: "2023:01:01 12:00:00" }]])
-    );
-    readSidecarMock.mock.mockImplementation(async () => ({ timestamp: "1672574400" }));
-    handlerMock.parse.mock.mockImplementation(() => ({
-      timestamp: "2023-01-01T12:00:00.000Z",
-      dates: ["2023-01-01T12:00:00.000Z"],
-    }));
+    readMetadataMock.mock.mockImplementation(async () => {
+      return new Map([["/path/image.jpg", { CreateDate: "2023:01:01 12:00:00" }]]);
+    });
+    readSidecarMock.mock.mockImplementation(async () => {
+      return { timestamp: "1672574400" };
+    });
+    handlerMock.parse.mock.mockImplementation(() => {
+      return {
+        timestamp: "2023-01-01T12:00:00.000Z",
+        dates: ["2023-01-01T12:00:00.000Z"],
+      };
+    });
 
     await reconcile(manifest, {});
 
@@ -149,11 +155,21 @@ describe("reconcile", () => {
   test("should queue timestamp write when missing from disk metadata", async () => {
     const manifest = [{ mediaPath: "/path/image.jpg", jsonPath: "/path/image.json" }];
 
-    readMetadataMock.mock.mockImplementation(async () => new Map([["/path/image.jpg", {}]]));
-    readSidecarMock.mock.mockImplementation(async () => ({ timestamp: "1672574400" }));
-    handlerMock.parse.mock.mockImplementation(() => ({ timestamp: null, dates: [] }));
-    handlerMock.timestamp.mock.mockImplementation((ts) => [`DateTimeOriginal=${ts}`]);
-    transformPhotoTakenTimeMock.mock.mockImplementation((ts) => `2023-01-01T12:00:00.000Z`);
+    readMetadataMock.mock.mockImplementation(async () => {
+      return new Map([["/path/image.jpg", {}]]);
+    });
+    readSidecarMock.mock.mockImplementation(async () => {
+      return { timestamp: "1672574400" };
+    });
+    handlerMock.parse.mock.mockImplementation(() => {
+      return { timestamp: null, dates: [] };
+    });
+    handlerMock.timestamp.mock.mockImplementation((ts) => {
+      return [`DateTimeOriginal=${ts}`];
+    });
+    transformPhotoTakenTimeMock.mock.mockImplementation((_) => {
+      return `2023-01-01T12:00:00.000Z`;
+    });
 
     await reconcile(manifest, {});
 
@@ -170,15 +186,18 @@ describe("reconcile", () => {
   test("should queue geo write when missing from disk metadata", async () => {
     const manifest = [{ mediaPath: "/path/image.jpg", jsonPath: "/path/image.json" }];
 
-    readMetadataMock.mock.mockImplementation(async () => new Map([["/path/image.jpg", {}]]));
-    readSidecarMock.mock.mockImplementation(async () => ({
-      geo: { latitude: 40.7128, longitude: -74.006 },
-    }));
-    handlerMock.parse.mock.mockImplementation(() => ({ timestamp: null, dates: [], geo: null }));
-    handlerMock.geo.mock.mockImplementation((geo) => [
-      `GPSLatitude=${geo.latitude}`,
-      `GPSLongitude=${geo.longitude}`,
-    ]);
+    readMetadataMock.mock.mockImplementation(async () => {
+      return new Map([["/path/image.jpg", {}]]);
+    });
+    readSidecarMock.mock.mockImplementation(async () => {
+      return { geo: { latitude: 40.7128, longitude: -74.006 } };
+    });
+    handlerMock.parse.mock.mockImplementation(() => {
+      return { timestamp: null, dates: [], geo: null };
+    });
+    handlerMock.geo.mock.mockImplementation((geo) => {
+      return [`GPSLatitude=${geo.latitude}`, `GPSLongitude=${geo.longitude}`];
+    });
 
     await reconcile(manifest, {});
 
@@ -192,15 +211,27 @@ describe("reconcile", () => {
   test("should queue timestamp and geo writes when both missing from disk", async () => {
     const manifest = [{ mediaPath: "/path/image.jpg", jsonPath: "/path/image.json" }];
 
-    readMetadataMock.mock.mockImplementation(async () => new Map([["/path/image.jpg", {}]]));
-    readSidecarMock.mock.mockImplementation(async () => ({
-      timestamp: "1672574400",
-      geo: { latitude: 40.7128, longitude: -74.006 },
-    }));
-    handlerMock.parse.mock.mockImplementation(() => ({ timestamp: null, dates: [], geo: null }));
-    handlerMock.timestamp.mock.mockImplementation((ts) => [`DateTimeOriginal=${ts}`]);
-    handlerMock.geo.mock.mockImplementation((geo) => [`GPSLatitude=${geo.latitude}`]);
-    transformPhotoTakenTimeMock.mock.mockImplementation((ts) => `2023-01-01T12:00:00.000Z`);
+    readMetadataMock.mock.mockImplementation(async () => {
+      return new Map([["/path/image.jpg", {}]]);
+    });
+    readSidecarMock.mock.mockImplementation(async () => {
+      return {
+        timestamp: "1672574400",
+        geo: { latitude: 40.7128, longitude: -74.006 },
+      };
+    });
+    handlerMock.parse.mock.mockImplementation(() => {
+      return { timestamp: null, dates: [], geo: null };
+    });
+    handlerMock.timestamp.mock.mockImplementation((ts) => {
+      return [`DateTimeOriginal=${ts}`];
+    });
+    handlerMock.geo.mock.mockImplementation((geo) => {
+      return [`GPSLatitude=${geo.latitude}`];
+    });
+    transformPhotoTakenTimeMock.mock.mockImplementation((_) => {
+      return `2023-01-01T12:00:00.000Z`;
+    });
 
     await reconcile(manifest, {});
 
@@ -225,7 +256,9 @@ describe("reconcile", () => {
       paths.forEach((path) => map.set(path, {}));
       return map;
     });
-    handlerMock.parse.mock.mockImplementation(() => ({ timestamp: null, dates: [] }));
+    handlerMock.parse.mock.mockImplementation(() => {
+      return { timestamp: null, dates: [] };
+    });
 
     await reconcile(manifest, {});
 
@@ -245,7 +278,9 @@ describe("reconcile", () => {
   test("should log errors in non-strict mode", async () => {
     const manifest = [{ mediaPath: "/path/image.jpg" }];
 
-    readMetadataMock.mock.mockImplementation(async () => new Map());
+    readMetadataMock.mock.mockImplementation(async () => {
+      return new Map();
+    });
 
     await reconcile(manifest, { strict: false });
 
@@ -256,7 +291,9 @@ describe("reconcile", () => {
   test("should throw errors in strict mode", async () => {
     const manifest = [{ mediaPath: "/path/image.jpg" }];
 
-    readMetadataMock.mock.mockImplementation(async () => new Map());
+    readMetadataMock.mock.mockImplementation(async () => {
+      return new Map();
+    });
 
     // Verify error was thrown with expected message
     await rejects(
@@ -268,7 +305,9 @@ describe("reconcile", () => {
   test("should mark entries with unsupported file types as errors", async () => {
     const manifest = [{ mediaPath: "/path/image.unknown", jsonPath: "/path/image.json" }];
 
-    readMetadataMock.mock.mockImplementation(async () => new Map([["/path/image.unknown", {}]]));
+    readMetadataMock.mock.mockImplementation(async () => {
+      return new Map([["/path/image.unknown", {}]]);
+    });
 
     await reconcile(manifest, { strict: false });
 
