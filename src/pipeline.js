@@ -109,6 +109,7 @@ export async function runPipeline(options) {
   }
 
   if (!options.skipEmbed || !options.skipRename) {
+    // Phase 5: resolve disk and sidecar metadata
     await reconcile(manifest);
     logReconcileReport(manifest);
   }
