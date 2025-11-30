@@ -15,6 +15,7 @@ export const exifHandler = {
     return {
       timestamp: raw["EXIF:DateTimeOriginal"],
       dates: [
+        raw["EXIF:DateTimeOriginal"],
         raw["EXIF:CreateDate"],
         raw["Composite:GPSDateTime"],
         raw["EXIF:ModifyDate"],
