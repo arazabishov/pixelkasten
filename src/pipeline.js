@@ -113,10 +113,9 @@ export async function runPipeline(options) {
     await reconcile(manifest);
     logReconcileReport(manifest);
 
-    // console.log(manifest);
-
+    // TODO: remove this after debugging
     for (const entry of manifest) {
-      if (entry.metadata?.status === "processed") {
+      if (entry.mediaPath.includes("IMG_0522")) {
         console.log(entry);
       }
     }
