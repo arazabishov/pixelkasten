@@ -13,18 +13,17 @@ export const exifHandler = {
   ],
 
   parse(raw) {
+    const dates = [
+      raw["EXIF:DateTimeOriginal"],
+      raw["EXIF:CreateDate"],
+      raw["Composite:GPSDateTime"],
+      raw["EXIF:ModifyDate"],
+      raw["File:FileCreateDate"],
+      raw["File:FileModifyDate"],
+    ];
     return {
       timestamp: normalizeDiskDate(raw["EXIF:DateTimeOriginal"]),
-      dates: [
-        raw["EXIF:DateTimeOriginal"],
-        raw["EXIF:CreateDate"],
-        raw["Composite:GPSDateTime"],
-        raw["EXIF:ModifyDate"],
-        raw["File:FileCreateDate"],
-        raw["File:FileModifyDate"],
-      ]
-        .map(normalizeDiskDate)
-        .filter(Boolean),
+      dates: dates.map(normalizeDiskDate).filter(Boolean),
       geo: parseCompositeGeo(raw),
     };
   },
