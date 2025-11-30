@@ -29,11 +29,11 @@ export const quicktimeHandler = {
   timestamp(data) {
     // We use CreationDate since that's what most apps use in UX. Also, based on experience,
     // data taken out from Google Photos almost always has QuickTime:CreateDate set already.
-    return [`-CreationDate=${data}`];
+    return [`CreationDate=${data}`];
   },
 
   geo(data) {
     // For QuickTime/MP4 files, coordinates need to be written into tags different compared to images.
-    return [`-Keys:GPSCoordinates=${data.latitude}, ${data.longitude}, ${data.altitude}`];
+    return [`Keys:GPSCoordinates=${data.latitude}, ${data.longitude}, ${data.altitude}`];
   },
 };

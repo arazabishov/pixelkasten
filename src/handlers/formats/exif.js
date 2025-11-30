@@ -28,7 +28,7 @@ export const exifHandler = {
 
   timestamp(data) {
     // We use SubSecDateTimeOriginal to update both DateTimeOriginal and OffsetTimeOriginal in one shot.
-    return [`-SubSecDateTimeOriginal=${data}`];
+    return [`SubSecDateTimeOriginal=${data}`];
   },
 
   geo(data) {
@@ -37,10 +37,10 @@ export const exifHandler = {
     // assigns correct value based on the passed value of altitude. For example: if > 0, it will
     // write 0 (above sea level), if < 0, it will write 1 (below sea level).
     return [
-      `-Composite:GPSLatitude=${data.latitude}`,
-      `-Composite:GPSLongitude=${data.longitude}`,
-      `-GPSAltitude=${data.altitude}`,
-      `-GPSAltitudeRef=${data.altitude}`,
+      `Composite:GPSLatitude=${data.latitude}`,
+      `Composite:GPSLongitude=${data.longitude}`,
+      `GPSAltitude=${data.altitude}`,
+      `GPSAltitudeRef=${data.altitude}`,
     ];
   },
 };
