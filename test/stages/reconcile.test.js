@@ -51,10 +51,12 @@ mock.module("../../src/handlers/index.js", {
   },
 });
 
-const transformPhotoTakenTimeMock = mock.fn((ts) => ts);
+const parsePhotoTakenTimeMock = mock.fn((ts) => {
+  return { iso: ts, exif: ts };
+});
 mock.module("../../src/core/datetime.js", {
   namedExports: {
-    transformPhotoTakenTime: transformPhotoTakenTimeMock,
+    parsePhotoTakenTime: parsePhotoTakenTimeMock,
   },
 });
 
@@ -63,7 +65,7 @@ const { reconcile } = await import("../../src/stages/reconcile.js");
 describe("reconcile", () => {
   beforeEach(() => {
     [
-      transformPhotoTakenTimeMock,
+      parsePhotoTakenTimeMock,
       readMetadataMock,
       readSidecarMock,
       handlerMock.timestamp,
@@ -182,8 +184,8 @@ describe("reconcile", () => {
     handlerMock.timestamp.mock.mockImplementation((ts) => {
       return [`DateTimeOriginal=${ts}`];
     });
-    transformPhotoTakenTimeMock.mock.mockImplementation((_) => {
-      return `2023-01-01T12:00:00.000Z`;
+    parsePhotoTakenTimeMock.mock.mockImplementation((_) => {
+      return { iso: "2023-01-01T12:00:00", exif: "2023:01:01 12:00:00+00:00" };
     });
 
     await reconcile(manifest, {});
@@ -195,7 +197,7 @@ describe("reconcile", () => {
     strictEqual(manifest[0].metadata.writeTags.length, 1);
 
     // Verify timestamp was added to dates
-    strictEqual(manifest[0].metadata.dates[0], "2023-01-01T12:00:00.000Z");
+    strictEqual(manifest[0].metadata.dates[0], "2023-01-01T12:00:00");
   });
 
   test("should queue geo write when missing from disk metadata", async () => {
@@ -244,8 +246,8 @@ describe("reconcile", () => {
     handlerMock.geo.mock.mockImplementation((geo) => {
       return [`GPSLatitude=${geo.latitude}`];
     });
-    transformPhotoTakenTimeMock.mock.mockImplementation((_) => {
-      return `2023-01-01T12:00:00.000Z`;
+    parsePhotoTakenTimeMock.mock.mockImplementation((_) => {
+      return { iso: "2023-01-01T12:00:00", exif: "2023:01:01 12:00:00+00:00" };
     });
 
     await reconcile(manifest, {});
@@ -257,7 +259,7 @@ describe("reconcile", () => {
     strictEqual(manifest[0].metadata.writeTags.length, 2);
 
     // Verify timestamp was added to dates
-    strictEqual(manifest[0].metadata.dates[0], "2023-01-01T12:00:00.000Z");
+    strictEqual(manifest[0].metadata.dates[0], "2023-01-01T12:00:00");
   });
 
   test("should read metadata for all entries regardless of manifest size", async () => {

@@ -4,7 +4,7 @@ import { readMetadata } from "../core/exiftool.js";
 import { readSidecar } from "../core/sidecar.js";
 import { handlers } from "../handlers/index.js";
 import { extname } from "path";
-import { transformPhotoTakenTime } from "../core/datetime.js";
+import { parsePhotoTakenTime } from "../core/datetime.js";
 
 export async function reconcile(manifest, options) {
   // Stage 1: filter keepers. We use optional chaining (?.) to be safe if dedupe object is missing.
@@ -97,13 +97,13 @@ async function resolve(mediaPath, jsonPath, rawDiskTags) {
 
   // If there is no primary timestamp on disk, we can embed the value from sidecar.
   if (!diskData.timestamp && sidecarData.timestamp) {
-    const timestamp = transformPhotoTakenTime(sidecarData.timestamp);
+    const { iso, exif } = parsePhotoTakenTime(sidecarData.timestamp);
 
     // Ensure that new timestamp gets written back to the file.
-    metadata.writeTags.push(...handler.timestamp(timestamp));
+    metadata.writeTags.push(...handler.timestamp(exif));
 
     // Make sure that timestamp is stored as the primary date
-    metadata.dates.unshift(timestamp);
+    metadata.dates.unshift(iso);
   }
 
   if (!diskData.geo && sidecarData.geo) {

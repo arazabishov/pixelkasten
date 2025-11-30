@@ -1,4 +1,4 @@
-export function transformPhotoTakenTime(timestamp) {
+export function parsePhotoTakenTime(timestamp) {
   // Parse the timestamp (it's in seconds, not milliseconds)
   const timestampSeconds = parseInt(timestamp);
 
@@ -12,6 +12,9 @@ export function transformPhotoTakenTime(timestamp) {
   if (isNaN(date.getTime())) {
     throw new Error(`Failed to parse photoTakenTime timestamp: ${timestamp}`);
   }
+
+  // ISO format for renaming candidates. Strips .ms and Z to match the "wall clock" standard.
+  const iso = date.toISOString().replace(/\.\d+Z$/, "");
 
   // Helper function for padding
   const pad2 = (num) => String(num).padStart(2, "0");
@@ -28,5 +31,7 @@ export function transformPhotoTakenTime(timestamp) {
 
   // Assemble the string: the timezone always will be in UTC,
   // because that's what we get from Google.
-  return `${YYYY}:${MM}:${DD} ${HH}:${mm}:${ss}+00:00`;
+  const exif = `${YYYY}:${MM}:${DD} ${HH}:${mm}:${ss}+00:00`;
+
+  return { iso, exif };
 }
