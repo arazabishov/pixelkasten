@@ -25,8 +25,11 @@ describe("dedupeResolve", () => {
 
       dedupeResolve(manifest, { prefer: "album" });
 
+      // Verify all unique files are marked as keep
       strictEqual(manifest[0].dedupe.action, "keep");
+
       strictEqual(manifest[1].dedupe.action, "keep");
+
       strictEqual(manifest[2].dedupe.action, "keep");
     });
 
@@ -48,15 +51,19 @@ describe("dedupeResolve", () => {
       ];
 
       dedupeResolve(manifestAlbum, { prefer: "album" });
+      // Verify album file is kept with album preference
       strictEqual(manifestAlbum[0].dedupe.action, "keep");
 
       dedupeResolve(manifestAlbum, { prefer: "loose" });
+      // Verify album file is kept with loose preference
       strictEqual(manifestAlbum[0].dedupe.action, "keep");
 
       dedupeResolve(manifestLoose, { prefer: "album" });
+      // Verify loose file is kept with album preference
       strictEqual(manifestLoose[0].dedupe.action, "keep");
 
       dedupeResolve(manifestLoose, { prefer: "loose" });
+      // Verify loose file is kept with loose preference
       strictEqual(manifestLoose[0].dedupe.action, "keep");
     });
   });
@@ -103,8 +110,12 @@ describe("dedupeResolve", () => {
 
       dedupeResolve(manifest, { prefer: "album" });
 
+      // Verify both albums are kept
       strictEqual(manifest[0].dedupe.action, "keep");
+
       strictEqual(manifest[1].dedupe.action, "keep");
+
+      // Verify loose is deleted
       strictEqual(manifest[2].dedupe.action, "delete");
     });
 
@@ -129,8 +140,12 @@ describe("dedupeResolve", () => {
 
       dedupeResolve(manifest, { prefer: "album" });
 
+      // Verify album is kept
       strictEqual(manifest[0].dedupe.action, "keep");
+
+      // Verify all loose files are deleted
       strictEqual(manifest[1].dedupe.action, "delete");
+
       strictEqual(manifest[2].dedupe.action, "delete");
     });
   });
@@ -177,8 +192,12 @@ describe("dedupeResolve", () => {
 
       dedupeResolve(manifest, { prefer: "loose" });
 
+      // Verify album is deleted
       strictEqual(manifest[0].dedupe.action, "delete");
+
+      // Verify all loose files are kept
       strictEqual(manifest[1].dedupe.action, "keep");
+
       strictEqual(manifest[2].dedupe.action, "keep");
     });
 
@@ -203,8 +222,12 @@ describe("dedupeResolve", () => {
 
       dedupeResolve(manifest, { prefer: "loose" });
 
+      // Verify all albums are deleted
       strictEqual(manifest[0].dedupe.action, "delete");
+
       strictEqual(manifest[1].dedupe.action, "delete");
+
+      // Verify loose is kept
       strictEqual(manifest[2].dedupe.action, "keep");
     });
   });
@@ -283,10 +306,17 @@ describe("dedupeResolve", () => {
 
       dedupeResolve(manifest, { prefer: "album" });
 
+      // Verify first duplicate group (prefer album)
       strictEqual(manifest[0].dedupe.action, "keep");
+
       strictEqual(manifest[1].dedupe.action, "delete");
+
+      // Verify second duplicate group (prefer album)
       strictEqual(manifest[2].dedupe.action, "keep");
+
       strictEqual(manifest[3].dedupe.action, "delete");
+
+      // Verify unique file is kept
       strictEqual(manifest[4].dedupe.action, "keep");
     });
   });
@@ -297,6 +327,7 @@ describe("dedupeResolve", () => {
 
       dedupeResolve(manifest, { prefer: "album" });
 
+      // Verify empty manifest remains empty
       strictEqual(manifest.length, 0);
     });
 

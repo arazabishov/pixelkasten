@@ -58,3 +58,85 @@ The project must have good automated test coverage. Tests should be written usin
 The project should keep a good level of transparency and report on its execution. This includes logging the outcomes of different phases and providing a final summary.
 
 - **Reporting:** The script must report on file statuses, such as how many files were successfully matched with metadata, how many were skipped (and why, e.g., "existing data" or "unknown format"), and how many media files or .json files did not have a matching pair.
+
+## **4. Test Code Style Guidelines**
+
+### **Principle 1: Write Behavior-Focused Tests**
+
+Test names should describe observable behavior, not implementation details. Treat functions as black boxes and verify what you can observe externally.
+
+- **Good**: `"should not perform disk operations when manifest is empty"`
+- **Bad**: `"should filter out entries marked for deletion"` (mentions filtering - implementation detail)
+
+### **Principle 2: Use Clear Assertions**
+
+Every assertion should have a descriptive comment explaining what it verifies. Format: **comment** → **assertion** → **blank line** (except last assertion).
+
+```javascript
+test("should queue timestamp write when missing from disk metadata", () => {
+  // Setup
+  const manifest = [{ mediaPath: "/path/image.jpg" }];
+
+  await reconcile(manifest, {});
+
+  // Verify entry was marked for processing
+  strictEqual(manifest[0].metadata.status, "processed");
+
+  // Verify one tag was queued for writing
+  strictEqual(manifest[0].metadata.writeTags.length, 1);
+
+  // Verify timestamp was added to dates
+  strictEqual(manifest[0].metadata.dates[0], "2023-01-01T12:00:00.000Z");
+});
+```
+
+### **Principle 3: Use Named Imports**
+
+Import assertion functions directly from `node:assert`:
+
+```javascript
+import { test, describe, beforeEach, mock } from "node:test";
+import { strictEqual, deepStrictEqual, ok, rejects } from "node:assert";
+```
+
+### **Principle 4: Use Explicit Return Statements in Mocks**
+
+Mock implementations should use explicit return statements with block bodies:
+
+```javascript
+// ✅ Good
+readMetadataMock.mock.mockImplementation(async () => {
+  return new Map([["test.jpg", {}]]);
+});
+
+// ❌ Bad - implicit return
+readMetadataMock.mock.mockImplementation(async () => new Map([["test.jpg", {}]]));
+```
+
+For unused parameters, use `_`:
+
+```javascript
+transformMock.mock.mockImplementation((_) => {
+  return "result";
+});
+```
+
+### **Principle 5: Mock Only What's Called**
+
+Only mock what's actually used in the test. If a code path isn't reached, don't mock it.
+
+```javascript
+// ❌ Bad - mocks parse() even though it's never called (sidecar is null)
+readSidecarMock.mock.mockImplementation(async () => {
+  return null;
+});
+handlerMock.parse.mock.mockImplementation(() => {
+  // Never called!
+  return { timestamp: null };
+});
+
+// ✅ Good - only mock what's needed
+readSidecarMock.mock.mockImplementation(async () => {
+  return null;
+});
+```

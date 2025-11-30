@@ -29,11 +29,15 @@ describe("link", () => {
 
     test("should match .suppl.json metadata files", () => {
       const entry = map.get("/tmp/3D06C8D1-7637-4625-BEBE-C3D916AEF50D.jpg");
+
+      // Verify .suppl.json metadata files are matched correctly
       strictEqual(entry.jsonPath, "/tmp/3D06C8D1-7637-4625-BEBE-C3D916AEF50D.jpg.suppl.json");
     });
 
     test("should match .supplemental-metada.json metadata files", () => {
       const entry = map.get("/tmp/PXL_20241231_114900266.jpg");
+
+      // Verify .supplemental-metada.json files are matched
       strictEqual(entry.jsonPath, "/tmp/PXL_20241231_114900266.jpg.supplemental-metada.json");
     });
 
@@ -74,6 +78,8 @@ describe("link", () => {
 
     test("should match exact metadata - IMG_0076.PNG", () => {
       const entry = map.get("/tmp/IMG_0076.PNG");
+
+      // Verify exact metadata match
       strictEqual(entry.jsonPath, "/tmp/IMG_0076.PNG.supplemental-metadata.json");
     });
 
@@ -124,6 +130,8 @@ describe("link", () => {
 
     test("should match truncated metadata - 988555 video", () => {
       const entry = map.get("/tmp/988555-0000.mov");
+
+      // Verify truncated video filename matches
       strictEqual(entry.jsonPath, "/tmp/988555-000.json");
     });
 
@@ -160,6 +168,8 @@ describe("link", () => {
 
     test("should match duplicate marker - original", () => {
       const entry = map.get("/tmp/1804928587.jpg");
+
+      // Verify original file without duplicate marker matches
       strictEqual(entry.jsonPath, "/tmp/1804928587.jpg.supplemental-metadata.json");
     });
 
@@ -194,6 +204,8 @@ describe("link", () => {
 
     test("should match photo-edited to original metadata", () => {
       const entry = map.get("/tmp/photo-edited.jpg");
+
+      // Verify edited file matches original metadata
       strictEqual(entry.jsonPath, "/tmp/photo.jpg.json");
     });
 
@@ -263,14 +275,18 @@ describe("link", () => {
     const map = new Map(manifest.map((entry) => [entry.mediaPath, entry]));
 
     test("should identify album sources correctly", () => {
+      // Verify album sources are identified correctly
       strictEqual(map.get("/tmp/My Album/IMG_0076.PNG").source.type, "album");
+
       strictEqual(map.get("/tmp/My Album/IMG_0076.PNG").source.name, "My Album");
 
       strictEqual(map.get("/tmp/Vacation 2024/photo.jpg").source.type, "album");
+
       strictEqual(map.get("/tmp/Vacation 2024/photo.jpg").source.name, "Vacation 2024");
     });
 
     test("should identify loose files correctly", () => {
+      // Verify loose files are identified correctly
       strictEqual(map.get("/tmp/loose.jpg").source.type, "loose");
     });
   });
@@ -287,6 +303,8 @@ describe("link", () => {
 
     test("should NOT match media to metadata in a sibling directory that shares a prefix", () => {
       const entry = map.get("/Photos/Vacation.jpg");
+
+      // Verify media does not match metadata in sibling directory
       strictEqual(entry.jsonPath, undefined);
     });
   });
@@ -301,12 +319,16 @@ describe("link", () => {
     const { stats } = link(rawCollections);
 
     test("should report unmatched media files", () => {
+      // Verify unmatched media files are reported
       ok(stats.unmatchedMediaFiles.has("/tmp/unmatched.jpg"));
+
       strictEqual(stats.unmatchedMediaFiles.size, 1);
     });
 
     test("should report unmatched metadata files", () => {
+      // Verify unmatched metadata files are reported
       ok(stats.unmatchedMetadataFiles.has("/tmp/unused.json"));
+
       strictEqual(stats.unmatchedMetadataFiles.size, 1);
     });
   });
