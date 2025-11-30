@@ -1,6 +1,6 @@
 import { test, describe } from "node:test";
 import { strictEqual, ok } from "node:assert";
-import { link } from "../src/stages/link.js";
+import { link } from "../../src/stages/link.js";
 
 describe("link", () => {
   describe("metadata normalization & matching", () => {

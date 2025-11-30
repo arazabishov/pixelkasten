@@ -1,7 +1,7 @@
 import { test, describe, beforeEach, mock } from "node:test";
 import { strictEqual, deepStrictEqual, ok, rejects } from "node:assert";
 
-mock.module("../src/utils/logger.js", {
+mock.module("../../src/utils/logger.js", {
   namedExports: {
     logger: {
       error: mock.fn(),
@@ -10,7 +10,7 @@ mock.module("../src/utils/logger.js", {
     },
   },
 });
-mock.module("../src/utils/progress.js", {
+mock.module("../../src/utils/progress.js", {
   namedExports: {
     progressBar: mock.fn(() => {
       return {
@@ -23,14 +23,14 @@ mock.module("../src/utils/progress.js", {
 });
 
 const readMetadataMock = mock.fn();
-mock.module("../src/core/exiftool.js", {
+mock.module("../../src/core/exiftool.js", {
   namedExports: {
     readMetadata: readMetadataMock,
   },
 });
 
 const readSidecarMock = mock.fn();
-mock.module("../src/core/sidecar.js", {
+mock.module("../../src/core/sidecar.js", {
   namedExports: {
     readSidecar: readSidecarMock,
   },
@@ -42,7 +42,7 @@ const handlerMock = {
   timestamp: mock.fn(),
   geo: mock.fn(),
 };
-mock.module("../src/handlers/index.js", {
+mock.module("../../src/handlers/index.js", {
   namedExports: {
     handlers: {
       ".jpg": handlerMock,
@@ -52,13 +52,13 @@ mock.module("../src/handlers/index.js", {
 });
 
 const transformPhotoTakenTimeMock = mock.fn((ts) => ts);
-mock.module("../src/core/datetime.js", {
+mock.module("../../src/core/datetime.js", {
   namedExports: {
     transformPhotoTakenTime: transformPhotoTakenTimeMock,
   },
 });
 
-const { reconcile } = await import("../src/stages/reconcile.js");
+const { reconcile } = await import("../../src/stages/reconcile.js");
 
 describe("reconcile", () => {
   beforeEach(() => {

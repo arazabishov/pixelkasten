@@ -1,6 +1,6 @@
 import { test, describe } from "node:test";
 import { strictEqual } from "node:assert";
-import { dedupeResolve } from "../src/stages/dedupe.js";
+import { dedupeResolve } from "../../src/stages/dedupe.js";
 
 describe("dedupeResolve", () => {
   describe("unique files (no duplicates)", () => {
