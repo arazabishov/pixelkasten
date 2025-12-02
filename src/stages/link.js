@@ -1,13 +1,8 @@
 import { basename, dirname, extname } from "path";
 import { progressBar } from "../utils/progress.js";
 
-// Default minimum filename length to allow fuzzy matching.
-// Google only truncates filenames > ~40 characters, so shorter names
-// should never be fuzzy matched (they weren't truncated).
-const DEFAULT_MIN_FUZZY_LENGTH = 40;
-
 // Regex for Google Takeout metadata suffixes (longest to shortest for greedy matching).
-// Matches: .supplemental-metadata, .supplemental-metadat, ..., .s, .json, .
+// Matches: .supplemental-metadata, .supplemental-metadat, ..., .s
 const metadataSuffixPattern = new RegExp(
   [
     "\\.supplemental-metadata",
@@ -50,9 +45,9 @@ const editedSuffixPattern = new RegExp(
  * - Checks for truncation in both directions.
  * - STRICTLY prevents stealing JSONs already claimed by Exact matches.
  */
-export function link(rawCollections, options = {}) {
+export function link(rawCollections, options) {
   const { filesMedia, filesMetadata, filesMetadataAlbums } = rawCollections;
-  const minFuzzyLength = options.minFuzzyLength ?? DEFAULT_MIN_FUZZY_LENGTH;
+  const { fuzzyThreshold } = options;
 
   // 1. Index metadata by directory for O(1) lookups
   const metadataByDir = new Map();
@@ -108,7 +103,7 @@ export function link(rawCollections, options = {}) {
       // (1) must always match (1). We never fuzzy match across indices.
       if (media.duplicate !== meta.duplicate) continue;
 
-      const score = matchScore(media, meta, allowFuzzy, minFuzzyLength);
+      const score = matchScore(media, meta, allowFuzzy, fuzzyThreshold);
 
       // In strict mode, ignore anything less than a perfect match
       if (!allowFuzzy && score < 100) continue;
@@ -183,7 +178,7 @@ function createEntry(mediaPath, jsonPath, albums) {
  * - 50+: Fuzzy/Truncated Name Match (Lowest Priority)
  * - 0: No Match
  */
-function matchScore(media, meta, allowFuzzy, minFuzzyLength) {
+function matchScore(media, meta, allowFuzzy, fuzzyThreshold) {
   const { name: mediaName, extension: mediaExt } = media;
   const { name: metaName, extension: metaExt } = meta;
 
@@ -209,7 +204,7 @@ function matchScore(media, meta, allowFuzzy, minFuzzyLength) {
   // truncation candidates. This prevents false positives like IMG_1234
   // matching IMG_123.json.
   const longerName = Math.max(mediaName.length, metaName.length);
-  if (longerName < minFuzzyLength) return 0;
+  if (longerName < fuzzyThreshold) return 0;
 
   // 4. Bidirectional Fuzzy Match
   // Checks if A starts with B OR B starts with A.

@@ -24,7 +24,7 @@ describe("link", () => {
       filesMetadataAlbums: [],
     };
 
-    const { manifest } = link(rawCollections);
+    const { manifest } = link(rawCollections, { fuzzyThreshold: 40 });
     const map = new Map(manifest.map((entry) => [entry.mediaPath, entry]));
 
     test("should match .suppl.json metadata files", () => {
@@ -73,7 +73,7 @@ describe("link", () => {
       filesMetadataAlbums: [],
     };
 
-    const { manifest } = link(rawCollections);
+    const { manifest } = link(rawCollections, { fuzzyThreshold: 40 });
     const map = new Map(manifest.map((entry) => [entry.mediaPath, entry]));
 
     test("should match exact metadata - IMG_0076.PNG", () => {
@@ -125,8 +125,8 @@ describe("link", () => {
       filesMetadataAlbums: [],
     };
 
-    // Use minFuzzyLength: 0 to allow fuzzy matching on short synthetic test names
-    const { manifest } = link(rawCollections, { minFuzzyLength: 0 });
+    // Use fuzzyThreshold: 0 to allow fuzzy matching on short synthetic test names
+    const { manifest } = link(rawCollections, { fuzzyThreshold: 0 });
     const map = new Map(manifest.map((entry) => [entry.mediaPath, entry]));
 
     test("should match truncated metadata - 988555 video", () => {
@@ -164,7 +164,7 @@ describe("link", () => {
       filesMetadataAlbums: [],
     };
 
-    const { manifest } = link(rawCollections);
+    const { manifest } = link(rawCollections, { fuzzyThreshold: 40 });
     const map = new Map(manifest.map((entry) => [entry.mediaPath, entry]));
 
     test("should match duplicate marker - original", () => {
@@ -199,7 +199,7 @@ describe("link", () => {
       filesMetadataAlbums: [],
     };
 
-    const { manifest } = link(rawCollections);
+    const { manifest } = link(rawCollections, { fuzzyThreshold: 40 });
     const map = new Map(manifest.map((entry) => [entry.mediaPath, entry]));
 
     test("should match file without marker to metadata without marker - IMG_0449.MP4", () => {
@@ -253,7 +253,7 @@ describe("link", () => {
       filesMetadataAlbums: [],
     };
 
-    const { manifest } = link(rawCollections);
+    const { manifest } = link(rawCollections, { fuzzyThreshold: 40 });
     const map = new Map(manifest.map((entry) => [entry.mediaPath, entry]));
 
     test("should NOT match when no corresponding metadata exists - IMG_0449.MP4", () => {
@@ -299,7 +299,7 @@ describe("link", () => {
       filesMetadataAlbums: [],
     };
 
-    const { manifest } = link(rawCollections);
+    const { manifest } = link(rawCollections, { fuzzyThreshold: 40 });
     const map = new Map(manifest.map((entry) => [entry.mediaPath, entry]));
 
     test("should match photo-edited to original metadata", () => {
@@ -340,7 +340,7 @@ describe("link", () => {
       filesMetadataAlbums: [],
     };
 
-    const { manifest } = link(rawCollections);
+    const { manifest } = link(rawCollections, { fuzzyThreshold: 40 });
     const map = new Map(manifest.map((entry) => [entry.mediaPath, entry]));
 
     test("should match double extension - .MP.jpg", () => {
@@ -371,7 +371,7 @@ describe("link", () => {
       filesMetadataAlbums: ["/tmp/My Album/metadata.json", "/tmp/Vacation 2024/metadata.json"],
     };
 
-    const { manifest } = link(rawCollections);
+    const { manifest } = link(rawCollections, { fuzzyThreshold: 40 });
     const map = new Map(manifest.map((entry) => [entry.mediaPath, entry]));
 
     test("should identify album sources correctly", () => {
@@ -398,7 +398,7 @@ describe("link", () => {
       filesMetadataAlbums: [],
     };
 
-    const { manifest } = link(rawCollections);
+    const { manifest } = link(rawCollections, { fuzzyThreshold: 40 });
     const map = new Map(manifest.map((entry) => [entry.mediaPath, entry]));
 
     test("should NOT match media to metadata in a sibling directory that shares a prefix", () => {
@@ -416,7 +416,7 @@ describe("link", () => {
       filesMetadataAlbums: [],
     };
 
-    const { stats } = link(rawCollections);
+    const { stats } = link(rawCollections, { fuzzyThreshold: 40 });
 
     test("should report unmatched media files", () => {
       // Verify unmatched media files are reported
@@ -449,7 +449,7 @@ describe("link", () => {
       filesMetadataAlbums: [],
     };
 
-    const { manifest, stats } = link(rawCollections);
+    const { manifest, stats } = link(rawCollections, { fuzzyThreshold: 40 });
     const map = new Map(manifest.map((entry) => [entry.mediaPath, entry]));
 
     test("should match JPG media to JPG metadata, not HEIC metadata", () => {
@@ -492,7 +492,7 @@ describe("link", () => {
       filesMetadataAlbums: [],
     };
 
-    const { manifest } = link(rawCollections);
+    const { manifest } = link(rawCollections, { fuzzyThreshold: 40 });
     const map = new Map(manifest.map((e) => [e.mediaPath, e]));
 
     test("should match exact short name", () => {
@@ -527,7 +527,7 @@ describe("link", () => {
       filesMetadataAlbums: [],
     };
 
-    const { manifest } = link(rawCollections);
+    const { manifest } = link(rawCollections, { fuzzyThreshold: 40 });
     const map = new Map(manifest.map((e) => [e.mediaPath, e]));
 
     test("should match full -edited suffix", () => {
@@ -570,8 +570,8 @@ describe("link", () => {
       filesMetadataAlbums: [],
     };
 
-    // Use minFuzzyLength: 0 because the UUID is only 35 chars (under 40 threshold)
-    const { manifest } = link(rawCollections, { minFuzzyLength: 0 });
+    // Use fuzzyThreshold: 0 because the UUID is only 35 chars (under 40 threshold)
+    const { manifest } = link(rawCollections, { fuzzyThreshold: 0 });
     const map = new Map(manifest.map((entry) => [entry.mediaPath, entry]));
 
     test("should match exact mp4 to sidecar", () => {
