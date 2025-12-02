@@ -34,10 +34,10 @@ const knownSuffixes = [
   ".",
 ];
 
-// Exhaustive list of -edited variations (longest to shortest).
+// Regex for -edited variations (longest to shortest for greedy matching).
 // We include "-e" but EXCLUDE "-" to prevent separating legitimate filenames
 // (e.g. "Vacation-2023") from becoming false positives for "Vacation".
-const editedSuffixes = ["-edited", "-edite", "-edit", "-edi", "-ed", "-e"];
+const editedSuffixPattern = /(-edited|-edite|-edit|-edi|-ed|-e)$/;
 
 /**
  * The link stage matches media files to their JSON sidecar metadata files.
@@ -226,28 +226,23 @@ function matchScore(media, meta, allowFuzzy, minFuzzyLength) {
 function parseMedia(filePath) {
   const extension = extname(filePath);
   let name = basename(filePath, extension);
-  let duplicate = null;
 
-  // 1. Strip duplicate marker (N) from the end
-  const dupMatch = name.match(/\((\d+)\)$/);
-  if (dupMatch) {
-    duplicate = parseInt(dupMatch[1], 10);
-    name = name.slice(0, dupMatch.index);
+  // Strip duplicate marker (N) from the end.
+  const duplicateMatch = name.match(/\((\d+)\)$/);
+  const duplicate = duplicateMatch ? parseInt(duplicateMatch[1]) : null;
+
+  if (duplicateMatch) {
+    name = name.slice(0, duplicateMatch.index);
   }
 
-  // 2. Strip -edited variants from the end (longest to shortest)
-  for (const suffix of editedSuffixes) {
-    if (name.endsWith(suffix)) {
-      name = name.slice(0, -suffix.length);
-      break;
-    }
+  // Strip -edited variants from the end.
+  const editedMatch = name.match(editedSuffixPattern);
+
+  if (editedMatch) {
+    name = name.slice(0, editedMatch.index);
   }
 
-  return {
-    name,
-    duplicate,
-    extension: extension.toLowerCase(),
-  };
+  return { name, duplicate, extension: extension.toLowerCase() };
 }
 
 function parseMetadata(filePath) {
