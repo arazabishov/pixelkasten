@@ -44,7 +44,7 @@ const editedSuffixPattern = new RegExp(
  *   filesMetadata: string[],
  *   filesMetadataAlbums: string[]
  * }} rawCollections The raw file collections from the scan stage.
- * @param {{ fuzzyThreshold: number }} options Configuration for fuzzy matching.
+ * @param {{ fuzzyThreshold: number, fuzzy?: boolean }} options Configuration for matching.
  * @returns {{
  *   manifest: Array<{ mediaPath: string, json: { path: string, confidence: number } | null, source: object }>,
  *   stats: { unmatchedMetadataFiles: Set<string>, unmatchedMediaFiles: Set<string> }
@@ -130,8 +130,6 @@ export function link(rawCollections, options) {
 // Finds the best metadata match for a media file within the same directory.
 // Returns { path, confidence } or null if no match found.
 function match(media, candidates, options) {
-  const { fuzzyThreshold: threshold } = options;
-
   let bestMatch = null;
   let bestScore = 0;
 
@@ -143,7 +141,7 @@ function match(media, candidates, options) {
       continue;
     }
 
-    const score = matchScore(media, metadata, threshold);
+    const score = matchScore(media, metadata, options);
     if (score > bestScore) {
       bestScore = score;
       bestMatch = metadata;
@@ -180,7 +178,8 @@ function match(media, candidates, options) {
 //  - 100: Exact name match OR embedded extension match (safe)
 //  - 50+: Fuzzy/truncated name match (lowest priority)
 //  - 0: No match
-function matchScore(media, metadata, threshold) {
+function matchScore(media, metadata, options) {
+  const { fuzzyThreshold: threshold, fuzzy = true } = options;
   const { name: metadataName, extension: metadataExt } = metadata;
   const { name: mediaName, extension: mediaExt } = media;
 
@@ -196,6 +195,11 @@ function matchScore(media, metadata, threshold) {
   const compositeName = `${mediaName}${mediaExt}`.toLowerCase();
   if (compositeName === metadataName.toLowerCase()) {
     return 100;
+  }
+
+  // Fuzzy matching disabled - no match.
+  if (!fuzzy) {
+    return 0;
   }
 
   // Case 3: fuzzy matching requires sufficient filename length. Google only truncates

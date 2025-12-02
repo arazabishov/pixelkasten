@@ -30,12 +30,6 @@ export async function runPipeline(options) {
     // Phase 5: resolve disk and sidecar metadata
     await reconcile(manifest);
     logReconcileReport(manifest);
-
-    for (const entry of manifest) {
-      if (entry.mediaPath.includes("IMG_0271")) {
-        console.log(entry);
-      }
-    }
   }
 
   if (!options.skipEmbed) {

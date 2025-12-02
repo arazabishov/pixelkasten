@@ -30,7 +30,8 @@ program
     "album"
   )
   .option("--strict", false)
-  .option("--skip-dedupe", "skip deduplication step");
+  .option("--skip-dedupe", "skip deduplication step")
+  .option("--no-fuzzy", "disable fuzzy matching for metadata linking");
 
 program.parse(process.argv);
 

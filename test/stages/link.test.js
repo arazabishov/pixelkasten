@@ -589,4 +589,32 @@ describe("link", () => {
       strictEqual(entry.json?.path, "/tmp/3D06C8D1-7637-4625-BEBE-C3D916AEF50D.json");
     });
   });
+
+  describe("fuzzy matching disabled", () => {
+    const rawCollections = {
+      filesMedia: ["/tmp/exact-match.jpg", "/tmp/truncated-media-file-name-that-is-very-long.jpg"],
+      filesMetadata: [
+        "/tmp/exact-match.jpg.json",
+        "/tmp/truncated-media-file-name-that-is-very-long-and.json",
+      ],
+      filesMetadataAlbums: [],
+    };
+
+    const { manifest } = link(rawCollections, { fuzzyThreshold: 0, fuzzy: false });
+    const map = new Map(manifest.map((entry) => [entry.mediaPath, entry]));
+
+    test("should still match exact name matches when fuzzy is disabled", () => {
+      const entry = map.get("/tmp/exact-match.jpg");
+
+      // Verify exact matches still work
+      strictEqual(entry.json?.path, "/tmp/exact-match.jpg.json");
+    });
+
+    test("should NOT match truncated filenames when fuzzy is disabled", () => {
+      const entry = map.get("/tmp/truncated-media-file-name-that-is-very-long.jpg");
+
+      // Verify fuzzy/prefix matching is disabled
+      strictEqual(entry.json?.path, undefined);
+    });
+  });
 });
