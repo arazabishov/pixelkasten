@@ -13,7 +13,7 @@ export async function runPipeline(options) {
   logScanReport(rawCollections, options.source);
 
   // Phase 2: link media to sidecar files
-  const matches = link(rawCollections);
+  const matches = link(rawCollections, options);
   logLinkReport(matches);
 
   const { manifest } = matches;
@@ -30,6 +30,12 @@ export async function runPipeline(options) {
     // Phase 5: resolve disk and sidecar metadata
     await reconcile(manifest);
     logReconcileReport(manifest);
+
+    for (const entry of manifest) {
+      if (entry.mediaPath.includes("IMG_0271")) {
+        console.log(entry);
+      }
+    }
   }
 
   if (!options.skipEmbed) {

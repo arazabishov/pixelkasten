@@ -29,6 +29,7 @@ program
     "prefer which files to keep when deduplicating: 'album' or 'loose'",
     "album"
   )
+  .option("--strict", false)
   .option("--skip-dedupe", "skip deduplication step");
 
 program.parse(process.argv);

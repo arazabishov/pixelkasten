@@ -125,7 +125,8 @@ describe("link", () => {
       filesMetadataAlbums: [],
     };
 
-    const { manifest } = link(rawCollections);
+    // Use minFuzzyLength: 0 to allow fuzzy matching on short synthetic test names
+    const { manifest } = link(rawCollections, { minFuzzyLength: 0 });
     const map = new Map(manifest.map((entry) => [entry.mediaPath, entry]));
 
     test("should match truncated metadata - 988555 video", () => {
@@ -242,6 +243,39 @@ describe("link", () => {
 
       // Verify second MP4 variant matches correctly
       strictEqual(entry.jsonPath, "/tmp/IMG_0450.HEIC.supplemental-metadata(1).json");
+    });
+  });
+
+  describe("distance threshold prevents false matches", () => {
+    const rawCollections = {
+      filesMedia: ["/tmp/IMG_0449.MP4", "/tmp/IMG_0449(1).HEIC", "/tmp/IMG_0449(1).MP4"],
+      filesMetadata: ["/tmp/IMG_0449.HEIC.supplemental-metadata(1).json"],
+      filesMetadataAlbums: [],
+    };
+
+    const { manifest } = link(rawCollections);
+    const map = new Map(manifest.map((entry) => [entry.mediaPath, entry]));
+
+    test("should NOT match when no corresponding metadata exists - IMG_0449.MP4", () => {
+      const entry = map.get("/tmp/IMG_0449.MP4");
+
+      // IMG_0449.MP4 has no corresponding metadata file (only (1) variant exists)
+      // Should not match to IMG_0449(1).HEIC metadata (distance would be 3)
+      strictEqual(entry.jsonPath, undefined);
+    });
+
+    test("should match when corresponding metadata exists - IMG_0449(1).HEIC", () => {
+      const entry = map.get("/tmp/IMG_0449(1).HEIC");
+
+      // Verify (1) variant matches correctly
+      strictEqual(entry.jsonPath, "/tmp/IMG_0449.HEIC.supplemental-metadata(1).json");
+    });
+
+    test("should match when corresponding metadata exists - IMG_0449(1).MP4", () => {
+      const entry = map.get("/tmp/IMG_0449(1).MP4");
+
+      // Verify (1) variant MP4 also matches correctly
+      strictEqual(entry.jsonPath, "/tmp/IMG_0449.HEIC.supplemental-metadata(1).json");
     });
   });
 
@@ -396,6 +430,163 @@ describe("link", () => {
       ok(stats.unmatchedMetadataFiles.has("/tmp/unused.json"));
 
       strictEqual(stats.unmatchedMetadataFiles.size, 1);
+    });
+  });
+
+  describe("extension-specific matching with same base name", () => {
+    const rawCollections = {
+      filesMedia: ["/tmp/IMG_0267.JPG", "/tmp/IMG_0523.MOV", "/tmp/IMG_0525.PNG"],
+      filesMetadata: [
+        // HEIC metadata files listed FIRST to test that extension matching
+        // prefers exact extension match over first-found match
+        "/tmp/IMG_0267.HEIC.supplemental-metadata.json",
+        "/tmp/IMG_0267.JPG.supplemental-metadata.json",
+        "/tmp/IMG_0523.HEIC.supplemental-metadata.json",
+        "/tmp/IMG_0523.MOV.supplemental-metadata.json",
+        "/tmp/IMG_0525.HEIC.supplemental-metadata.json",
+        "/tmp/IMG_0525.PNG.supplemental-metadata.json",
+      ],
+      filesMetadataAlbums: [],
+    };
+
+    const { manifest, stats } = link(rawCollections);
+    const map = new Map(manifest.map((entry) => [entry.mediaPath, entry]));
+
+    test("should match JPG media to JPG metadata, not HEIC metadata", () => {
+      const entry = map.get("/tmp/IMG_0267.JPG");
+
+      // Verify JPG file matches JPG-specific metadata, not HEIC metadata
+      strictEqual(entry.jsonPath, "/tmp/IMG_0267.JPG.supplemental-metadata.json");
+    });
+
+    test("should match MOV media to MOV metadata, not HEIC metadata", () => {
+      const entry = map.get("/tmp/IMG_0523.MOV");
+
+      // Verify MOV file matches MOV-specific metadata
+      strictEqual(entry.jsonPath, "/tmp/IMG_0523.MOV.supplemental-metadata.json");
+    });
+
+    test("should match PNG media to PNG metadata, not HEIC metadata", () => {
+      const entry = map.get("/tmp/IMG_0525.PNG");
+
+      // Verify PNG file matches PNG-specific metadata
+      strictEqual(entry.jsonPath, "/tmp/IMG_0525.PNG.supplemental-metadata.json");
+    });
+
+    test("should leave HEIC metadata files unmatched when no HEIC media exists", () => {
+      // Verify HEIC metadata files are reported as unmatched
+      ok(stats.unmatchedMetadataFiles.has("/tmp/IMG_0267.HEIC.supplemental-metadata.json"));
+
+      ok(stats.unmatchedMetadataFiles.has("/tmp/IMG_0523.HEIC.supplemental-metadata.json"));
+
+      ok(stats.unmatchedMetadataFiles.has("/tmp/IMG_0525.HEIC.supplemental-metadata.json"));
+
+      strictEqual(stats.unmatchedMetadataFiles.size, 3);
+    });
+  });
+
+  describe("safety against false positives", () => {
+    const rawCollections = {
+      filesMedia: ["/tmp/IMG_123.jpg", "/tmp/IMG_1234.jpg"],
+      filesMetadata: ["/tmp/IMG_123.json"],
+      filesMetadataAlbums: [],
+    };
+
+    const { manifest } = link(rawCollections);
+    const map = new Map(manifest.map((e) => [e.mediaPath, e]));
+
+    test("should match exact short name", () => {
+      const entry = map.get("/tmp/IMG_123.jpg");
+      strictEqual(entry.jsonPath, "/tmp/IMG_123.json");
+    });
+
+    test("should NOT fuzzy match short names that share a prefix", () => {
+      // IMG_1234 starts with IMG_123, but is too short to be a Google truncation.
+      // Therefore, it should NOT claim IMG_123.json.
+      const entry = map.get("/tmp/IMG_1234.jpg");
+      strictEqual(entry.jsonPath, undefined);
+    });
+  });
+
+  describe("truncated -edited suffixes", () => {
+    const rawCollections = {
+      filesMedia: [
+        "/tmp/IMG_100-edited.jpg",
+        "/tmp/IMG_200-edite.jpg", // Truncated d
+        "/tmp/IMG_300-edit.jpg", // Truncated ed
+        "/tmp/IMG_400-edi.jpg", // Truncated ted
+        "/tmp/IMG_500-edited.MP.jpg", // Stacked extension + edited
+      ],
+      filesMetadata: [
+        "/tmp/IMG_100.json",
+        "/tmp/IMG_200.json",
+        "/tmp/IMG_300.json",
+        "/tmp/IMG_400.json",
+        "/tmp/IMG_500.MP.jpg.json",
+      ],
+      filesMetadataAlbums: [],
+    };
+
+    const { manifest } = link(rawCollections);
+    const map = new Map(manifest.map((e) => [e.mediaPath, e]));
+
+    test("should match full -edited suffix", () => {
+      const entry = map.get("/tmp/IMG_100-edited.jpg");
+      strictEqual(entry.jsonPath, "/tmp/IMG_100.json");
+    });
+
+    test("should match truncated -edite suffix", () => {
+      const entry = map.get("/tmp/IMG_200-edite.jpg");
+      strictEqual(entry.jsonPath, "/tmp/IMG_200.json");
+    });
+
+    test("should match truncated -edit suffix", () => {
+      const entry = map.get("/tmp/IMG_300-edit.jpg");
+      strictEqual(entry.jsonPath, "/tmp/IMG_300.json");
+    });
+
+    test("should match truncated -edi suffix", () => {
+      const entry = map.get("/tmp/IMG_400-edi.jpg");
+      strictEqual(entry.jsonPath, "/tmp/IMG_400.json");
+    });
+
+    test("should match -edited with embedded extension", () => {
+      // Logic:
+      // 1. parseMedia parses "IMG_500-edited.MP" -> "IMG_500.MP" (strips -edited)
+      // 2. parseMetadata parses "IMG_500.MP"
+      // 3. Match!
+      const entry = map.get("/tmp/IMG_500-edited.MP.jpg");
+      strictEqual(entry.jsonPath, "/tmp/IMG_500.MP.jpg.json");
+    });
+  });
+
+  describe("truncated Live Photo with shared sidecar", () => {
+    const rawCollections = {
+      filesMedia: [
+        "/tmp/3D06C8D1-7637-4625-BEBE-C3D916AEF50D.mp4",
+        "/tmp/3D06C8D1-7637-4625-BEBE-C3D916AEF50.heic", // truncated by 1 char
+      ],
+      filesMetadata: ["/tmp/3D06C8D1-7637-4625-BEBE-C3D916AEF50D.json"],
+      filesMetadataAlbums: [],
+    };
+
+    // Use minFuzzyLength: 0 because the UUID is only 35 chars (under 40 threshold)
+    const { manifest } = link(rawCollections, { minFuzzyLength: 0 });
+    const map = new Map(manifest.map((entry) => [entry.mediaPath, entry]));
+
+    test("should match exact mp4 to sidecar", () => {
+      const entry = map.get("/tmp/3D06C8D1-7637-4625-BEBE-C3D916AEF50D.mp4");
+
+      // Verify exact match works
+      strictEqual(entry.jsonPath, "/tmp/3D06C8D1-7637-4625-BEBE-C3D916AEF50D.json");
+    });
+
+    test("should match truncated heic to same sidecar", () => {
+      const entry = map.get("/tmp/3D06C8D1-7637-4625-BEBE-C3D916AEF50.heic");
+
+      // Verify truncated Live Photo component also matches the shared sidecar
+      // This tests that fuzzy matches can share sidecars claimed by exact matches
+      strictEqual(entry.jsonPath, "/tmp/3D06C8D1-7637-4625-BEBE-C3D916AEF50D.json");
     });
   });
 });

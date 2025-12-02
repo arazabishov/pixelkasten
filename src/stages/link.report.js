@@ -7,6 +7,14 @@ export function logLinkReport(matches) {
     stats: { unmatchedMetadataFiles, unmatchedMediaFiles },
   } = matches;
 
+  for (const entry of unmatchedMediaFiles) {
+    console.log(entry);
+  }
+
+  for (const entry of unmatchedMetadataFiles) {
+    console.log(entry);
+  }
+
   const stats = new CliTable3({
     head: ["Category", "Count"],
     style: {
