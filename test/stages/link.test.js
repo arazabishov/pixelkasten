@@ -617,4 +617,40 @@ describe("link", () => {
       strictEqual(entry.json?.path, undefined);
     });
   });
+
+  describe("extension case insensitivity", () => {
+    const rawCollections = {
+      filesMedia: ["/tmp/IMAGE.JPG", "/tmp/photo.PNG", "/tmp/VIDEO.MOV"],
+      filesMetadata: [
+        "/tmp/IMAGE.jpg.json",
+        "/tmp/photo.png.supplemental-metadata.json",
+        "/tmp/VIDEO.mov.supplemental-metadata.json",
+      ],
+      filesMetadataAlbums: [],
+    };
+
+    const { manifest } = link(rawCollections, { fuzzyThreshold: 40 });
+    const map = new Map(manifest.map((entry) => [entry.mediaPath, entry]));
+
+    test("should match .JPG media to .jpg metadata", () => {
+      const entry = map.get("/tmp/IMAGE.JPG");
+
+      // Verify case-insensitive extension matching
+      strictEqual(entry.json?.path, "/tmp/IMAGE.jpg.json");
+    });
+
+    test("should match .PNG media to .png metadata", () => {
+      const entry = map.get("/tmp/photo.PNG");
+
+      // Verify case-insensitive extension matching
+      strictEqual(entry.json?.path, "/tmp/photo.png.supplemental-metadata.json");
+    });
+
+    test("should match .MOV media to .mov metadata", () => {
+      const entry = map.get("/tmp/VIDEO.MOV");
+
+      // Verify case-insensitive extension matching
+      strictEqual(entry.json?.path, "/tmp/VIDEO.mov.supplemental-metadata.json");
+    });
+  });
 });
