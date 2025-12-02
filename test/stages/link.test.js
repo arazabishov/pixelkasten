@@ -10,7 +10,7 @@ describe("link", () => {
         "/tmp/PXL_20241231_114900266.jpg",
         "/tmp/PXL_20241231_114910784.MP.jpg",
         "/tmp/camphoto_33463914(4).jpg",
-        "/tmp/camphoto_33463914(4).MP.jpg",
+        "/tmp/camphoto_33463914.MP(4).jpg",
         "/tmp/29407C9C-7528-4FF1-AD5F-08EAA7F9738E-98855-000",
       ],
       filesMetadata: [
@@ -52,7 +52,7 @@ describe("link", () => {
     });
 
     test("should match .supplemental-metadata(N).json with duplicate markers and two extensions", () => {
-      const entry = map.get("/tmp/camphoto_33463914(4).MP.jpg");
+      const entry = map.get("/tmp/camphoto_33463914.MP(4).jpg");
       strictEqual(entry.jsonPath, "/tmp/camphoto_33463914.MP.jpg.supplemental-metadata(4).json");
     });
 
@@ -331,7 +331,7 @@ describe("link", () => {
         "/tmp/11491078.MP.jpg",
         "/tmp/11491078.MP",
         "/tmp/IMG_0785.HEIC",
-        "/tmp/11491078-edited.MP.jpg",
+        "/tmp/11491078.MP-edited.jpg",
       ],
       filesMetadata: [
         "/tmp/11491078.MP.jpg.supplemental-met.json",
@@ -359,7 +359,7 @@ describe("link", () => {
     });
 
     test("should match edited double extension file", () => {
-      const entry = map.get("/tmp/11491078-edited.MP.jpg");
+      const entry = map.get("/tmp/11491078.MP-edited.jpg");
       strictEqual(entry.jsonPath, "/tmp/11491078.MP.jpg.supplemental-met.json");
     });
   });
@@ -515,7 +515,7 @@ describe("link", () => {
         "/tmp/IMG_200-edite.jpg", // Truncated d
         "/tmp/IMG_300-edit.jpg", // Truncated ed
         "/tmp/IMG_400-edi.jpg", // Truncated ted
-        "/tmp/IMG_500-edited.MP.jpg", // Stacked extension + edited
+        "/tmp/IMG_500.MP-edited.jpg", // Stacked extension + edited
       ],
       filesMetadata: [
         "/tmp/IMG_100.json",
@@ -552,10 +552,10 @@ describe("link", () => {
 
     test("should match -edited with embedded extension", () => {
       // Logic:
-      // 1. parseMedia parses "IMG_500-edited.MP" -> "IMG_500.MP" (strips -edited)
+      // 1. parseMedia parses "IMG_500.MP-edited" -> "IMG_500.MP" (strips -edited)
       // 2. parseMetadata parses "IMG_500.MP"
       // 3. Match!
-      const entry = map.get("/tmp/IMG_500-edited.MP.jpg");
+      const entry = map.get("/tmp/IMG_500.MP-edited.jpg");
       strictEqual(entry.jsonPath, "/tmp/IMG_500.MP.jpg.json");
     });
   });

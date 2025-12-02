@@ -227,44 +227,25 @@ function parseMedia(filePath) {
   const extension = extname(filePath);
   let name = basename(filePath, extension);
   let duplicate = null;
-  let edited = false;
 
-  // Recursive loop to handle stacked suffixes (e.g. IMG(1)-edited)
-  let changed;
-  do {
-    changed = false;
-    const startName = name;
+  // 1. Strip duplicate marker (N) from the end
+  const dupMatch = name.match(/\((\d+)\)$/);
+  if (dupMatch) {
+    duplicate = parseInt(dupMatch[1], 10);
+    name = name.slice(0, dupMatch.index);
+  }
 
-    // 1. Detect -edited variations (Iterate longest to shortest)
-    for (const suffix of editedSuffixes) {
-      // Matches suffix at end of string OR followed by a dot
-      const regex = new RegExp(`${suffix}($|\\.)`);
-
-      if (name.match(regex)) {
-        name = name.replace(regex, (match, charAfter) => {
-          edited = true;
-          return charAfter || "";
-        });
-        changed = true;
-        break;
-      }
+  // 2. Strip -edited variants from the end (longest to shortest)
+  for (const suffix of editedSuffixes) {
+    if (name.endsWith(suffix)) {
+      name = name.slice(0, -suffix.length);
+      break;
     }
-
-    // 2. Detect duplicate marker (N)
-    name = name.replace(/\((\d+)\)((?:\.[^.]+)?)$/, (_, index, extension) => {
-      if (duplicate === null) {
-        duplicate = parseInt(index);
-      }
-      return extension ?? "";
-    });
-
-    if (name !== startName) changed = true;
-  } while (changed);
+  }
 
   return {
     name,
     duplicate,
-    edited,
     extension: extension.toLowerCase(),
   };
 }
