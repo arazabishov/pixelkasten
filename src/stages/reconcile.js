@@ -44,7 +44,7 @@ export async function reconcile(manifest, options) {
       const rawDiskTags = batchExifMap.get(entry.mediaPath);
 
       try {
-        entry.metadata = await resolve(entry.mediaPath, entry.jsonPath, rawDiskTags);
+        entry.metadata = await resolve(entry.mediaPath, entry.json?.path, rawDiskTags);
       } catch (error) {
         if (options.strict) {
           throw error;

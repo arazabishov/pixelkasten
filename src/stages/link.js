@@ -46,13 +46,12 @@ const editedSuffixPattern = new RegExp(
  * }} rawCollections The raw file collections from the scan stage.
  * @param {{ fuzzyThreshold: number }} options Configuration for fuzzy matching.
  * @returns {{
- *   manifest: Array<{ mediaPath: string, jsonPath?: string, source: object }>,
+ *   manifest: Array<{ mediaPath: string, json: { path: string, confidence: number } | null, source: object }>,
  *   stats: { unmatchedMetadataFiles: Set<string>, unmatchedMediaFiles: Set<string> }
  * }} The manifest of linked files and matching statistics.
  */
 export function link(rawCollections, options) {
   const { filesMedia, filesMetadata, filesMetadataAlbums } = rawCollections;
-  const { fuzzyThreshold } = options;
 
   // Stage 1: index metadata by directory for O(1) lookups.
   const metadataByDir = new Map();
@@ -83,24 +82,25 @@ export function link(rawCollections, options) {
     });
   }
 
+  // Manifest is the foundational data structure that
+  // will be passed on to later stages.
   const manifest = [];
 
   const bar = progressBar("⧗ Linking files |{bar}| {percentage}% | {value}/{total} files");
   bar.start(filesMedia.length, 0);
 
-  // Stage 4: match media files to their metadata sidecars. Try exact match first:
-  // based on name, extension, duplicate marker, then fuzzy - prefix search.
+  // Stage 4: match media files to their metadata sidecars.
   for (const media of parsedMedia) {
-    const match =
-      findMatch(media, metadataByDir, fuzzyThreshold, false) ??
-      findMatch(media, metadataByDir, fuzzyThreshold, true);
-
+    const candidates = metadataByDir.get(dirname(media.path)) ?? [];
     const albumDir = dirname(media.path);
-    const source = albums.has(albumDir)
-      ? { type: "album", name: albums.get(albumDir) }
-      : { type: "loose" };
 
-    manifest.push({ mediaPath: media.path, jsonPath: match?.path, source: source });
+    manifest.push({
+      mediaPath: media.path,
+      source: albums.has(albumDir)
+        ? { type: "album", name: albums.get(albumDir) }
+        : { type: "loose" },
+      json: match(media, candidates, options),
+    });
 
     bar.increment();
   }
@@ -111,9 +111,9 @@ export function link(rawCollections, options) {
   const unmatchedMetadataFiles = new Set(filesMetadata);
   const unmatchedMediaFiles = new Set(filesMedia);
 
-  for (const { mediaPath, jsonPath } of manifest) {
-    if (jsonPath) {
-      unmatchedMetadataFiles.delete(jsonPath);
+  for (const { mediaPath, json } of manifest) {
+    if (json) {
+      unmatchedMetadataFiles.delete(json.path);
       unmatchedMediaFiles.delete(mediaPath);
     }
   }
@@ -128,9 +128,9 @@ export function link(rawCollections, options) {
 }
 
 // Finds the best metadata match for a media file within the same directory.
-function findMatch(media, metadataByDir, fuzzyThreshold, allowFuzzy) {
-  const dir = dirname(media.path);
-  const candidates = metadataByDir.get(dir) || [];
+// Returns { path, confidence } or null if no match found.
+function match(media, candidates, options) {
+  const { fuzzyThreshold } = options;
 
   let bestMatch = null;
   let bestScore = 0;
@@ -138,12 +138,11 @@ function findMatch(media, metadataByDir, fuzzyThreshold, allowFuzzy) {
   for (const meta of candidates) {
     // Strict duplicate check: (1) must always match (1).
     // We never fuzzy match across indices.
-    if (media.duplicate !== meta.duplicate) continue;
+    if (media.duplicate !== meta.duplicate) {
+      continue;
+    }
 
-    const score = matchScore(media, meta, allowFuzzy, fuzzyThreshold);
-
-    // In strict mode, ignore anything less than a perfect match.
-    if (!allowFuzzy && score < 100) continue;
+    const score = matchScore(media, meta, fuzzyThreshold);
 
     if (score > bestScore) {
       bestScore = score;
@@ -151,7 +150,24 @@ function findMatch(media, metadataByDir, fuzzyThreshold, allowFuzzy) {
     }
   }
 
-  return bestMatch;
+  if (!bestMatch) {
+    return null;
+  }
+
+  // Determine confidence level based on match score.
+  // - 3 (high): name + duplicate + extension match (score 150)
+  // - 2 (medium): name + duplicate match without extension (score 100)
+  // - 1 (satisfactory): fuzzy/prefix match (score 50+)
+  let confidence;
+  if (bestScore >= 150) {
+    confidence = 3;
+  } else if (bestScore >= 100) {
+    confidence = 2;
+  } else {
+    confidence = 1;
+  }
+
+  return { path: bestMatch.path, confidence };
 }
 
 // Calculates a match score between a media file and a metadata file.
@@ -160,7 +176,7 @@ function findMatch(media, metadataByDir, fuzzyThreshold, allowFuzzy) {
 //  - 100: Exact name match OR embedded extension match (safe)
 //  - 50+: Fuzzy/truncated name match (lowest priority)
 //  - 0: No match
-function matchScore(media, meta, allowFuzzy, fuzzyThreshold) {
+function matchScore(media, meta, fuzzyThreshold) {
   const { name: mediaName, extension: mediaExt } = media;
   const { name: metaName, extension: metaExt } = meta;
 
@@ -179,14 +195,14 @@ function matchScore(media, meta, allowFuzzy, fuzzyThreshold) {
     return 100; // Treated as an exact match.
   }
 
-  if (!allowFuzzy) return 0;
-
   // Case 3: fuzzy matching requires sufficient filename length.
   // Google only truncates names > ~40 chars, so shorter names cannot be
   // truncation candidates. This prevents false positives like IMG_1234
   // matching IMG_123.json.
   const longerName = Math.max(mediaName.length, metaName.length);
-  if (longerName < fuzzyThreshold) return 0;
+  if (longerName < fuzzyThreshold) {
+    return 0;
+  }
 
   // Case 4: bidirectional fuzzy match.
   // Checks if A starts with B OR B starts with A.

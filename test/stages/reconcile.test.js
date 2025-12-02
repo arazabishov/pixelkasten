@@ -123,7 +123,15 @@ describe("reconcile", () => {
   });
 
   test("should not queue metadata writes when no sidecar exists", async () => {
-    const manifest = [{ mediaPath: "/path/image.jpg", jsonPath: "/path/image.json" }];
+    const manifest = [
+      {
+        mediaPath: "/path/image.jpg",
+        json: {
+          path: "/path/image.json",
+          confidence: 3,
+        },
+      },
+    ];
 
     readMetadataMock.mock.mockImplementation(async () => {
       return new Map([["/path/image.jpg", { CreateDate: "2023:01:01 12:00:00" }]]);
@@ -148,7 +156,15 @@ describe("reconcile", () => {
   });
 
   test("should not queue metadata writes when disk already has sidecar data", async () => {
-    const manifest = [{ mediaPath: "/path/image.jpg", jsonPath: "/path/image.json" }];
+    const manifest = [
+      {
+        mediaPath: "/path/image.jpg",
+        json: {
+          path: "/path/image.json",
+          confidence: 3,
+        },
+      },
+    ];
 
     readMetadataMock.mock.mockImplementation(async () => {
       return new Map([["/path/image.jpg", { CreateDate: "2023:01:01 12:00:00" }]]);
@@ -170,7 +186,15 @@ describe("reconcile", () => {
   });
 
   test("should queue timestamp write when missing from disk metadata", async () => {
-    const manifest = [{ mediaPath: "/path/image.jpg", jsonPath: "/path/image.json" }];
+    const manifest = [
+      {
+        mediaPath: "/path/image.jpg",
+        json: {
+          path: "/path/image.json",
+          confidence: 3,
+        },
+      },
+    ];
 
     readMetadataMock.mock.mockImplementation(async () => {
       return new Map([["/path/image.jpg", {}]]);
@@ -201,7 +225,15 @@ describe("reconcile", () => {
   });
 
   test("should queue geo write when missing from disk metadata", async () => {
-    const manifest = [{ mediaPath: "/path/image.jpg", jsonPath: "/path/image.json" }];
+    const manifest = [
+      {
+        mediaPath: "/path/image.jpg",
+        json: {
+          path: "/path/image.json",
+          confidence: 3,
+        },
+      },
+    ];
 
     readMetadataMock.mock.mockImplementation(async () => {
       return new Map([["/path/image.jpg", {}]]);
@@ -226,7 +258,15 @@ describe("reconcile", () => {
   });
 
   test("should queue timestamp and geo writes when both missing from disk", async () => {
-    const manifest = [{ mediaPath: "/path/image.jpg", jsonPath: "/path/image.json" }];
+    const manifest = [
+      {
+        mediaPath: "/path/image.jpg",
+        json: {
+          path: "/path/image.json",
+          confidence: 3,
+        },
+      },
+    ];
 
     readMetadataMock.mock.mockImplementation(async () => {
       return new Map([["/path/image.jpg", {}]]);
@@ -265,7 +305,10 @@ describe("reconcile", () => {
   test("should read metadata for all entries regardless of manifest size", async () => {
     const manifest = Array.from({ length: 1000 }, (_, i) => ({
       mediaPath: `/path/image${i}.jpg`,
-      jsonPath: `/path/image${i}.json`,
+      json: {
+        path: `/path/image${i}.json`,
+        confidence: 3,
+      },
     }));
 
     readMetadataMock.mock.mockImplementation(async (paths) => {
@@ -320,7 +363,15 @@ describe("reconcile", () => {
   });
 
   test("should mark entries with unsupported file types as errors", async () => {
-    const manifest = [{ mediaPath: "/path/image.unknown", jsonPath: "/path/image.json" }];
+    const manifest = [
+      {
+        mediaPath: "/path/image.unknown",
+        json: {
+          path: "/path/image.json",
+          confidence: 3,
+        },
+      },
+    ];
 
     readMetadataMock.mock.mockImplementation(async () => {
       return new Map([["/path/image.unknown", {}]]);

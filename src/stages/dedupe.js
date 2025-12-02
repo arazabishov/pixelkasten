@@ -11,7 +11,7 @@ import { progressBar } from "../utils/progress.js";
  *
  * @param {Array<{
  *   mediaPath: string,
- *   jsonPath?: string,
+ *   json: { path: string, confidence: number } | null,
  *   source: { type: 'album', name: string } | { type: 'loose' }
  * }>} manifest The manifest of media files to hash.
  * @returns {Promise<void>} Modifies the manifest in-place by adding a `dedupe` property
@@ -72,7 +72,7 @@ function calculateHash(filePath) {
  *
  * @param {Array<{
  *   mediaPath: string,
- *   jsonPath?: string,
+ *   json: { path: string, confidence: number } | null,
  *   source: { type: 'album', name: string } | { type: 'loose' },
  *   dedupe: { hash: string, action: 'pending' }
  * }>} manifest The manifest with calculated hashes from dedupeHash.
