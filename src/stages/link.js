@@ -130,23 +130,23 @@ export function link(rawCollections, options) {
 // Finds the best metadata match for a media file within the same directory.
 // Returns { path, confidence } or null if no match found.
 function match(media, candidates, options) {
-  const { fuzzyThreshold } = options;
+  const { fuzzyThreshold: threshold } = options;
 
   let bestMatch = null;
   let bestScore = 0;
 
-  for (const meta of candidates) {
+  // Determine score for every candidate.
+  for (const metadata of candidates) {
     // Strict duplicate check: (1) must always match (1).
     // We never fuzzy match across indices.
-    if (media.duplicate !== meta.duplicate) {
+    if (media.duplicate !== metadata.duplicate) {
       continue;
     }
 
-    const score = matchScore(media, meta, fuzzyThreshold);
-
+    const score = matchScore(media, metadata, threshold);
     if (score > bestScore) {
       bestScore = score;
-      bestMatch = meta;
+      bestMatch = metadata;
     }
   }
 
@@ -158,16 +158,20 @@ function match(media, candidates, options) {
   // - 3 (high): name + duplicate + extension match (score 150)
   // - 2 (medium): name + duplicate match without extension (score 100)
   // - 1 (satisfactory): fuzzy/prefix match (score 50+)
-  let confidence;
-  if (bestScore >= 150) {
-    confidence = 3;
-  } else if (bestScore >= 100) {
-    confidence = 2;
-  } else {
-    confidence = 1;
-  }
+  const confidence = (score) => {
+    if (score >= 150) {
+      return 3;
+    } else if (score >= 100) {
+      return 2;
+    } else {
+      return 1;
+    }
+  };
 
-  return { path: bestMatch.path, confidence };
+  return {
+    path: bestMatch.path,
+    confidence: confidence(bestScore),
+  };
 }
 
 // Calculates a match score between a media file and a metadata file.
@@ -176,43 +180,40 @@ function match(media, candidates, options) {
 //  - 100: Exact name match OR embedded extension match (safe)
 //  - 50+: Fuzzy/truncated name match (lowest priority)
 //  - 0: No match
-function matchScore(media, meta, fuzzyThreshold) {
+function matchScore(media, metadata, threshold) {
+  const { name: metadataName, extension: metadataExt } = metadata;
   const { name: mediaName, extension: mediaExt } = media;
-  const { name: metaName, extension: metaExt } = meta;
 
   // Case 1: direct name match.
-  if (mediaName === metaName) {
-    return metaExt && metaExt === mediaExt ? 150 : 100;
+  if (mediaName === metadataName) {
+    return metadataExt && metadataExt === mediaExt ? 150 : 100;
   }
 
-  // Case 2: embedded extension match.
-  // Handles cases where metadata includes the media extension in its name.
-  // e.g. Media: "123.MP" (Name: "123", Ext: ".MP") vs Meta: "123.MP"
+  // Case 2: embedded extension match. Handles cases where metadata
+  // includes the media extension in its name. For example:
+  // - media: "123.mp" (name: "123", ext: ".mp")
+  // - metadata: "123.mp"
   const compositeName = `${mediaName}${mediaExt}`.toLowerCase();
-  const normalizedMeta = metaName.toLowerCase();
-
-  if (compositeName === normalizedMeta) {
-    return 100; // Treated as an exact match.
+  if (compositeName === metadataName.toLowerCase()) {
+    return 100;
   }
 
-  // Case 3: fuzzy matching requires sufficient filename length.
-  // Google only truncates names > ~40 chars, so shorter names cannot be
-  // truncation candidates. This prevents false positives like IMG_1234
-  // matching IMG_123.json.
-  const longerName = Math.max(mediaName.length, metaName.length);
-  if (longerName < fuzzyThreshold) {
+  // Case 3: fuzzy matching requires sufficient filename length. Google only truncates
+  // names > ~40 chars, so shorter names cannot be truncation candidates.
+  // This prevents false positives like IMG_1234 matching IMG_123.json.
+  const longerName = Math.max(mediaName.length, metadataName.length);
+  if (longerName < threshold) {
     return 0;
   }
 
-  // Case 4: bidirectional fuzzy match.
-  // Checks if A starts with B OR B starts with A.
+  // Case 4: bidirectional fuzzy match. Checks if A starts with B OR B starts with A.
   // Handles truncation on either file system side or Google side.
-  const mediaStarts = mediaName.startsWith(metaName);
-  const metaStarts = metaName.startsWith(mediaName);
+  const metadataStarts = metadataName.startsWith(mediaName);
+  const mediaStarts = mediaName.startsWith(metadataName);
 
-  if (mediaStarts || metaStarts) {
+  if (mediaStarts || metadataStarts) {
     // Score is 50 + length of the shorter string (common prefix).
-    return 50 + Math.min(mediaName.length, metaName.length);
+    return 50 + Math.min(mediaName.length, metadataName.length);
   }
 
   return 0;
