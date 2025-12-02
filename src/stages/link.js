@@ -6,38 +6,40 @@ import { progressBar } from "../utils/progress.js";
 // should never be fuzzy matched (they weren't truncated).
 const DEFAULT_MIN_FUZZY_LENGTH = 40;
 
-// Exhaustive list of Google Takeout suffixes.
-// Order matters: longest to shortest to ensure greedy matching.
-const knownSuffixes = [
-  ".supplemental-metadata",
-  ".supplemental-metadat",
-  ".supplemental-metada",
-  ".supplemental-metad",
-  ".supplemental-meta",
-  ".supplemental-met",
-  ".supplemental-me",
-  ".supplemental-m",
-  ".supplemental-",
-  ".supplemental",
-  ".supplementa",
-  ".supplement",
-  ".supplemen",
-  ".suppleme",
-  ".supplem",
-  ".supple",
-  ".suppl",
-  ".supp",
-  ".sup",
-  ".su",
-  ".s",
-  ".json",
-  ".",
-];
+// Regex for Google Takeout metadata suffixes (longest to shortest for greedy matching).
+// Matches: .supplemental-metadata, .supplemental-metadat, ..., .s, .json, .
+const metadataSuffixPattern = new RegExp(
+  [
+    "\\.supplemental-metadata",
+    "\\.supplemental-metadat",
+    "\\.supplemental-metada",
+    "\\.supplemental-metad",
+    "\\.supplemental-meta",
+    "\\.supplemental-met",
+    "\\.supplemental-me",
+    "\\.supplemental-m",
+    "\\.supplemental-",
+    "\\.supplemental",
+    "\\.supplementa",
+    "\\.supplement",
+    "\\.supplemen",
+    "\\.suppleme",
+    "\\.supplem",
+    "\\.supple",
+    "\\.suppl",
+    "\\.supp",
+    "\\.sup",
+    "\\.su",
+    "\\.s",
+  ].join("|") + "$"
+);
 
 // Regex for -edited variations (longest to shortest for greedy matching).
 // We include "-e" but EXCLUDE "-" to prevent separating legitimate filenames
 // (e.g. "Vacation-2023") from becoming false positives for "Vacation".
-const editedSuffixPattern = /(-edited|-edite|-edit|-edi|-ed|-e)$/;
+const editedSuffixPattern = new RegExp(
+  ["-edited", "-edite", "-edit", "-edi", "-ed", "-e"].join("|") + "$"
+);
 
 /**
  * The link stage matches media files to their JSON sidecar metadata files.
@@ -57,7 +59,7 @@ export function link(rawCollections, options = {}) {
   for (const filePath of filesMetadata) {
     const dir = dirname(filePath);
     if (!metadataByDir.has(dir)) metadataByDir.set(dir, []);
-    metadataByDir.get(dir).push(parseMetadata(filePath));
+    metadataByDir.get(dir).push({ path: filePath, ...sidecar(filePath) });
   }
 
   // 2. Index albums
@@ -70,7 +72,7 @@ export function link(rawCollections, options = {}) {
   // 3. Pre-parse media files for performance
   const parsedMedia = filesMedia.map((path) => ({
     originalPath: path,
-    ...parseMedia(path),
+    ...media(path),
   }));
 
   const manifest = [];
@@ -100,7 +102,7 @@ export function link(rawCollections, options = {}) {
       // already claimed by another Fuzzy match. However, we CAN share
       // sidecars claimed by Exact matches (Live Photo scenario where
       // one component is truncated but should still share the sidecar).
-      if (allowFuzzy && usedByFuzzy.has(meta.originalPath)) continue;
+      if (allowFuzzy && usedByFuzzy.has(meta.path)) continue;
 
       // Strict Duplicate Check:
       // (1) must always match (1). We never fuzzy match across indices.
@@ -128,8 +130,8 @@ export function link(rawCollections, options = {}) {
 
     if (match) {
       matchedMediaIndices.add(i);
-      usedByExact.add(match.originalPath);
-      manifest.push(createEntry(media.originalPath, match.originalPath, albums));
+      usedByExact.add(match.path);
+      manifest.push(createEntry(media.originalPath, match.path, albums));
       bar.increment();
     }
   }
@@ -143,8 +145,8 @@ export function link(rawCollections, options = {}) {
     const match = findMatch(media, true);
 
     if (match) {
-      usedByFuzzy.add(match.originalPath);
-      manifest.push(createEntry(media.originalPath, match.originalPath, albums));
+      usedByFuzzy.add(match.path);
+      manifest.push(createEntry(media.originalPath, match.path, albums));
     } else {
       manifest.push(createEntry(media.originalPath, undefined, albums));
     }
@@ -183,7 +185,7 @@ function createEntry(mediaPath, jsonPath, albums) {
  */
 function matchScore(media, meta, allowFuzzy, minFuzzyLength) {
   const { name: mediaName, extension: mediaExt } = media;
-  const { name: metaName, relatedExtension: metaExt } = meta;
+  const { name: metaName, extension: metaExt } = meta;
 
   // 1. Direct Name Match
   if (mediaName === metaName) {
@@ -223,7 +225,7 @@ function matchScore(media, meta, allowFuzzy, minFuzzyLength) {
   return 0;
 }
 
-function parseMedia(filePath) {
+function media(filePath) {
   const extension = extname(filePath);
   let name = basename(filePath, extension);
 
@@ -237,7 +239,6 @@ function parseMedia(filePath) {
 
   // Strip -edited variants from the end.
   const editedMatch = name.match(editedSuffixPattern);
-
   if (editedMatch) {
     name = name.slice(0, editedMatch.index);
   }
@@ -245,51 +246,28 @@ function parseMedia(filePath) {
   return { name, duplicate, extension: extension.toLowerCase() };
 }
 
-function parseMetadata(filePath) {
-  const ext = extname(filePath);
-  let name = basename(filePath, ext);
-  let duplicate = null;
-  let relatedExtension = null;
+function sidecar(filePath) {
+  let name = basename(filePath, extname(filePath));
 
-  let changed;
-  do {
-    changed = false;
-    const startName = name;
+  // Strip duplicate marker (N) from the end.
+  const duplicateMatch = name.match(/\((\d+)\)$/);
+  const duplicate = duplicateMatch ? parseInt(duplicateMatch[1]) : null;
 
-    // 1. Clean known metadata suffixes
-    for (const suffix of knownSuffixes) {
-      if (name.endsWith(suffix)) {
-        name = name.slice(0, -suffix.length);
-        changed = true;
-        break;
-      }
-    }
-
-    // 2. Detect Duplicate Marker (N)
-    const dupMatch = name.match(/\((\d+)\)(?:\.[^.]+)?$/);
-    if (dupMatch) {
-      if (duplicate === null) {
-        duplicate = parseInt(dupMatch[1], 10);
-      }
-      const fullMatch = dupMatch[0];
-      const marker = `(${dupMatch[1]})`;
-      const suffix = fullMatch.slice(marker.length);
-      name = name.slice(0, dupMatch.index) + suffix;
-      changed = true;
-    }
-  } while (changed);
-
-  // 3. Extract Related Extension (if present)
-  const potentialExt = extname(name);
-  if (potentialExt) {
-    relatedExtension = potentialExt.toLowerCase();
-    name = basename(name, potentialExt);
+  if (duplicateMatch) {
+    name = name.slice(0, duplicateMatch.index);
   }
 
-  return {
-    originalPath: filePath,
-    name,
-    duplicate,
-    relatedExtension,
-  };
+  // Strip metadata suffix from the end.
+  const metadataMatch = name.match(metadataSuffixPattern);
+  if (metadataMatch) {
+    name = name.slice(0, metadataMatch.index);
+  }
+
+  // Extract extension (e.g., .jpg from "photo.jpg").
+  const extension = extname(name);
+  if (extension) {
+    name = basename(name, extension);
+  }
+
+  return { name, duplicate, extension: extension?.toLowerCase() };
 }
