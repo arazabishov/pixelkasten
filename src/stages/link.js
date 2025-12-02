@@ -36,12 +36,8 @@ const editedSuffixPattern = new RegExp(
 /**
  * Matches media files to their JSON sidecar metadata files.
  *
- * This stage uses a two-pass matching strategy:
- *  - Pass 1 (Exact): Matches files with 100% name + index confidence.
- *    Allows multiple media files to share a JSON (e.g. IMG.HEIC and IMG.MOV).
- *  - Pass 2 (Fuzzy): Attempts to match remaining media to remaining JSONs.
- *    Checks for truncation in both directions. Strictly prevents stealing
- *    JSONs already claimed by other fuzzy matches.
+ * For each media file, attempts an exact match first (name + extension + duplicate marker),
+ * then falls back to fuzzy matching for truncated filenames if no exact match is found.
  *
  * @param {{
  *   filesMedia: string[],
@@ -62,8 +58,13 @@ export function link(rawCollections, options) {
   const metadataByDir = new Map();
   for (const filePath of filesMetadata) {
     const dir = dirname(filePath);
-    if (!metadataByDir.has(dir)) metadataByDir.set(dir, []);
-    metadataByDir.get(dir).push({ path: filePath, ...sidecar(filePath) });
+    if (!metadataByDir.has(dir)) {
+      metadataByDir.set(dir, []);
+    }
+    metadataByDir.get(dir).push({
+      path: filePath,
+      ...sidecar(filePath),
+    });
   }
 
   // Stage 2: index albums by directory.
@@ -74,94 +75,67 @@ export function link(rawCollections, options) {
   }
 
   // Stage 3: pre-parse media files for performance.
-  const parsedMedia = filesMedia.map((path) => ({
-    originalPath: path,
-    ...media(path),
-  }));
+  const parsedMedia = [];
+  for (const filePath of filesMedia) {
+    parsedMedia.push({
+      path: filePath,
+      ...media(filePath),
+    });
+  }
 
-  // Stage 4: two-pass matching algorithm.
   const manifest = [];
-  const matchedMediaIndices = new Set();
-
-  // Consumption tracking:
-  // - usedByExact: JSONs claimed by Pass 1. Can be shared by other exact matches.
-  // - usedByFuzzy: JSONs claimed by Pass 2. Exclusive (cannot be shared).
-  const usedByExact = new Set();
-  const usedByFuzzy = new Set();
 
   const bar = progressBar("⧗ Linking files |{bar}| {percentage}% | {value}/{total} files");
   bar.start(filesMedia.length, 0);
 
-  // Stage 4.1: exact matches.
-  // We match files that we are 100% sure about.
-  // We allow sharing here (e.g. IMG.MP and IMG.MP.jpg share IMG.MP.jpg.json).
-  for (let i = 0; i < parsedMedia.length; i++) {
-    const media = parsedMedia[i];
-    const match = findMatch(media, metadataByDir, usedByFuzzy, fuzzyThreshold, false);
+  // Stage 4: match media files to their metadata sidecars. Try exact match first:
+  // based on name, extension, duplicate marker, then fuzzy - prefix search.
+  for (const media of parsedMedia) {
+    const match =
+      findMatch(media, metadataByDir, fuzzyThreshold, false) ??
+      findMatch(media, metadataByDir, fuzzyThreshold, true);
 
-    if (match) {
-      matchedMediaIndices.add(i);
-      usedByExact.add(match.path);
-      manifest.push(createEntry(media.originalPath, match.path, albums));
-      bar.increment();
-    }
-  }
+    const albumDir = dirname(media.path);
+    const source = albums.has(albumDir)
+      ? { type: "album", name: albums.get(albumDir) }
+      : { type: "loose" };
 
-  // Stage 4.2: fuzzy matches.
-  // We match remaining files using fuzzy logic for truncated filenames.
-  for (let i = 0; i < parsedMedia.length; i++) {
-    if (matchedMediaIndices.has(i)) continue;
+    manifest.push({ mediaPath: media.path, jsonPath: match?.path, source: source });
 
-    const media = parsedMedia[i];
-    const match = findMatch(media, metadataByDir, usedByFuzzy, fuzzyThreshold, true);
-
-    if (match) {
-      usedByFuzzy.add(match.path);
-      manifest.push(createEntry(media.originalPath, match.path, albums));
-    } else {
-      manifest.push(createEntry(media.originalPath, undefined, albums));
-    }
     bar.increment();
   }
 
   bar.stop();
 
-  // Stage 5: compute statistics.
-  const allUsed = new Set([...usedByExact, ...usedByFuzzy]);
-  const unmatchedMetadataFiles = new Set(filesMetadata.filter((f) => !allUsed.has(f)));
-  const unmatchedMediaFiles = new Set(manifest.filter((m) => !m.jsonPath).map((m) => m.mediaPath));
+  // Stage 5: compute statistics from the manifest.
+  const unmatchedMetadataFiles = new Set(filesMetadata);
+  const unmatchedMediaFiles = new Set(filesMedia);
+
+  for (const { mediaPath, jsonPath } of manifest) {
+    if (jsonPath) {
+      unmatchedMetadataFiles.delete(jsonPath);
+      unmatchedMediaFiles.delete(mediaPath);
+    }
+  }
 
   return {
     manifest,
-    stats: { unmatchedMetadataFiles, unmatchedMediaFiles },
-  };
-}
-
-// Creates a manifest entry for a media file.
-function createEntry(mediaPath, jsonPath, albums) {
-  const dir = dirname(mediaPath);
-  return {
-    mediaPath,
-    source: albums.has(dir) ? { type: "album", name: albums.get(dir) } : { type: "loose" },
-    jsonPath,
+    stats: {
+      unmatchedMetadataFiles,
+      unmatchedMediaFiles,
+    },
   };
 }
 
 // Finds the best metadata match for a media file within the same directory.
-function findMatch(media, metadataByDir, usedByFuzzy, fuzzyThreshold, allowFuzzy) {
-  const dir = dirname(media.originalPath);
+function findMatch(media, metadataByDir, fuzzyThreshold, allowFuzzy) {
+  const dir = dirname(media.path);
   const candidates = metadataByDir.get(dir) || [];
 
   let bestMatch = null;
   let bestScore = 0;
 
   for (const meta of candidates) {
-    // Safety: if we are in fuzzy mode, we cannot touch JSONs that are
-    // already claimed by another fuzzy match. However, we CAN share
-    // sidecars claimed by exact matches (Live Photo scenario where
-    // one component is truncated but should still share the sidecar).
-    if (allowFuzzy && usedByFuzzy.has(meta.path)) continue;
-
     // Strict duplicate check: (1) must always match (1).
     // We never fuzzy match across indices.
     if (media.duplicate !== meta.duplicate) continue;
