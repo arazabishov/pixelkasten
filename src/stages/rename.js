@@ -58,12 +58,11 @@ function computeTargetPath(entry, usedPaths) {
     throw new Error(`No timestamp available for ${entry.mediaPath}`);
   }
 
-  // Parse the primary date (first in the array)
-  const primaryDate = dates[0];
-  const parsed = parseIsoDate(primaryDate);
+  // Try each date in order until one parses successfully
+  const parsed = dates.map(parseIsoDate).find(Boolean);
 
   if (!parsed) {
-    throw new Error(`Invalid date format "${primaryDate}" for ${entry.mediaPath}`);
+    throw new Error(`No valid date format found for ${entry.mediaPath}`);
   }
 
   // Build path components
