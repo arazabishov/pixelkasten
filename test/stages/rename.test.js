@@ -193,7 +193,7 @@ describe("rename", () => {
     ];
 
     // Verify error is thrown in strict mode
-    throws(() => rename(manifest, { strict: true }), /Invalid date format/);
+    throws(() => rename(manifest, { strict: true }), /No valid date format/);
   });
 
   test("should use first date in array as primary timestamp", () => {
@@ -210,6 +210,22 @@ describe("rename", () => {
 
     // Verify first date was used (not second or third)
     strictEqual(manifest[0].rename.targetPath, "2024/03 - March/20240301-133215.jpg");
+  });
+
+  test("should fall back to next date if first is invalid", () => {
+    const manifest = [
+      {
+        mediaPath: "/path/to/image.jpg",
+        metadata: {
+          dates: ["invalid-date", "also-invalid", "2024-05-10T09:15:30"],
+        },
+      },
+    ];
+
+    rename(manifest, {});
+
+    // Verify third date was used after first two failed
+    strictEqual(manifest[0].rename.targetPath, "2024/05 - May/20240510-091530.jpg");
   });
 
   test("should process entries without dedupe property", () => {
