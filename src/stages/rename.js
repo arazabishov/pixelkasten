@@ -24,7 +24,7 @@ export function rename(manifest, options = {}) {
   }
 
   // Track used paths for collision detection
-  const usedPaths = new Map();
+  const usedPaths = new Set();
 
   // Stage 2: compute target paths for each entry
   for (const entry of keepers) {
@@ -82,7 +82,7 @@ function computeTargetPath(entry, usedPaths) {
   const targetPath = resolveCollision(basePath, usedPaths);
 
   // Track this path as used
-  usedPaths.set(targetPath, true);
+  usedPaths.add(targetPath);
 
   return {
     status: "processed",
