@@ -32,10 +32,6 @@ export async function runPipeline(options) {
     logReconcileReport(manifest);
   }
 
-  if (!options.skipEmbed) {
-    // TODO: call embed functions
-  }
-
   if (!options.skipRename) {
     // TODO: call rename functions
   }
