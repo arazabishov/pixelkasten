@@ -1,11 +1,51 @@
-# PixelKasten
+# CLAUDE.md
 
-A Node.js script that processes media files and sidecar `.json` files from a Google Photos Takeout, writing metadata (timestamps, geo-data) from sidecars into their corresponding media files.
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Documentation
+## Commands
 
-See `docs/` for detailed documentation:
-- `docs/takeout.md` - Google Takeout file naming conventions and matching challenges
+```bash
+# Run all tests
+npm test
+
+# Run a single test file
+node --test --experimental-test-module-mocks test/stages/link.test.js
+
+# Run the CLI
+npm start -- -s <source> -d <destination>
+
+# Format code
+npx prettier --write .
+```
+
+## Architecture
+
+PixelKasten processes Google Photos Takeout exports through a multi-stage pipeline defined in `src/pipeline.js`:
+
+1. **Scan** (`src/stages/scan.js`) - Recursively reads the source directory and categorizes files into media, metadata (`.json` sidecars), album metadata, and unsupported files.
+
+2. **Link** (`src/stages/link.js`) - Matches media files to their JSON sidecar metadata files. Handles Google's complex filename truncation patterns (documented in `docs/takeout.md`), including truncated `-edited` suffixes and `.supplemental-metadata` variants.
+
+3. **Dedupe** (`src/stages/dedupe.js`) - Calculates SHA-256 hashes for content-based duplicate detection, then resolves which duplicates to keep based on source type preference (album vs loose files).
+
+4. **Reconcile** (`src/stages/reconcile.js`) - Reads existing EXIF/QuickTime metadata from disk and compares with sidecar data to determine what needs to be written.
+
+5. **Apply** (WIP) - Takes the in-memory manifest produced by prior stages and applies the actions to files on disk.
+
+The **manifest** is the central data structure passed between stages, with each stage enriching entries with additional properties (`json`, `dedupe`, `metadata`).
+
+### Handlers
+
+Format-specific metadata logic lives in `src/handlers/formats/`:
+- `exif.js` - JPEG, HEIC, PNG (EXIF tags)
+- `quicktime.js` - MP4, MOV (QuickTime atoms)
+
+Each handler defines `readTags` (what to extract), `parse` (normalize to common shape), and write functions (`timestamp`, `geo`).
+
+### External Dependencies
+
+- **exiftool** - Metadata read/write via `src/core/exiftool.js` (spawned as subprocess)
+- **execa** - Process execution for exiftool
 
 ## Core Objective
 
