@@ -32,6 +32,39 @@ export function normalizeDiskDate(date) {
 }
 
 /**
+ * Parses an ISO date string into its components.
+ *
+ * @param {string} isoDate - Date in format "2023-01-15T14:30:45"
+ * @returns {Object|null} Parsed components or null if invalid
+ *   - year: string (4 digits)
+ *   - month: number (1-12)
+ *   - day: number (1-31)
+ *   - hour: number (0-23)
+ *   - minute: number (0-59)
+ *   - second: number (0-59)
+ */
+export function parseIsoDate(isoDate) {
+  if (!isoDate || typeof isoDate !== "string") {
+    return null;
+  }
+
+  const date = new Date(isoDate);
+
+  if (isNaN(date.getTime())) {
+    return null;
+  }
+
+  return {
+    year: String(date.getFullYear()),
+    month: date.getMonth() + 1,
+    day: date.getDate(),
+    hour: date.getHours(),
+    minute: date.getMinutes(),
+    second: date.getSeconds(),
+  };
+}
+
+/**
  * Converts a Unix epoch timestamp to both ISO and EXIF datetime formats.
  *
  * @param {string|number} timestamp - Unix epoch timestamp in seconds
