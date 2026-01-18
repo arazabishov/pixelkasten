@@ -6,6 +6,8 @@ import { dedupeHash, dedupeResolve } from "./stages/dedupe.js";
 import { logDuplicatesReport } from "./stages/dedupe.report.js";
 import { reconcile } from "./stages/reconcile.js";
 import { logReconcileReport } from "./stages/reconcile.report.js";
+import { rename } from "./stages/rename.js";
+import { logRenameReport } from "./stages/rename.report.js";
 
 export async function runPipeline(options) {
   // Phase 1: scan files
@@ -33,7 +35,9 @@ export async function runPipeline(options) {
   }
 
   if (!options.skipRename) {
-    // TODO: call rename functions
+    // Phase 6: compute target paths for renaming
+    rename(manifest, options);
+    logRenameReport(manifest);
   }
 
   // TODO: call apply function that applies changes
