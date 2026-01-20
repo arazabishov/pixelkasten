@@ -5,8 +5,9 @@ import { parseIsoDate } from "../core/datetime.js";
 const monthFormatter = new Intl.DateTimeFormat("en-US", {
   month: "long",
 });
+
 /**
- * Rename stage: computes target paths for media files based on their timestamps.
+ * Rename stage: resolves target paths for media files based on their timestamps.
  *
  * Structure: yyyy/mm - Month/yyyymmddhhmm.ext
  * Collisions are handled with -1, -2, -3 suffixes.
@@ -23,13 +24,16 @@ export function rename(manifest, options = {}) {
     return;
   }
 
+  // Stage 2: resolve earliest dates for each album
+  const albumDates = resolveAlbumDates(keepers);
+
   // Track used paths for collision detection
   const usedPaths = new Set();
 
-  // Stage 2: compute target paths for each entry
+  // Stage 3: resolve target paths for each entry
   for (const entry of keepers) {
     try {
-      entry.rename = computeTargetPath(entry, usedPaths);
+      entry.rename = resolveTargetPath(entry, usedPaths, albumDates);
     } catch (error) {
       if (options.strict) {
         throw error;
@@ -43,14 +47,47 @@ export function rename(manifest, options = {}) {
   }
 }
 
-/**
- * Computes the target path for a single entry.
- *
- * @param {Object} entry - Manifest entry with metadata
- * @param {Map} usedPaths - Map tracking used paths for collision detection
- * @returns {Object} Rename result with status and targetPath
- */
-function computeTargetPath(entry, usedPaths) {
+// Resolves the earliest valid date for each album.
+function resolveAlbumDates(keepers) {
+  const albumDates = new Map();
+
+  for (const entry of keepers.filter((e) => e.source?.type === "album")) {
+    const dates = entry.metadata?.dates;
+    const parsed = dates?.length > 0 ? dates.map(parseIsoDate).find(Boolean) : null;
+
+    if (parsed) {
+      const albumName = entry.source.name;
+      const existing = albumDates.get(albumName);
+
+      if (!existing || isEarlierDate(parsed, existing)) {
+        albumDates.set(albumName, parsed);
+      }
+    }
+  }
+
+  return albumDates;
+}
+
+// Returns true if date a is earlier than date b.
+function isEarlierDate(a, b) {
+  if (a.year !== b.year) {
+    return a.year < b.year;
+  } else if (a.month !== b.month) {
+    return a.month < b.month;
+  } else if (a.day !== b.day) {
+    return a.day < b.day;
+  } else if (a.hour !== b.hour) {
+    return a.hour < b.hour;
+  } else if (a.minute !== b.minute) {
+    return a.minute < b.minute;
+  }
+  return a.second < b.second;
+}
+
+// Resolves the target path for a single entry.
+function resolveTargetPath(entry, usedPaths, albumDates) {
+  const pad2 = (num) => String(num).padStart(2, "0");
+
   const dates = entry.metadata?.dates;
 
   // Validate that we have at least one date
@@ -65,20 +102,27 @@ function computeTargetPath(entry, usedPaths) {
     throw new Error(`No valid date format found for ${entry.mediaPath}`);
   }
 
-  // Build path components
   const { year, month, day, hour, minute, second } = parsed;
-  const monthName = monthFormatter.format(new Date(year, month - 1));
+  const timestamp = `${year}${pad2(month)}${pad2(day)}-${pad2(hour)}${pad2(minute)}${pad2(second)}`;
   const ext = extname(entry.mediaPath).toLowerCase();
 
-  // Helper for zero-padding
-  const pad2 = (num) => String(num).padStart(2, "0");
+  // Determine directory structure based on album membership
+  const isAlbum = entry.source?.type === "album";
+  const albumDate = isAlbum ? albumDates.get(entry.source.name) : null;
 
-  // Format: yyyy/mm - Month/yyyymmdd-hhmmss.ext
-  const monthFolder = `${year}/${pad2(month)} - ${monthName}`;
-  const timestamp = `${year}${pad2(month)}${pad2(day)}-${pad2(hour)}${pad2(minute)}${pad2(second)}`;
+  // Use album's earliest date for directory structure, or entry's own date
+  const dirDate = albumDate ?? parsed;
 
-  // Build base path and handle collisions
-  const basePath = `${monthFolder}/${timestamp}${ext}`;
+  // Format: yyyy/mm - MonthName (e.g., 2023/05 - May)
+  const monthName = monthFormatter.format(new Date(dirDate.year, dirDate.month - 1));
+  const monthDir = `${dirDate.year}/${pad2(dirDate.month)} - ${monthName}`;
+
+  // Build path with optional album subdirectory
+  const albumDatePrefix = `${dirDate.year}${pad2(dirDate.month)}${pad2(dirDate.day)}`;
+  const basePath = isAlbum
+    ? `${monthDir}/${albumDatePrefix} - ${entry.source.name}/${timestamp}${ext}`
+    : `${monthDir}/${timestamp}${ext}`;
+
   const targetPath = resolveCollision(basePath, usedPaths);
 
   // Track this path as used
@@ -90,13 +134,7 @@ function computeTargetPath(entry, usedPaths) {
   };
 }
 
-/**
- * Resolves path collisions by appending -1, -2, etc.
- *
- * @param {string} basePath - Original target path
- * @param {Map} usedPaths - Map of already used paths
- * @returns {string} Unique path (original or with suffix)
- */
+// Resolves path collisions by appending -1, -2, etc.
 function resolveCollision(basePath, usedPaths) {
   if (!usedPaths.has(basePath)) {
     return basePath;
