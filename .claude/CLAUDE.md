@@ -115,3 +115,27 @@ readMetadataMock.mock.mockImplementation(async () => new Map([["test.jpg", {}]])
 
 ### Mock Only What's Called
 Only mock functions that are actually invoked in the test path.
+
+## Code Style
+
+### Always Use Braces for Control Statements
+```javascript
+// Good
+if (!parsed) {
+  continue;
+}
+
+// Bad - inline without braces
+if (!parsed) continue;
+```
+
+### Use Multi-Line Object Definitions
+```javascript
+// Good
+entry.rename = {
+  status: "error",
+};
+
+// Bad - inline object
+entry.rename = { status: "error" };
+```

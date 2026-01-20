@@ -5,7 +5,7 @@ export function logRenameReport(manifest) {
   const keepers = manifest.filter((entry) => entry.dedupe?.action !== "delete");
 
   const stats = new CliTable3({
-    head: ["Status", "Count"],
+    head: ["Action", "Count"],
     style: {
       head: ["cyan"],
     },
@@ -15,15 +15,9 @@ export function logRenameReport(manifest) {
   let errors = 0;
 
   for (const entry of keepers) {
-    const rename = entry.rename;
-
-    if (!rename) {
-      continue;
-    }
-
-    if (rename.status === "processed") {
+    if (entry.rename?.status === "processed") {
       processed += 1;
-    } else if (rename.status === "error") {
+    } else if (entry.rename?.status === "error") {
       errors += 1;
     }
   }

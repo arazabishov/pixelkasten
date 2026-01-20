@@ -140,3 +140,43 @@ readSidecarMock.mock.mockImplementation(async () => {
   return null;
 });
 ```
+
+## **5. Code Style Guidelines**
+
+### **Principle 1: Always Use Braces for Control Statements**
+
+All control flow statements (`if`, `for`, `while`, etc.) must use braces, even for single-line bodies.
+
+```javascript
+// ✅ Good
+if (!parsed) {
+  continue;
+}
+
+if (value === null) {
+  return;
+}
+
+// ❌ Bad - inline without braces
+if (!parsed) continue;
+if (value === null) return;
+```
+
+### **Principle 2: Use Multi-Line Object Definitions**
+
+Object literals should use multi-line format, even for single properties.
+
+```javascript
+// ✅ Good
+entry.rename = {
+  status: "error",
+};
+
+const options = {
+  strict: true,
+};
+
+// ❌ Bad - inline object
+entry.rename = { status: "error" };
+const options = { strict: true };
+```

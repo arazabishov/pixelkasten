@@ -336,4 +336,129 @@ describe("rename", () => {
     strictEqual(manifest[0].rename.targetPath, "2024/03 - March/20240301-140230.jpg");
     strictEqual(manifest[1].rename.targetPath, "2024/03 - March/20240301-140231.jpg");
   });
+
+  test("should place album photos in album subfolder", () => {
+    const manifest = [
+      {
+        mediaPath: "/path/to/image.jpg",
+        source: { type: "album", name: "Trip to Japan" },
+        metadata: { dates: ["2024-04-15T10:30:00"] },
+      },
+    ];
+
+    rename(manifest, {});
+
+    // Verify album structure: yyyy/mm - Month/yyyymmdd - Album Name/timestamp.ext
+    strictEqual(
+      manifest[0].rename.targetPath,
+      "2024/04 - April/20240415 - Trip to Japan/20240415-103000.jpg"
+    );
+  });
+
+  test("should use earliest album date for folder structure", () => {
+    const manifest = [
+      {
+        mediaPath: "/path/to/later.jpg",
+        source: { type: "album", name: "Vacation" },
+        metadata: { dates: ["2024-03-20T15:00:00"] },
+      },
+      {
+        mediaPath: "/path/to/earlier.jpg",
+        source: { type: "album", name: "Vacation" },
+        metadata: { dates: ["2024-03-18T09:00:00"] },
+      },
+    ];
+
+    rename(manifest, {});
+
+    // Verify both photos use earliest date (March 18) for folder
+    strictEqual(
+      manifest[0].rename.targetPath,
+      "2024/03 - March/20240318 - Vacation/20240320-150000.jpg"
+    );
+    strictEqual(
+      manifest[1].rename.targetPath,
+      "2024/03 - March/20240318 - Vacation/20240318-090000.jpg"
+    );
+  });
+
+  test("should place cross-month album in earliest month", () => {
+    const manifest = [
+      {
+        mediaPath: "/path/to/jan.jpg",
+        source: { type: "album", name: "New Year Trip" },
+        metadata: { dates: ["2024-01-02T12:00:00"] },
+      },
+      {
+        mediaPath: "/path/to/dec.jpg",
+        source: { type: "album", name: "New Year Trip" },
+        metadata: { dates: ["2023-12-31T23:00:00"] },
+      },
+    ];
+
+    rename(manifest, {});
+
+    // Verify both photos go to December (earliest month)
+    strictEqual(
+      manifest[0].rename.targetPath,
+      "2023/12 - December/20231231 - New Year Trip/20240102-120000.jpg"
+    );
+    strictEqual(
+      manifest[1].rename.targetPath,
+      "2023/12 - December/20231231 - New Year Trip/20231231-230000.jpg"
+    );
+  });
+
+  test("should handle mix of album and loose files", () => {
+    const manifest = [
+      {
+        mediaPath: "/path/to/album-photo.jpg",
+        source: { type: "album", name: "Birthday" },
+        metadata: { dates: ["2024-05-10T14:00:00"] },
+      },
+      {
+        mediaPath: "/path/to/loose-photo.jpg",
+        source: { type: "loose" },
+        metadata: { dates: ["2024-05-10T14:30:00"] },
+      },
+    ];
+
+    rename(manifest, {});
+
+    // Verify album photo goes to album subfolder
+    strictEqual(
+      manifest[0].rename.targetPath,
+      "2024/05 - May/20240510 - Birthday/20240510-140000.jpg"
+    );
+
+    // Verify loose photo goes directly to month folder
+    strictEqual(manifest[1].rename.targetPath, "2024/05 - May/20240510-143000.jpg");
+  });
+
+  test("should handle collisions within album", () => {
+    const manifest = [
+      {
+        mediaPath: "/path/to/first.jpg",
+        source: { type: "album", name: "Party" },
+        metadata: { dates: ["2024-06-01T20:00:00"] },
+      },
+      {
+        mediaPath: "/path/to/second.jpg",
+        source: { type: "album", name: "Party" },
+        metadata: { dates: ["2024-06-01T20:00:00"] },
+      },
+    ];
+
+    rename(manifest, {});
+
+    // Verify collision handling within album
+    strictEqual(
+      manifest[0].rename.targetPath,
+      "2024/06 - June/20240601 - Party/20240601-200000.jpg"
+    );
+    strictEqual(
+      manifest[1].rename.targetPath,
+      "2024/06 - June/20240601 - Party/20240601-200000-1.jpg"
+    );
+  });
 });
