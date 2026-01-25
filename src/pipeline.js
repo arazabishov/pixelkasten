@@ -8,6 +8,8 @@ import { reconcile } from "./stages/reconcile.js";
 import { logReconcileReport } from "./stages/reconcile.report.js";
 import { rename } from "./stages/rename.js";
 import { logRenameReport } from "./stages/rename.report.js";
+import { apply } from "./stages/apply.js";
+import { logApplyReport } from "./stages/apply.report.js";
 
 export async function runPipeline(options) {
   // Phase 1: scan files
@@ -30,7 +32,7 @@ export async function runPipeline(options) {
 
   if (!options.skipEmbed || !options.skipRename) {
     // Phase 5: resolve disk and sidecar metadata
-    await reconcile(manifest);
+    await reconcile(manifest, options);
     logReconcileReport(manifest);
   }
 
@@ -40,5 +42,7 @@ export async function runPipeline(options) {
     logRenameReport(manifest);
   }
 
-  // TODO: call apply function that applies changes
+  // Phase 7: apply changes to disk
+  await apply(manifest, options);
+  logApplyReport(manifest);
 }
