@@ -382,4 +382,49 @@ describe("reconcile", () => {
     // Verify unsupported file type resulted in error
     strictEqual(manifest[0].metadata.status, "error");
   });
+
+  test("should not queue writeTags when skipEmbed is true", async () => {
+    const manifest = [
+      {
+        mediaPath: "/path/image.jpg",
+        json: {
+          path: "/path/image.json",
+          confidence: 3,
+        },
+      },
+    ];
+
+    readMetadataMock.mock.mockImplementation(async () => {
+      return new Map([["/path/image.jpg", {}]]);
+    });
+    readSidecarMock.mock.mockImplementation(async () => {
+      return {
+        timestamp: "1672574400",
+        geo: { latitude: 40.7128, longitude: -74.006 },
+      };
+    });
+    handlerMock.parse.mock.mockImplementation(() => {
+      return { timestamp: null, dates: [], geo: null };
+    });
+    handlerMock.timestamp.mock.mockImplementation((ts) => {
+      return [`DateTimeOriginal=${ts}`];
+    });
+    handlerMock.geo.mock.mockImplementation((geo) => {
+      return [`GPSLatitude=${geo.latitude}`];
+    });
+    parsePhotoTakenTimeMock.mock.mockImplementation((_) => {
+      return { iso: "2023-01-01T12:00:00", exif: "2023:01:01 12:00:00+00:00" };
+    });
+
+    await reconcile(manifest, { skipEmbed: true });
+
+    // Verify no tags were queued for writing
+    strictEqual(manifest[0].metadata.writeTags.length, 0);
+
+    // Verify status is noop since no writes are queued
+    strictEqual(manifest[0].metadata.status, "noop");
+
+    // Verify dates are still populated (needed for rename)
+    strictEqual(manifest[0].metadata.dates[0], "2023-01-01T12:00:00");
+  });
 });

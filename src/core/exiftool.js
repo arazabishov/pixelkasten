@@ -41,3 +41,34 @@ export async function readMetadata(filePaths, tags = []) {
     throw new Error(`Failed to read metadata using exiftool ${error.message}`);
   }
 }
+
+/**
+ * Writes metadata tags to a single file using exiftool.
+ *
+ * @param {string} filePath - Path to the file to write metadata to
+ * @param {string[]} tags - Tags to write (e.g., ["DateTimeOriginal=2023:01:01 12:00:00"])
+ * @returns {Promise<void>}
+ */
+export async function writeMetadata(filePath, tags) {
+  if (tags.length === 0) {
+    return;
+  }
+
+  const args = [
+    "-api",
+    // Enable support for files >2GB
+    "largefilesupport=1",
+    // Don't create backup files
+    "-overwrite_original",
+    // Tags to write
+    ...tags.map((t) => `-${t}`),
+    // File to write to
+    filePath,
+  ];
+
+  try {
+    await execa("exiftool", args);
+  } catch (error) {
+    throw new Error(`Failed to write metadata using exiftool: ${error.message}`);
+  }
+}

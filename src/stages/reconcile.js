@@ -6,7 +6,7 @@ import { handlers } from "../handlers/index.js";
 import { extname } from "path";
 import { parsePhotoTakenTime } from "../core/datetime.js";
 
-export async function reconcile(manifest, options) {
+export async function reconcile(manifest, options = {}) {
   // Stage 1: filter keepers. We use optional chaining (?.) to be safe if dedupe object is missing.
   // If dedupe was skipped, action is 'pending' or undefined, so !== 'delete' is true.
   const keepers = manifest.filter((entry) => entry.dedupe?.action !== "delete");
@@ -44,7 +44,7 @@ export async function reconcile(manifest, options) {
       const rawDiskTags = batchExifMap.get(entry.mediaPath);
 
       try {
-        entry.metadata = await resolve(entry.mediaPath, entry.json?.path, rawDiskTags);
+        entry.metadata = await resolve(entry.mediaPath, entry.json?.path, rawDiskTags, options);
       } catch (error) {
         if (options.strict) {
           throw error;
@@ -67,7 +67,7 @@ export async function reconcile(manifest, options) {
   bar.stop();
 }
 
-async function resolve(mediaPath, jsonPath, rawDiskTags) {
+async function resolve(mediaPath, jsonPath, rawDiskTags, options) {
   // If exiftool has not reported on a file, then something went wrong.
   if (!rawDiskTags) {
     throw new Error(`ExifTool did not report on ${mediaPath}, skipping.`);
@@ -95,18 +95,21 @@ async function resolve(mediaPath, jsonPath, rawDiskTags) {
     return metadata;
   }
 
-  // If there is no primary timestamp on disk, we can embed the value from sidecar.
+  // If there is no primary timestamp on disk, we can use the value from sidecar.
   if (!diskData.timestamp && sidecarData.timestamp) {
     const { iso, exif } = parsePhotoTakenTime(sidecarData.timestamp);
 
-    // Ensure that new timestamp gets written back to the file.
-    metadata.writeTags.push(...handler.timestamp(exif));
+    // Queue timestamp for writing if embedding is enabled.
+    if (!options.skipEmbed) {
+      metadata.writeTags.push(...handler.timestamp(exif));
+    }
 
-    // Make sure that timestamp is stored as the primary date
+    // Make sure that timestamp is stored as the primary date (needed for rename).
     metadata.dates.unshift(iso);
   }
 
-  if (!diskData.geo && sidecarData.geo) {
+  // Queue geo data for writing if embedding is enabled.
+  if (!options.skipEmbed && !diskData.geo && sidecarData.geo) {
     metadata.writeTags.push(...handler.geo(sidecarData.geo));
   }
 
