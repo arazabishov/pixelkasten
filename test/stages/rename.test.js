@@ -1,5 +1,5 @@
-import { test, describe, beforeEach, mock } from "node:test";
-import { strictEqual, deepStrictEqual, ok, throws } from "node:assert";
+import { test, describe, mock } from "node:test";
+import { strictEqual, ok, throws } from "node:assert";
 
 mock.module("../../src/utils/logger.js", {
   namedExports: {

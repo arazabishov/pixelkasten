@@ -19,7 +19,7 @@ export function normalizeDiskDate(date) {
 
   // Regex to capture: YYYY : MM : DD (space) HH : MM : SS
   // Matches delimiters : or - to be flexible with different tag standards.
-  const match = date.trim().match(/^(\d{4})[:\-](\d{2})[:\-](\d{2})\s+(\d{2}):(\d{2}):(\d{2})/);
+  const match = date.trim().match(/^(\d{4})[:/-](\d{2})[:/-](\d{2})\s+(\d{2}):(\d{2}):(\d{2})/);
 
   if (match) {
     const [_, y, m, d, h, min, s] = match;
