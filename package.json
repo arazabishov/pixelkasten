@@ -9,7 +9,8 @@
   },
   "scripts": {
     "start": "node src/index.js",
-    "test": "node --test --experimental-test-module-mocks"
+    "test": "node --test --experimental-test-module-mocks",
+    "format:check": "prettier --check ."
   },
   "repository": {
     "type": "git",
