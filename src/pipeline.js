@@ -42,7 +42,9 @@ export async function runPipeline(options) {
     logRenameReport(manifest);
   }
 
-  // Phase 7: apply changes to disk
-  await apply(manifest, options);
-  logApplyReport(manifest);
+  if (!options.dryRun) {
+    // Phase 7: apply changes to disk
+    await apply(manifest, options);
+    logApplyReport(manifest);
+  }
 }
