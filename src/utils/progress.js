@@ -1,26 +1,23 @@
 import cliProgress from "cli-progress";
-import { logger } from "./logger.js";
 
 export function progressBar(format) {
-  const bar = !logger.verbose
-    ? new cliProgress.SingleBar(
-        {
-          format,
-          hideCursor: true,
-        },
-        cliProgress.Presets.shades_classic
-      )
-    : null;
+  const bar = new cliProgress.SingleBar(
+    {
+      format,
+      hideCursor: true,
+    },
+    cliProgress.Presets.shades_classic
+  );
 
   return {
     start: (...args) => {
-      bar?.start(...args);
+      bar.start(...args);
     },
     increment: (...args) => {
-      bar?.increment(...args);
+      bar.increment(...args);
     },
     stop: (...args) => {
-      bar?.stop(...args);
+      bar.stop(...args);
     },
   };
 }
