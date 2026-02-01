@@ -1,12 +1,4 @@
 export const logger = {
-  verbose: false,
-
-  debug(...args) {
-    if (this.verbose) {
-      console.log(...args);
-    }
-  },
-
   info(...args) {
     console.log(...args);
   },
@@ -19,7 +11,3 @@ export const logger = {
     console.error(...args);
   },
 };
-
-export function canShowProgress() {
-  return !logger.verbose;
-}
