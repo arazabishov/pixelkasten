@@ -15,7 +15,7 @@ export function logApplyReport(manifest) {
   let errors = 0;
 
   for (const entry of manifest) {
-    if (entry.dedupe?.action === "delete") {
+    if (entry.dedupe?.status === "delete") {
       skipped += 1;
     } else if (entry.apply?.status === "copied") {
       copied += 1;

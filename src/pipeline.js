@@ -10,6 +10,7 @@ import { rename } from "./stages/rename.js";
 import { logRenameReport } from "./stages/rename.report.js";
 import { apply } from "./stages/apply.js";
 import { logApplyReport } from "./stages/apply.report.js";
+import { report } from "./core/report.js";
 
 export async function runPipeline(options) {
   // Phase 1: scan files
@@ -38,7 +39,7 @@ export async function runPipeline(options) {
 
   if (!options.skipRename) {
     // Phase 6: compute target paths for renaming
-    rename(manifest, options);
+    rename(manifest);
     logRenameReport(manifest);
   }
 
@@ -46,5 +47,8 @@ export async function runPipeline(options) {
     // Phase 7: apply changes to disk
     await apply(manifest, options);
     logApplyReport(manifest);
+
+    // Write per-file CSV report to destination
+    await report(manifest, options);
   }
 }

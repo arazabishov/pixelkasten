@@ -1,5 +1,6 @@
 import { createHash } from "crypto";
 import { createReadStream } from "fs";
+import { logger } from "../utils/logger.js";
 import { progressBar } from "../utils/progress.js";
 
 /**
@@ -13,26 +14,36 @@ import { progressBar } from "../utils/progress.js";
  *   mediaPath: string,
  *   json: { path: string, confidence: number } | null,
  *   source: { type: 'album', name: string } | { type: 'loose' }
- * }>} manifest The manifest of media files to hash.
+ * }>} manifest - The manifest of media files to hash.
  * @returns {Promise<void>} Modifies the manifest in-place by adding a `dedupe` property
  *   to each entry containing the calculated hash and initial action state.
  */
 export async function dedupeHash(manifest) {
-  // Create progress bar (only if not in verbose mode)
   const bar = progressBar("⧗ Calculating hashes |{bar}| {percentage}% | {value}/{total} entries");
-
   bar.start(manifest.length, 0);
 
   for (const [index, entry] of manifest.entries()) {
-    const sha256 = await calculateHash(entry.mediaPath);
+    try {
+      const sha256 = await calculateHash(entry.mediaPath);
 
-    manifest[index] = {
-      ...entry,
-      dedupe: {
-        hash: sha256,
-        action: "pending",
-      },
-    };
+      manifest[index] = {
+        ...entry,
+        dedupe: {
+          hash: sha256,
+          status: "pending",
+        },
+      };
+    } catch (error) {
+      logger.error(error.message);
+      manifest[index] = {
+        ...entry,
+        dedupe: {
+          hash: null,
+          status: "error",
+          reason: error.message,
+        },
+      };
+    }
 
     bar.increment();
   }
@@ -74,25 +85,25 @@ function calculateHash(filePath) {
  *   mediaPath: string,
  *   json: { path: string, confidence: number } | null,
  *   source: { type: 'album', name: string } | { type: 'loose' },
- *   dedupe: { hash: string, action: 'pending' }
- * }>} manifest The manifest with calculated hashes from dedupeHash.
- * @param {{ prefer: 'album' | 'loose' }} options Configuration specifying which source
+ *   dedupe: { hash: string, status: 'pending' }
+ * }>} manifest - The manifest with calculated hashes from dedupeHash.
+ * @param {{ prefer: 'album' | 'loose' }} options - Configuration specifying which source
  *   type to prefer when resolving mixed-type duplicates.
  * @returns {Promise<void>} Modifies the manifest in-place by setting each entry's
- *   `dedupe.action` to either 'keep' or 'delete'.
- * @throws {Error} If any entry ends up with an invalid action state after resolution.
+ *   `dedupe.status` to either 'keep' or 'delete'.
+ * @throws {Error} If any entry ends up with an invalid status after resolution.
  */
 export async function dedupeResolve(manifest, options) {
   const bar = progressBar("⧗ Resolving duplicates |{bar}| {percentage}% | {value}/{total} entries");
 
-  // Group entries by hash
+  // Group entries by hash, skipping entries that failed hashing
   const hashes = new Map();
   for (const entry of manifest) {
     const hash = entry.dedupe.hash;
-    if (!hashes.has(hash)) {
-      hashes.set(hash, []);
+    if (hash) {
+      hashes.set(hash, hashes.get(hash) ?? []);
+      hashes.get(hash).push(entry);
     }
-    hashes.get(hash).push(entry);
   }
 
   bar.start(hashes.size, 0);
@@ -102,7 +113,7 @@ export async function dedupeResolve(manifest, options) {
   for (const duplicates of hashGroups) {
     if (duplicates.length === 1) {
       // Unique file - always keep
-      duplicates[0].dedupe.action = "keep";
+      duplicates[0].dedupe.status = "keep";
     } else {
       // Multiple files with same hash - check if mixed types
       const hasPreferred = duplicates.some((e) => e.source.type === options.prefer);
@@ -111,12 +122,12 @@ export async function dedupeResolve(manifest, options) {
       if (hasPreferred && hasOther) {
         // Mixed types - keep preferred, delete other
         for (const entry of duplicates) {
-          entry.dedupe.action = entry.source.type === options.prefer ? "keep" : "delete";
+          entry.dedupe.status = entry.source.type === options.prefer ? "keep" : "delete";
         }
       } else {
         // Same type - keep all
         for (const entry of duplicates) {
-          entry.dedupe.action = "keep";
+          entry.dedupe.status = "keep";
         }
       }
     }
@@ -131,11 +142,11 @@ export async function dedupeResolve(manifest, options) {
 
 function checkInvariants(manifest) {
   for (const entry of manifest) {
-    const action = entry.dedupe.action;
+    const status = entry.dedupe.status;
 
-    if (action !== "keep" && action !== "delete") {
+    if (status !== "keep" && status !== "delete" && status !== "error") {
       throw new Error(
-        `Invalid dedupe action "${action}" for file: ${entry.mediaPath}. Expected "keep" or "delete".`
+        `Invalid dedupe status "${status}" for file: ${entry.mediaPath}. Expected "keep", "delete", or "error".`
       );
     }
   }

@@ -9,28 +9,28 @@ describe("dedupeResolve", () => {
         {
           mediaPath: "/tmp/photo1.jpg",
           source: { type: "loose" },
-          dedupe: { hash: "hash1", action: "pending" },
+          dedupe: { hash: "hash1", status: "pending" },
         },
         {
           mediaPath: "/tmp/photo2.jpg",
           source: { type: "loose" },
-          dedupe: { hash: "hash2", action: "pending" },
+          dedupe: { hash: "hash2", status: "pending" },
         },
         {
           mediaPath: "/tmp/album1/photo3.jpg",
           source: { type: "album", name: "Vacation" },
-          dedupe: { hash: "hash3", action: "pending" },
+          dedupe: { hash: "hash3", status: "pending" },
         },
       ];
 
       dedupeResolve(manifest, { prefer: "album" });
 
       // Verify all unique files are marked as keep
-      strictEqual(manifest[0].dedupe.action, "keep");
+      strictEqual(manifest[0].dedupe.status, "keep");
 
-      strictEqual(manifest[1].dedupe.action, "keep");
+      strictEqual(manifest[1].dedupe.status, "keep");
 
-      strictEqual(manifest[2].dedupe.action, "keep");
+      strictEqual(manifest[2].dedupe.status, "keep");
     });
 
     test("should mark unique file as keep regardless of preference", () => {
@@ -38,7 +38,7 @@ describe("dedupeResolve", () => {
         {
           mediaPath: "/tmp/album1/photo1.jpg",
           source: { type: "album", name: "Vacation" },
-          dedupe: { hash: "hash1", action: "pending" },
+          dedupe: { hash: "hash1", status: "pending" },
         },
       ];
 
@@ -46,25 +46,25 @@ describe("dedupeResolve", () => {
         {
           mediaPath: "/tmp/photo1.jpg",
           source: { type: "loose" },
-          dedupe: { hash: "hash1", action: "pending" },
+          dedupe: { hash: "hash1", status: "pending" },
         },
       ];
 
       dedupeResolve(manifestAlbum, { prefer: "album" });
       // Verify album file is kept with album preference
-      strictEqual(manifestAlbum[0].dedupe.action, "keep");
+      strictEqual(manifestAlbum[0].dedupe.status, "keep");
 
       dedupeResolve(manifestAlbum, { prefer: "loose" });
       // Verify album file is kept with loose preference
-      strictEqual(manifestAlbum[0].dedupe.action, "keep");
+      strictEqual(manifestAlbum[0].dedupe.status, "keep");
 
       dedupeResolve(manifestLoose, { prefer: "album" });
       // Verify loose file is kept with album preference
-      strictEqual(manifestLoose[0].dedupe.action, "keep");
+      strictEqual(manifestLoose[0].dedupe.status, "keep");
 
       dedupeResolve(manifestLoose, { prefer: "loose" });
       // Verify loose file is kept with loose preference
-      strictEqual(manifestLoose[0].dedupe.action, "keep");
+      strictEqual(manifestLoose[0].dedupe.status, "keep");
     });
   });
 
@@ -74,19 +74,19 @@ describe("dedupeResolve", () => {
         {
           mediaPath: "/tmp/album1/photo1.jpg",
           source: { type: "album", name: "Vacation" },
-          dedupe: { hash: "hash1", action: "pending" },
+          dedupe: { hash: "hash1", status: "pending" },
         },
         {
           mediaPath: "/tmp/photo1.jpg",
           source: { type: "loose" },
-          dedupe: { hash: "hash1", action: "pending" },
+          dedupe: { hash: "hash1", status: "pending" },
         },
       ];
 
       dedupeResolve(manifest, { prefer: "album" });
 
-      strictEqual(manifest[0].dedupe.action, "keep");
-      strictEqual(manifest[1].dedupe.action, "delete");
+      strictEqual(manifest[0].dedupe.status, "keep");
+      strictEqual(manifest[1].dedupe.status, "delete");
     });
 
     test("should keep multiple albums and delete loose when preferring album", () => {
@@ -94,29 +94,29 @@ describe("dedupeResolve", () => {
         {
           mediaPath: "/tmp/album1/photo1.jpg",
           source: { type: "album", name: "Vacation" },
-          dedupe: { hash: "hash1", action: "pending" },
+          dedupe: { hash: "hash1", status: "pending" },
         },
         {
           mediaPath: "/tmp/album2/photo1.jpg",
           source: { type: "album", name: "Birthday" },
-          dedupe: { hash: "hash1", action: "pending" },
+          dedupe: { hash: "hash1", status: "pending" },
         },
         {
           mediaPath: "/tmp/photo1.jpg",
           source: { type: "loose" },
-          dedupe: { hash: "hash1", action: "pending" },
+          dedupe: { hash: "hash1", status: "pending" },
         },
       ];
 
       dedupeResolve(manifest, { prefer: "album" });
 
       // Verify both albums are kept
-      strictEqual(manifest[0].dedupe.action, "keep");
+      strictEqual(manifest[0].dedupe.status, "keep");
 
-      strictEqual(manifest[1].dedupe.action, "keep");
+      strictEqual(manifest[1].dedupe.status, "keep");
 
       // Verify loose is deleted
-      strictEqual(manifest[2].dedupe.action, "delete");
+      strictEqual(manifest[2].dedupe.status, "delete");
     });
 
     test("should handle multiple duplicates with mixed sources", () => {
@@ -124,29 +124,29 @@ describe("dedupeResolve", () => {
         {
           mediaPath: "/tmp/album1/photo1.jpg",
           source: { type: "album", name: "Vacation" },
-          dedupe: { hash: "hash1", action: "pending" },
+          dedupe: { hash: "hash1", status: "pending" },
         },
         {
           mediaPath: "/tmp/photo1.jpg",
           source: { type: "loose" },
-          dedupe: { hash: "hash1", action: "pending" },
+          dedupe: { hash: "hash1", status: "pending" },
         },
         {
           mediaPath: "/tmp/photo1_copy.jpg",
           source: { type: "loose" },
-          dedupe: { hash: "hash1", action: "pending" },
+          dedupe: { hash: "hash1", status: "pending" },
         },
       ];
 
       dedupeResolve(manifest, { prefer: "album" });
 
       // Verify album is kept
-      strictEqual(manifest[0].dedupe.action, "keep");
+      strictEqual(manifest[0].dedupe.status, "keep");
 
       // Verify all loose files are deleted
-      strictEqual(manifest[1].dedupe.action, "delete");
+      strictEqual(manifest[1].dedupe.status, "delete");
 
-      strictEqual(manifest[2].dedupe.action, "delete");
+      strictEqual(manifest[2].dedupe.status, "delete");
     });
   });
 
@@ -156,19 +156,19 @@ describe("dedupeResolve", () => {
         {
           mediaPath: "/tmp/album1/photo1.jpg",
           source: { type: "album", name: "Vacation" },
-          dedupe: { hash: "hash1", action: "pending" },
+          dedupe: { hash: "hash1", status: "pending" },
         },
         {
           mediaPath: "/tmp/photo1.jpg",
           source: { type: "loose" },
-          dedupe: { hash: "hash1", action: "pending" },
+          dedupe: { hash: "hash1", status: "pending" },
         },
       ];
 
       dedupeResolve(manifest, { prefer: "loose" });
 
-      strictEqual(manifest[0].dedupe.action, "delete");
-      strictEqual(manifest[1].dedupe.action, "keep");
+      strictEqual(manifest[0].dedupe.status, "delete");
+      strictEqual(manifest[1].dedupe.status, "keep");
     });
 
     test("should keep multiple loose and delete album when preferring loose", () => {
@@ -176,29 +176,29 @@ describe("dedupeResolve", () => {
         {
           mediaPath: "/tmp/album1/photo1.jpg",
           source: { type: "album", name: "Vacation" },
-          dedupe: { hash: "hash1", action: "pending" },
+          dedupe: { hash: "hash1", status: "pending" },
         },
         {
           mediaPath: "/tmp/photo1.jpg",
           source: { type: "loose" },
-          dedupe: { hash: "hash1", action: "pending" },
+          dedupe: { hash: "hash1", status: "pending" },
         },
         {
           mediaPath: "/tmp/photo1_copy.jpg",
           source: { type: "loose" },
-          dedupe: { hash: "hash1", action: "pending" },
+          dedupe: { hash: "hash1", status: "pending" },
         },
       ];
 
       dedupeResolve(manifest, { prefer: "loose" });
 
       // Verify album is deleted
-      strictEqual(manifest[0].dedupe.action, "delete");
+      strictEqual(manifest[0].dedupe.status, "delete");
 
       // Verify all loose files are kept
-      strictEqual(manifest[1].dedupe.action, "keep");
+      strictEqual(manifest[1].dedupe.status, "keep");
 
-      strictEqual(manifest[2].dedupe.action, "keep");
+      strictEqual(manifest[2].dedupe.status, "keep");
     });
 
     test("should delete all albums when multiple albums and loose prefer loose", () => {
@@ -206,29 +206,29 @@ describe("dedupeResolve", () => {
         {
           mediaPath: "/tmp/album1/photo1.jpg",
           source: { type: "album", name: "Vacation" },
-          dedupe: { hash: "hash1", action: "pending" },
+          dedupe: { hash: "hash1", status: "pending" },
         },
         {
           mediaPath: "/tmp/album2/photo1.jpg",
           source: { type: "album", name: "Birthday" },
-          dedupe: { hash: "hash1", action: "pending" },
+          dedupe: { hash: "hash1", status: "pending" },
         },
         {
           mediaPath: "/tmp/photo1.jpg",
           source: { type: "loose" },
-          dedupe: { hash: "hash1", action: "pending" },
+          dedupe: { hash: "hash1", status: "pending" },
         },
       ];
 
       dedupeResolve(manifest, { prefer: "loose" });
 
       // Verify all albums are deleted
-      strictEqual(manifest[0].dedupe.action, "delete");
+      strictEqual(manifest[0].dedupe.status, "delete");
 
-      strictEqual(manifest[1].dedupe.action, "delete");
+      strictEqual(manifest[1].dedupe.status, "delete");
 
       // Verify loose is kept
-      strictEqual(manifest[2].dedupe.action, "keep");
+      strictEqual(manifest[2].dedupe.status, "keep");
     });
   });
 
@@ -238,19 +238,19 @@ describe("dedupeResolve", () => {
         {
           mediaPath: "/tmp/album1/photo1.jpg",
           source: { type: "album", name: "Vacation" },
-          dedupe: { hash: "hash1", action: "pending" },
+          dedupe: { hash: "hash1", status: "pending" },
         },
         {
           mediaPath: "/tmp/album2/photo1.jpg",
           source: { type: "album", name: "Birthday" },
-          dedupe: { hash: "hash1", action: "pending" },
+          dedupe: { hash: "hash1", status: "pending" },
         },
       ];
 
       dedupeResolve(manifest, { prefer: "album" });
 
-      strictEqual(manifest[0].dedupe.action, "keep");
-      strictEqual(manifest[1].dedupe.action, "keep");
+      strictEqual(manifest[0].dedupe.status, "keep");
+      strictEqual(manifest[1].dedupe.status, "keep");
     });
 
     test("should keep all duplicates when all are loose", () => {
@@ -258,19 +258,19 @@ describe("dedupeResolve", () => {
         {
           mediaPath: "/tmp/photo1.jpg",
           source: { type: "loose" },
-          dedupe: { hash: "hash1", action: "pending" },
+          dedupe: { hash: "hash1", status: "pending" },
         },
         {
           mediaPath: "/tmp/photo1_copy.jpg",
           source: { type: "loose" },
-          dedupe: { hash: "hash1", action: "pending" },
+          dedupe: { hash: "hash1", status: "pending" },
         },
       ];
 
       dedupeResolve(manifest, { prefer: "album" });
 
-      strictEqual(manifest[0].dedupe.action, "keep");
-      strictEqual(manifest[1].dedupe.action, "keep");
+      strictEqual(manifest[0].dedupe.status, "keep");
+      strictEqual(manifest[1].dedupe.status, "keep");
     });
   });
 
@@ -280,44 +280,44 @@ describe("dedupeResolve", () => {
         {
           mediaPath: "/tmp/album1/photo1.jpg",
           source: { type: "album", name: "Vacation" },
-          dedupe: { hash: "hash1", action: "pending" },
+          dedupe: { hash: "hash1", status: "pending" },
         },
         {
           mediaPath: "/tmp/photo1.jpg",
           source: { type: "loose" },
-          dedupe: { hash: "hash1", action: "pending" },
+          dedupe: { hash: "hash1", status: "pending" },
         },
         {
           mediaPath: "/tmp/album2/photo2.jpg",
           source: { type: "album", name: "Birthday" },
-          dedupe: { hash: "hash2", action: "pending" },
+          dedupe: { hash: "hash2", status: "pending" },
         },
         {
           mediaPath: "/tmp/photo2.jpg",
           source: { type: "loose" },
-          dedupe: { hash: "hash2", action: "pending" },
+          dedupe: { hash: "hash2", status: "pending" },
         },
         {
           mediaPath: "/tmp/photo3.jpg",
           source: { type: "loose" },
-          dedupe: { hash: "hash3", action: "pending" },
+          dedupe: { hash: "hash3", status: "pending" },
         },
       ];
 
       dedupeResolve(manifest, { prefer: "album" });
 
       // Verify first duplicate group (prefer album)
-      strictEqual(manifest[0].dedupe.action, "keep");
+      strictEqual(manifest[0].dedupe.status, "keep");
 
-      strictEqual(manifest[1].dedupe.action, "delete");
+      strictEqual(manifest[1].dedupe.status, "delete");
 
       // Verify second duplicate group (prefer album)
-      strictEqual(manifest[2].dedupe.action, "keep");
+      strictEqual(manifest[2].dedupe.status, "keep");
 
-      strictEqual(manifest[3].dedupe.action, "delete");
+      strictEqual(manifest[3].dedupe.status, "delete");
 
       // Verify unique file is kept
-      strictEqual(manifest[4].dedupe.action, "keep");
+      strictEqual(manifest[4].dedupe.status, "keep");
     });
   });
 
@@ -336,13 +336,13 @@ describe("dedupeResolve", () => {
         {
           mediaPath: "/tmp/photo1.jpg",
           source: { type: "loose" },
-          dedupe: { hash: "hash1", action: "pending" },
+          dedupe: { hash: "hash1", status: "pending" },
         },
       ];
 
       dedupeResolve(manifest, { prefer: "album" });
 
-      strictEqual(manifest[0].dedupe.action, "keep");
+      strictEqual(manifest[0].dedupe.status, "keep");
     });
   });
 });

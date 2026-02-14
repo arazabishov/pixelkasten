@@ -1,8 +1,9 @@
-import { join, dirname, basename } from "path";
 import { mkdir, copyFile } from "fs/promises";
+import { join, dirname, basename } from "path";
 import { writeMetadata } from "../core/exiftool.js";
-import { progressBar } from "../utils/progress.js";
+import { canKeep } from "../core/manifest.js";
 import { logger } from "../utils/logger.js";
+import { progressBar } from "../utils/progress.js";
 
 /**
  * Apply stage: copies files to destination and embeds metadata.
@@ -16,13 +17,11 @@ import { logger } from "../utils/logger.js";
  * @param {Array} manifest - The manifest array from previous stages
  * @param {Object} options - Options object
  * @param {string} options.destination - Target root directory
- * @param {boolean} options.skipEmbed - If true, skip metadata embedding
- * @param {boolean} options.strict - If true, throw on errors
  */
 export async function apply(manifest, options) {
-  // Only process keepers - deletions are handled by exclusion.
-  // If dedupe was skipped, action is undefined, so !== 'delete' is true.
-  const keepers = manifest.filter((entry) => entry.dedupe?.action !== "delete");
+  // Only process keepers - deletions and errors are handled by exclusion.
+  // If dedupe was skipped, status is undefined, so !== 'delete' is true.
+  const keepers = manifest.filter(canKeep);
 
   if (keepers.length === 0) {
     return;
@@ -56,14 +55,10 @@ export async function apply(manifest, options) {
         };
       }
     } catch (error) {
-      if (options.strict) {
-        throw error;
-      }
-
       logger.error(error.message);
       entry.apply = {
         status: "error",
-        message: error.message,
+        reason: error.message,
       };
     }
 

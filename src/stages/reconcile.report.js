@@ -1,8 +1,9 @@
-import { logger } from "../utils/logger.js";
 import CliTable3 from "cli-table3";
+import { canKeep } from "../core/manifest.js";
+import { logger } from "../utils/logger.js";
 
 export function logReconcileReport(manifest) {
-  const keepers = manifest.filter((entry) => entry.dedupe?.action !== "delete");
+  const keepers = manifest.filter(canKeep);
 
   const stats = new CliTable3({
     head: ["Action", "Count"],
@@ -12,12 +13,15 @@ export function logReconcileReport(manifest) {
   });
 
   let updates = 0;
+  let skipped = 0;
   let errors = 0;
   let noop = 0;
 
   for (const entry of keepers) {
     if (entry.metadata.status === "processed") {
       updates += 1;
+    } else if (entry.metadata.status === "skipped") {
+      skipped += 1;
     } else if (entry.metadata.status === "error") {
       errors += 1;
     } else if (entry.metadata.status === "noop") {
@@ -26,6 +30,7 @@ export function logReconcileReport(manifest) {
   }
 
   stats.push(["To update", updates]);
+  stats.push(["Unsupported", skipped]);
   stats.push(["Errors", errors]);
   stats.push(["Noop", noop]);
 

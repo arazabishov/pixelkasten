@@ -1,6 +1,7 @@
 import { extname } from "path";
-import { logger } from "../utils/logger.js";
 import { parseIsoDate } from "../core/datetime.js";
+import { canKeep } from "../core/manifest.js";
+import { logger } from "../utils/logger.js";
 
 const monthFormatter = new Intl.DateTimeFormat("en-US", {
   month: "long",
@@ -13,45 +14,42 @@ const monthFormatter = new Intl.DateTimeFormat("en-US", {
  * Collisions are handled with -1, -2, -3 suffixes.
  *
  * @param {Array} manifest - The manifest array from previous stages
- * @param {Object} options - Options object
- * @param {boolean} options.strict - If true, throw on files without dates
  */
-export function rename(manifest, options = {}) {
-  // Stage 1: filter keepers. Skip files marked for deletion.
-  const keepers = manifest.filter((entry) => entry.dedupe?.action !== "delete");
+export function rename(manifest) {
+  // Stage 1: filter out deletions, errors, and unsupported formats.
+  const candidates = manifest.filter(
+    (entry) => canKeep(entry) && entry.metadata?.status !== "skipped"
+  );
 
-  if (keepers.length === 0) {
+  if (candidates.length === 0) {
     return;
   }
 
   // Stage 2: resolve earliest dates for each album
-  const albumDates = resolveAlbumDates(keepers);
+  const albumDates = resolveAlbumDates(candidates);
 
   // Track used paths for collision detection
   const usedPaths = new Set();
 
   // Stage 3: resolve target paths for each entry
-  for (const entry of keepers) {
+  for (const entry of candidates) {
     try {
       entry.rename = resolveTargetPath(entry, usedPaths, albumDates);
     } catch (error) {
-      if (options.strict) {
-        throw error;
-      }
-
       logger.error(error.message);
       entry.rename = {
         status: "error",
+        reason: error.message,
       };
     }
   }
 }
 
 // Resolves the earliest valid date for each album.
-function resolveAlbumDates(keepers) {
+function resolveAlbumDates(candidates) {
   const albumDates = new Map();
 
-  for (const entry of keepers.filter((e) => e.source?.type === "album")) {
+  for (const entry of candidates.filter((e) => e.source?.type === "album")) {
     const dates = entry.metadata?.dates;
     const parsed = dates?.length > 0 ? dates.map(parseIsoDate).find(Boolean) : null;
 
