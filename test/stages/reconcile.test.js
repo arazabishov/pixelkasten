@@ -1,5 +1,5 @@
 import { test, describe, beforeEach, mock } from "node:test";
-import { strictEqual, deepStrictEqual, ok, rejects } from "node:assert";
+import { strictEqual, deepStrictEqual, ok } from "node:assert";
 
 mock.module("../../src/utils/logger.js", {
   namedExports: {
@@ -96,8 +96,8 @@ describe("reconcile", () => {
 
   test("should skip disk operations for entries marked for deletion", async () => {
     const manifest = [
-      { dedupe: { action: "delete" } },
-      { dedupe: { action: "keep" }, mediaPath: "test.jpg" },
+      { dedupe: { status: "delete" } },
+      { dedupe: { status: "keep" }, mediaPath: "test.jpg" },
     ];
 
     readMetadataMock.mock.mockImplementation(async () => {
@@ -335,34 +335,20 @@ describe("reconcile", () => {
     ok(readMetadataMock.mock.calls[0].arguments[1].includes("CreateDate"));
   });
 
-  test("should log errors in non-strict mode", async () => {
+  test("should log errors and continue when exiftool fails to report", async () => {
     const manifest = [{ mediaPath: "/path/image.jpg" }];
 
     readMetadataMock.mock.mockImplementation(async () => {
       return new Map();
     });
 
-    await reconcile(manifest, { strict: false });
+    await reconcile(manifest, {});
 
     // Verify error was logged without throwing
     strictEqual(manifest[0].metadata.status, "error");
   });
 
-  test("should throw errors in strict mode", async () => {
-    const manifest = [{ mediaPath: "/path/image.jpg" }];
-
-    readMetadataMock.mock.mockImplementation(async () => {
-      return new Map();
-    });
-
-    // Verify error was thrown with expected message
-    await rejects(
-      async () => await reconcile(manifest, { strict: true }),
-      /ExifTool did not report/
-    );
-  });
-
-  test("should mark entries with unsupported file types as errors", async () => {
+  test("should mark entries with unsupported file types as skipped", async () => {
     const manifest = [
       {
         mediaPath: "/path/image.unknown",
@@ -377,10 +363,17 @@ describe("reconcile", () => {
       return new Map([["/path/image.unknown", {}]]);
     });
 
-    await reconcile(manifest, { strict: false });
+    await reconcile(manifest, {});
 
-    // Verify unsupported file type resulted in error
-    strictEqual(manifest[0].metadata.status, "error");
+    // Verify unsupported file type was skipped
+    strictEqual(manifest[0].metadata.status, "skipped");
+
+    // Verify reason is set
+    strictEqual(manifest[0].metadata.reason, "No metadata handler for .unknown");
+
+    // Verify empty writeTags and dates
+    strictEqual(manifest[0].metadata.writeTags.length, 0);
+    strictEqual(manifest[0].metadata.dates.length, 0);
   });
 
   test("should not queue writeTags when skipEmbed is true", async () => {

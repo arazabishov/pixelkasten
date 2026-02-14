@@ -1,5 +1,5 @@
 import { test, describe, beforeEach, mock } from "node:test";
-import { strictEqual, deepStrictEqual, rejects } from "node:assert";
+import { strictEqual, deepStrictEqual } from "node:assert";
 
 mock.module("../../src/utils/logger.js", {
   namedExports: {
@@ -78,13 +78,13 @@ describe("apply", () => {
       {
         mediaPath: "/source/delete-me.jpg",
         dedupe: {
-          action: "delete",
+          status: "delete",
         },
       },
       {
         mediaPath: "/source/keep-me.jpg",
         dedupe: {
-          action: "keep",
+          status: "keep",
         },
         rename: {
           targetPath: "2023/01 - January/keep-me.jpg",
@@ -112,7 +112,7 @@ describe("apply", () => {
       {
         mediaPath: "/source/photos/IMG_1234.jpg",
         dedupe: {
-          action: "keep",
+          status: "keep",
         },
         // No rename property - rename stage was skipped
       },
@@ -132,7 +132,7 @@ describe("apply", () => {
       {
         mediaPath: "/source/IMG_1234.jpg",
         dedupe: {
-          action: "keep",
+          status: "keep",
         },
         rename: {
           status: "processed",
@@ -178,7 +178,7 @@ describe("apply", () => {
       {
         mediaPath: "/source/photo.jpg",
         dedupe: {
-          action: "keep",
+          status: "keep",
         },
         rename: {
           targetPath: "photo.jpg",
@@ -207,7 +207,7 @@ describe("apply", () => {
       {
         mediaPath: "/source/photo.jpg",
         dedupe: {
-          action: "keep",
+          status: "keep",
         },
         rename: {
           targetPath: "photo.jpg",
@@ -233,7 +233,7 @@ describe("apply", () => {
       {
         mediaPath: "/source/photo.jpg",
         dedupe: {
-          action: "keep",
+          status: "keep",
         },
         rename: {
           targetPath: "photo.jpg",
@@ -256,7 +256,7 @@ describe("apply", () => {
       {
         mediaPath: "/source/photo.jpg",
         dedupe: {
-          action: "keep",
+          status: "keep",
         },
         rename: {
           targetPath: "photo.jpg",
@@ -288,7 +288,7 @@ describe("apply", () => {
       {
         mediaPath: "/source/photo.jpg",
         dedupe: {
-          action: "keep",
+          status: "keep",
         },
         rename: {
           targetPath: "photo.jpg",
@@ -306,31 +306,7 @@ describe("apply", () => {
     strictEqual(manifest[0].apply.status, "error");
 
     // Verify error message was stored
-    strictEqual(manifest[0].apply.message, "ENOENT: no such file");
-  });
-
-  test("should throw error when copy fails in strict mode", async () => {
-    const manifest = [
-      {
-        mediaPath: "/source/photo.jpg",
-        dedupe: {
-          action: "keep",
-        },
-        rename: {
-          targetPath: "photo.jpg",
-        },
-      },
-    ];
-
-    copyFileMock.mock.mockImplementation(async () => {
-      throw new Error("ENOENT: no such file");
-    });
-
-    // Verify error was thrown
-    await rejects(
-      async () => await apply(manifest, { destination: "/dest", skipEmbed: true, strict: true }),
-      /ENOENT: no such file/
-    );
+    strictEqual(manifest[0].apply.reason, "ENOENT: no such file");
   });
 
   test("should mark entry as error when embed fails in non-strict mode", async () => {
@@ -338,7 +314,7 @@ describe("apply", () => {
       {
         mediaPath: "/source/photo.jpg",
         dedupe: {
-          action: "keep",
+          status: "keep",
         },
         rename: {
           targetPath: "photo.jpg",
@@ -360,35 +336,7 @@ describe("apply", () => {
     strictEqual(manifest[0].apply.status, "error");
 
     // Verify error message was stored
-    strictEqual(manifest[0].apply.message, "exiftool failed");
-  });
-
-  test("should throw error when embed fails in strict mode", async () => {
-    const manifest = [
-      {
-        mediaPath: "/source/photo.jpg",
-        dedupe: {
-          action: "keep",
-        },
-        rename: {
-          targetPath: "photo.jpg",
-        },
-        metadata: {
-          status: "processed",
-          writeTags: ["DateTimeOriginal=2023:01:01 12:00:00"],
-        },
-      },
-    ];
-
-    writeMetadataMock.mock.mockImplementation(async () => {
-      throw new Error("exiftool failed");
-    });
-
-    // Verify error was thrown
-    await rejects(
-      async () => await apply(manifest, { destination: "/dest", strict: true }),
-      /exiftool failed/
-    );
+    strictEqual(manifest[0].apply.reason, "exiftool failed");
   });
 
   test("should store destPath in apply object for successfully copied files", async () => {
@@ -396,7 +344,7 @@ describe("apply", () => {
       {
         mediaPath: "/source/photo.jpg",
         dedupe: {
-          action: "keep",
+          status: "keep",
         },
         rename: {
           targetPath: "2023/05 - May/photo.jpg",
@@ -415,7 +363,7 @@ describe("apply", () => {
       {
         mediaPath: "/source/photo.jpg",
         dedupe: {
-          action: "keep",
+          status: "keep",
         },
         rename: {
           status: "processed",

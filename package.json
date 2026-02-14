@@ -23,15 +23,16 @@
   },
   "homepage": "https://github.com/arazabishov/pixelkasten#readme",
   "devDependencies": {
-    "globals": "^17.3.0",
     "@eslint/js": "^9.39.2",
     "eslint": "^9.39.2",
+    "globals": "^17.3.0",
     "prettier": "^3.6.2"
   },
   "dependencies": {
     "cli-progress": "^3.12.0",
     "cli-table3": "^0.6.5",
     "commander": "^14.0.1",
+    "csv-stringify": "^6.6.0",
     "execa": "^9.6.0"
   }
 }

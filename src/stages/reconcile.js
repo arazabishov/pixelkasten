@@ -1,15 +1,16 @@
-import { logger } from "../utils/logger.js";
-import { progressBar } from "../utils/progress.js";
-import { readMetadata } from "../core/exiftool.js";
-import { readSidecar } from "../core/sidecar.js";
-import { handlers } from "../handlers/index.js";
 import { extname } from "path";
 import { parsePhotoTakenTime } from "../core/datetime.js";
+import { readMetadata } from "../core/exiftool.js";
+import { canKeep } from "../core/manifest.js";
+import { readSidecar } from "../core/sidecar.js";
+import { handlers } from "../handlers/index.js";
+import { logger } from "../utils/logger.js";
+import { progressBar } from "../utils/progress.js";
 
 export async function reconcile(manifest, options = {}) {
   // Stage 1: filter keepers. We use optional chaining (?.) to be safe if dedupe object is missing.
-  // If dedupe was skipped, action is 'pending' or undefined, so !== 'delete' is true.
-  const keepers = manifest.filter((entry) => entry.dedupe?.action !== "delete");
+  // If dedupe was skipped, status is undefined, so !== 'delete' is true.
+  const keepers = manifest.filter(canKeep);
 
   // It is unlikely to happen, but theoretically possible.
   if (keepers.length === 0) {
@@ -24,7 +25,6 @@ export async function reconcile(manifest, options = {}) {
   const batches = Math.ceil(keepers.length / batchSize);
 
   const bar = progressBar("⧗ Reconciling metadata |{bar}| {percentage}% | {value}/{total} batches");
-
   bar.start(batches, 0);
 
   // Stage 3: sliding window loop to process files in chunks to prevent OOM.
@@ -46,13 +46,10 @@ export async function reconcile(manifest, options = {}) {
       try {
         entry.metadata = await resolve(entry.mediaPath, entry.json?.path, rawDiskTags, options);
       } catch (error) {
-        if (options.strict) {
-          throw error;
-        }
-
         logger.error(error.message);
         entry.metadata = {
           status: "error",
+          reason: error.message,
           writeTags: [],
           dates: [],
         };
@@ -68,24 +65,33 @@ export async function reconcile(manifest, options = {}) {
 }
 
 async function resolve(mediaPath, jsonPath, rawDiskTags, options) {
-  // If exiftool has not reported on a file, then something went wrong.
-  if (!rawDiskTags) {
-    throw new Error(`ExifTool did not report on ${mediaPath}, skipping.`);
-  }
-
   const extension = extname(mediaPath).toLowerCase();
   const handler = handlers[extension];
 
-  // If there is no handler for a file type, pixelkasten will not be able to process it.
+  // If there is no handler for a file type, skip it — we cannot read or write metadata.
   if (!handler) {
-    throw new Error(`Encountered file of unsupported type ${extension}, skipping.`);
+    return {
+      status: "skipped",
+      reason: `No metadata handler for ${extension}`,
+      writeTags: [],
+      dates: [],
+    };
+  }
+
+  // If exiftool has not reported on a file, then something went wrong.
+  if (!rawDiskTags) {
+    throw new Error(`ExifTool did not report on ${mediaPath}, skipping.`);
   }
 
   // Normalize raw, file type specific tags to a common shape.
   const diskData = handler.parse(rawDiskTags);
 
   // The starting point for the metadata object. If no writes happen, the status is "noop".
-  const metadata = { status: "noop", writeTags: [], dates: [...diskData.dates] };
+  const metadata = {
+    status: "noop",
+    writeTags: [],
+    dates: [...diskData.dates],
+  };
 
   // Retrieve and parse sidecar data.
   const sidecarData = await readSidecar(jsonPath);

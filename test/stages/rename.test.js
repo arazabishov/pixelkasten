@@ -1,5 +1,5 @@
 import { test, describe, mock } from "node:test";
-import { strictEqual, ok, throws } from "node:assert";
+import { strictEqual, ok } from "node:assert";
 
 mock.module("../../src/utils/logger.js", {
   namedExports: {
@@ -17,7 +17,7 @@ describe("rename", () => {
   test("should not process entries when manifest is empty", () => {
     const manifest = [];
 
-    rename(manifest, {});
+    rename(manifest);
 
     // Verify no entries were added
     strictEqual(manifest.length, 0);
@@ -27,17 +27,17 @@ describe("rename", () => {
     const manifest = [
       {
         mediaPath: "/path/to/delete.jpg",
-        dedupe: { action: "delete" },
+        dedupe: { status: "delete" },
         metadata: { dates: ["2023-01-15T14:30:45"] },
       },
       {
         mediaPath: "/path/to/keep.jpg",
-        dedupe: { action: "keep" },
+        dedupe: { status: "keep" },
         metadata: { dates: ["2023-01-15T14:30:45"] },
       },
     ];
 
-    rename(manifest, {});
+    rename(manifest);
 
     // Verify deleted entry was not processed
     strictEqual(manifest[0].rename, undefined);
@@ -54,7 +54,7 @@ describe("rename", () => {
       },
     ];
 
-    rename(manifest, {});
+    rename(manifest);
 
     // Verify correct path format: yyyy/mm - Month/yyyymmddhhmmss.ext
     strictEqual(manifest[0].rename.targetPath, "2024/03 - March/20240301-133245.jpg");
@@ -72,7 +72,7 @@ describe("rename", () => {
       },
     ];
 
-    rename(manifest, {});
+    rename(manifest);
 
     // Verify January path
     strictEqual(manifest[0].rename.targetPath, "2024/01 - January/20240115-100030.jpg");
@@ -93,7 +93,7 @@ describe("rename", () => {
       },
     ];
 
-    rename(manifest, {});
+    rename(manifest);
 
     // Verify lowercase extension for image
     ok(manifest[0].rename.targetPath.endsWith(".jpg"));
@@ -118,7 +118,7 @@ describe("rename", () => {
       },
     ];
 
-    rename(manifest, {});
+    rename(manifest);
 
     // Verify first file gets base name
     strictEqual(manifest[0].rename.targetPath, "2024/03 - March/20240301-140230.jpg");
@@ -138,7 +138,7 @@ describe("rename", () => {
       },
     ];
 
-    rename(manifest, {});
+    rename(manifest);
 
     // Verify entry has error status
     strictEqual(manifest[0].rename.status, "error");
@@ -152,7 +152,7 @@ describe("rename", () => {
       },
     ];
 
-    rename(manifest, {});
+    rename(manifest);
 
     // Verify entry has error status
     strictEqual(manifest[0].rename.status, "error");
@@ -166,34 +166,10 @@ describe("rename", () => {
       },
     ];
 
-    rename(manifest, {});
+    rename(manifest);
 
     // Verify entry has error status
     strictEqual(manifest[0].rename.status, "error");
-  });
-
-  test("should throw in strict mode when dates are missing", () => {
-    const manifest = [
-      {
-        mediaPath: "/path/to/image.jpg",
-        metadata: {},
-      },
-    ];
-
-    // Verify error is thrown in strict mode
-    throws(() => rename(manifest, { strict: true }), /No timestamp available/);
-  });
-
-  test("should throw in strict mode when date format is invalid", () => {
-    const manifest = [
-      {
-        mediaPath: "/path/to/image.jpg",
-        metadata: { dates: ["not-a-valid-date"] },
-      },
-    ];
-
-    // Verify error is thrown in strict mode
-    throws(() => rename(manifest, { strict: true }), /No valid date format/);
   });
 
   test("should use first date in array as primary timestamp", () => {
@@ -206,7 +182,7 @@ describe("rename", () => {
       },
     ];
 
-    rename(manifest, {});
+    rename(manifest);
 
     // Verify first date was used (not second or third)
     strictEqual(manifest[0].rename.targetPath, "2024/03 - March/20240301-133215.jpg");
@@ -222,7 +198,7 @@ describe("rename", () => {
       },
     ];
 
-    rename(manifest, {});
+    rename(manifest);
 
     // Verify third date was used after first two failed
     strictEqual(manifest[0].rename.targetPath, "2024/05 - May/20240510-091530.jpg");
@@ -236,22 +212,22 @@ describe("rename", () => {
       },
     ];
 
-    rename(manifest, {});
+    rename(manifest);
 
     // Verify entry was processed despite missing dedupe
     strictEqual(manifest[0].rename.status, "processed");
   });
 
-  test("should handle entries with pending dedupe action", () => {
+  test("should handle entries with pending dedupe status", () => {
     const manifest = [
       {
         mediaPath: "/path/to/image.jpg",
-        dedupe: { action: "pending" },
+        dedupe: { status: "pending" },
         metadata: { dates: ["2024-03-01T13:32:00"] },
       },
     ];
 
-    rename(manifest, {});
+    rename(manifest);
 
     // Verify entry with pending action is still processed
     strictEqual(manifest[0].rename.status, "processed");
@@ -265,7 +241,7 @@ describe("rename", () => {
       },
     ];
 
-    rename(manifest, {});
+    rename(manifest);
 
     // Verify proper zero-padding in path
     strictEqual(manifest[0].rename.targetPath, "2024/01 - January/20240105-090507.jpg");
@@ -279,7 +255,7 @@ describe("rename", () => {
       },
     ];
 
-    rename(manifest, {});
+    rename(manifest);
 
     // Verify HEIC extension is preserved in lowercase
     strictEqual(manifest[0].rename.targetPath, "2024/03 - March/20240301-133200.heic");
@@ -293,7 +269,7 @@ describe("rename", () => {
       },
     ];
 
-    rename(manifest, {});
+    rename(manifest);
 
     // Verify MOV extension is preserved in lowercase
     strictEqual(manifest[0].rename.targetPath, "2024/03 - March/20240301-133200.mov");
@@ -311,7 +287,7 @@ describe("rename", () => {
       },
     ];
 
-    rename(manifest, {});
+    rename(manifest);
 
     // Verify different extensions don't collide
     strictEqual(manifest[0].rename.targetPath, "2024/03 - March/20240301-140200.jpg");
@@ -330,7 +306,7 @@ describe("rename", () => {
       },
     ];
 
-    rename(manifest, {});
+    rename(manifest);
 
     // Verify different seconds produce different paths (no collision)
     strictEqual(manifest[0].rename.targetPath, "2024/03 - March/20240301-140230.jpg");
@@ -346,7 +322,7 @@ describe("rename", () => {
       },
     ];
 
-    rename(manifest, {});
+    rename(manifest);
 
     // Verify album structure: yyyy/mm - Month/yyyymmdd - Album Name/timestamp.ext
     strictEqual(
@@ -369,7 +345,7 @@ describe("rename", () => {
       },
     ];
 
-    rename(manifest, {});
+    rename(manifest);
 
     // Verify both photos use earliest date (March 18) for folder
     strictEqual(
@@ -396,7 +372,7 @@ describe("rename", () => {
       },
     ];
 
-    rename(manifest, {});
+    rename(manifest);
 
     // Verify both photos go to December (earliest month)
     strictEqual(
@@ -423,7 +399,7 @@ describe("rename", () => {
       },
     ];
 
-    rename(manifest, {});
+    rename(manifest);
 
     // Verify album photo goes to album subfolder
     strictEqual(
@@ -449,7 +425,7 @@ describe("rename", () => {
       },
     ];
 
-    rename(manifest, {});
+    rename(manifest);
 
     // Verify collision handling within album
     strictEqual(

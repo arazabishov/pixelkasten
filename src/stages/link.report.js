@@ -1,5 +1,5 @@
-import { logger } from "../utils/logger.js";
 import CliTable3 from "cli-table3";
+import { logger } from "../utils/logger.js";
 
 export function logLinkReport(matches) {
   const {
@@ -8,11 +8,11 @@ export function logLinkReport(matches) {
   } = matches;
 
   for (const entry of unmatchedMediaFiles) {
-    console.log(entry);
+    logger.warn(entry);
   }
 
   for (const entry of unmatchedMetadataFiles) {
-    console.log(entry);
+    logger.warn(entry);
   }
 
   // Count matches by confidence level.

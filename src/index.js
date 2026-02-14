@@ -20,7 +20,6 @@ program
     "prefer which files to keep when deduplicating: 'album' or 'loose'",
     "album"
   )
-  .option("--strict", "exit on first error instead of continuing")
   .option("--skip-dedupe", "skip deduplication step")
   .option("--skip-embed", "skip metadata embedding step")
   .option("--skip-rename", "skip rename step")
