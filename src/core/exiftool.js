@@ -1,16 +1,13 @@
 import { execa } from "execa";
 
 /**
- * Checks whether exiftool is available on the system PATH.
- *
- * @returns {Promise<boolean>}
+ * Throws if exiftool is not available on the system PATH.
  */
-export async function isAvailable() {
+export async function checkExiftool() {
   try {
     await execa("exiftool", ["-ver"]);
-    return true;
   } catch {
-    return false;
+    throw new Error("exiftool is not installed or not found on PATH");
   }
 }
 

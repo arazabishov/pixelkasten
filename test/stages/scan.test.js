@@ -1,4 +1,4 @@
-import { test, describe, mock } from "node:test";
+import { test, describe, mock, beforeEach } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 
 mock.module("../../src/utils/progress.js", {
@@ -24,22 +24,18 @@ mock.module("fs/promises", {
 
 const { scan } = await import("../../src/stages/scan.js");
 
-/**
- * Helper to create a mock dirent (directory entry) object.
- */
-function dirent(name, parentPath, isFile = true) {
-  return {
-    name,
-    path: parentPath,
-    isFile: () => isFile,
-  };
-}
-
 describe("scan", () => {
-  test("should categorize media files by known extensions", async () => {
+  const dirent = (name, path, isFile = true) => {
+    return { name, path, isFile: () => isFile };
+  };
+
+  beforeEach(() => {
     statMock.mock.mockImplementation(async () => {
       return { isDirectory: () => true };
     });
+  });
+
+  test("should categorize media files by known extensions", async () => {
     readdirMock.mock.mockImplementation(async () => {
       return [
         dirent("photo.jpg", "/source"),
@@ -64,9 +60,6 @@ describe("scan", () => {
   });
 
   test("should categorize unsupported media files as media", async () => {
-    statMock.mock.mockImplementation(async () => {
-      return { isDirectory: () => true };
-    });
     readdirMock.mock.mockImplementation(async () => {
       return [
         dirent("old-video.avi", "/source"),
@@ -83,9 +76,6 @@ describe("scan", () => {
   });
 
   test("should categorize json files as metadata", async () => {
-    statMock.mock.mockImplementation(async () => {
-      return { isDirectory: () => true };
-    });
     readdirMock.mock.mockImplementation(async () => {
       return [
         dirent("photo.jpg.supplemental-metadata.json", "/source"),
@@ -104,9 +94,6 @@ describe("scan", () => {
   });
 
   test("should categorize metadata.json as album metadata", async () => {
-    statMock.mock.mockImplementation(async () => {
-      return { isDirectory: () => true };
-    });
     readdirMock.mock.mockImplementation(async () => {
       return [
         dirent("metadata.json", "/source/Vacation"),
@@ -125,9 +112,6 @@ describe("scan", () => {
   });
 
   test("should categorize unknown extensions as other/ignored", async () => {
-    statMock.mock.mockImplementation(async () => {
-      return { isDirectory: () => true };
-    });
     readdirMock.mock.mockImplementation(async () => {
       return [
         dirent("readme.txt", "/source"),
@@ -147,11 +131,8 @@ describe("scan", () => {
   });
 
   test("should skip directories and non-file entries", async () => {
-    statMock.mock.mockImplementation(async () => {
-      return { isDirectory: () => true };
-    });
     readdirMock.mock.mockImplementation(async () => {
-      return [dirent("subdir", "/source", false), dirent("photo.jpg", "/source", true)];
+      return [dirent("subdir", "/source", false), dirent("photo.jpg", "/source")];
     });
 
     const result = await scan("/source");
@@ -164,9 +145,6 @@ describe("scan", () => {
   });
 
   test("should build full paths from dirent name and parent path", async () => {
-    statMock.mock.mockImplementation(async () => {
-      return { isDirectory: () => true };
-    });
     readdirMock.mock.mockImplementation(async () => {
       return [
         dirent("photo.jpg", "/source/Photos from 2024"),
@@ -182,9 +160,6 @@ describe("scan", () => {
   });
 
   test("should handle case-insensitive extensions for media files", async () => {
-    statMock.mock.mockImplementation(async () => {
-      return { isDirectory: () => true };
-    });
     readdirMock.mock.mockImplementation(async () => {
       return [
         dirent("PHOTO.JPG", "/source"),
@@ -200,9 +175,6 @@ describe("scan", () => {
   });
 
   test("should maintain correct total count across all buckets", async () => {
-    statMock.mock.mockImplementation(async () => {
-      return { isDirectory: () => true };
-    });
     readdirMock.mock.mockImplementation(async () => {
       return [
         dirent("photo.jpg", "/source"),
@@ -226,8 +198,4 @@ describe("scan", () => {
       result.filesOtherIgnored.length;
     strictEqual(bucketSum, result.filesTotal);
   });
-
-  // NOTE: scan.js calls validatePath() without await, so validation errors
-  // become unhandled rejections rather than propagating to the caller.
-  // Error-path tests for invalid source paths are omitted for this reason.
 });
