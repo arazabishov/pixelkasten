@@ -3,7 +3,7 @@
 import { Command } from "commander";
 import { runPipeline } from "./pipeline.js";
 import { logger } from "./utils/logger.js";
-import { isAvailable } from "./core/exiftool.js";
+import { checkExiftool } from "./core/exiftool.js";
 
 const program = new Command();
 
@@ -43,12 +43,7 @@ if (options.prefer && !["album", "loose"].includes(options.prefer)) {
 }
 
 if (!options.skipEmbed || !options.skipRename) {
-  const available = await isAvailable();
-  if (!available) {
-    logger.error("exiftool is not installed. Please install it before running pixelkasten.");
-
-    process.exit(1);
-  }
+  await checkExiftool();
 }
 
 if (options.dryRun) {

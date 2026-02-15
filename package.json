@@ -9,7 +9,9 @@
   },
   "scripts": {
     "start": "node src/index.js",
-    "test": "node --test --experimental-test-module-mocks",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "node --test --experimental-test-module-mocks 'test/core/**/*.test.js' 'test/handlers/**/*.test.js' 'test/stages/**/*.test.js'",
+    "test:integration": "node --test --experimental-test-module-mocks 'test/integration/**/*.test.js'",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint ."

@@ -14,10 +14,10 @@ describe("readSidecar", () => {
   test("should return null when jsonPath is falsy", async () => {
     const result = await readSidecar(null);
 
-    // Verify null path returns null without reading from disk
+    // Verify null is returned without touching the filesystem
     strictEqual(result, null);
 
-    // Verify no file read was attempted
+    // Verify readFile was never called
     strictEqual(readFileMock.mock.callCount(), 0);
   });
 
@@ -31,7 +31,7 @@ describe("readSidecar", () => {
 
     const result = await readSidecar("/path/to/sidecar.json");
 
-    // Verify timestamp is extracted
+    // Verify the Unix epoch string is returned as-is
     strictEqual(result.timestamp, "1719935787");
   });
 
@@ -44,7 +44,7 @@ describe("readSidecar", () => {
 
     const result = await readSidecar("/path/to/sidecar.json");
 
-    // Verify timestamp is undefined when photoTakenTime is missing
+    // Verify missing photoTakenTime yields undefined timestamp
     strictEqual(result.timestamp, undefined);
   });
 
@@ -71,7 +71,7 @@ describe("readSidecar", () => {
 
     const result = await readSidecar("/path/to/sidecar.json");
 
-    // Verify geoDataExif values are used, not geoData
+    // Verify geoDataExif coordinates are used instead of geoData
     deepStrictEqual(result.geo, {
       latitude: 48.8584,
       longitude: 2.2945,
@@ -95,7 +95,7 @@ describe("readSidecar", () => {
 
     const result = await readSidecar("/path/to/sidecar.json");
 
-    // Verify geoData values are used when geoDataExif is missing
+    // Verify geoData is used as fallback
     deepStrictEqual(result.geo, {
       latitude: 40.6892,
       longitude: -74.0445,
@@ -142,7 +142,7 @@ describe("readSidecar", () => {
 
     const result = await readSidecar("/path/to/sidecar.json");
 
-    // Verify (0, 0) in geoDataExif is also treated as missing
+    // Verify (0, 0) in geoDataExif is also treated as absent
     strictEqual(result.geo, undefined);
   });
 
@@ -165,7 +165,7 @@ describe("readSidecar", () => {
 
     const result = await readSidecar("/path/to/sidecar.json");
 
-    // Verify geoDataExif (0,0) is skipped and geoData is used instead
+    // Verify geoData is used when geoDataExif has zeroed-out coordinates
     deepStrictEqual(result.geo, {
       latitude: 40.6892,
       longitude: -74.0445,
@@ -228,8 +228,10 @@ describe("readSidecar", () => {
 
     const result = await readSidecar("/path/to/sidecar.json");
 
-    // Verify only the fields we care about are returned
+    // Verify only timestamp and geo are returned
     strictEqual(result.timestamp, "1719935787");
+
+    // Verify unrelated sidecar fields are not passed through
     strictEqual(result.geo, undefined);
     strictEqual(result.title, undefined);
     strictEqual(result.description, undefined);
