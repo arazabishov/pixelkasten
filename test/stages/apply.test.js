@@ -358,6 +358,150 @@ describe("apply", () => {
     strictEqual(manifest[0].apply.targetPath, "/dest/2023/05 - May/photo.jpg");
   });
 
+  test("should copy sidecar alongside media when skipEmbed is true and sidecar exists", async () => {
+    const manifest = [
+      {
+        mediaPath: "/source/photo.jpg",
+        dedupe: {
+          status: "keep",
+        },
+        rename: {
+          targetPath: "2023/05 - May/photo.jpg",
+        },
+        json: {
+          path: "/source/photo.jpg.json",
+        },
+      },
+    ];
+
+    await apply(manifest, { destination: "/dest", skipEmbed: true });
+
+    // Verify both media and sidecar were copied
+    strictEqual(copyFileMock.mock.callCount(), 2);
+
+    // Verify sidecar was copied from source
+    strictEqual(copyFileMock.mock.calls[1].arguments[0], "/source/photo.jpg.json");
+
+    // Verify sidecar destination follows media name
+    strictEqual(copyFileMock.mock.calls[1].arguments[1], "/dest/2023/05 - May/photo.jpg.json");
+  });
+
+  test("should not copy sidecar when skipEmbed is false", async () => {
+    const manifest = [
+      {
+        mediaPath: "/source/photo.jpg",
+        dedupe: {
+          status: "keep",
+        },
+        rename: {
+          targetPath: "photo.jpg",
+        },
+        json: {
+          path: "/source/photo.jpg.json",
+        },
+      },
+    ];
+
+    await apply(manifest, { destination: "/dest", skipEmbed: false });
+
+    // Verify only the media file was copied
+    strictEqual(copyFileMock.mock.callCount(), 1);
+  });
+
+  test("should not copy sidecar when entry has no matched sidecar", async () => {
+    const manifest = [
+      {
+        mediaPath: "/source/photo.jpg",
+        dedupe: {
+          status: "keep",
+        },
+        rename: {
+          targetPath: "photo.jpg",
+        },
+        json: null,
+      },
+    ];
+
+    await apply(manifest, { destination: "/dest", skipEmbed: true });
+
+    // Verify only the media file was copied
+    strictEqual(copyFileMock.mock.callCount(), 1);
+  });
+
+  test("should use original filename for sidecar when rename is skipped", async () => {
+    const manifest = [
+      {
+        mediaPath: "/source/photos/IMG_1234.jpg",
+        dedupe: {
+          status: "keep",
+        },
+        json: {
+          path: "/source/photos/IMG_1234.jpg.json",
+        },
+        // No rename property - rename stage was skipped
+      },
+    ];
+
+    await apply(manifest, { destination: "/dest", skipEmbed: true });
+
+    // Verify sidecar was copied using the original filename
+    strictEqual(copyFileMock.mock.calls[1].arguments[1], "/dest/IMG_1234.jpg.json");
+  });
+
+  test("should mark entry as error when sidecar copy fails", async () => {
+    const manifest = [
+      {
+        mediaPath: "/source/photo.jpg",
+        dedupe: {
+          status: "keep",
+        },
+        rename: {
+          targetPath: "photo.jpg",
+        },
+        json: {
+          path: "/source/photo.jpg.json",
+        },
+      },
+    ];
+
+    copyFileMock.mock.mockImplementation(async (src) => {
+      if (src === "/source/photo.jpg.json") {
+        throw new Error("ENOSPC: no space left");
+      }
+      return undefined;
+    });
+
+    await apply(manifest, { destination: "/dest", skipEmbed: true });
+
+    // Verify entry was marked as error
+    strictEqual(manifest[0].apply.status, "error");
+
+    // Verify error message was stored
+    strictEqual(manifest[0].apply.reason, "ENOSPC: no space left");
+  });
+
+  test("should not copy sidecar when skipEmbed is not set", async () => {
+    const manifest = [
+      {
+        mediaPath: "/source/photo.jpg",
+        dedupe: {
+          status: "keep",
+        },
+        rename: {
+          targetPath: "photo.jpg",
+        },
+        json: {
+          path: "/source/photo.jpg.json",
+        },
+      },
+    ];
+
+    await apply(manifest, { destination: "/dest" });
+
+    // Verify only the media file was copied
+    strictEqual(copyFileMock.mock.callCount(), 1);
+  });
+
   test("should handle nested album paths correctly", async () => {
     const manifest = [
       {

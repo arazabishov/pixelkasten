@@ -54,6 +54,11 @@ export async function apply(manifest, options) {
           targetPath: destPath,
         };
       }
+
+      // Copy sidecar when embedding is skipped and a sidecar exists
+      if (options.skipEmbed && entry.json?.path) {
+        await copyFile(entry.json.path, destPath + ".json");
+      }
     } catch (error) {
       logger.error(error.message);
       entry.apply = {
