@@ -1,9 +1,10 @@
 import { readdir, stat } from "fs/promises";
 import { extname, join } from "path";
 import { allKnownMediaExtensions } from "../handlers/index.js";
-import { progressBar } from "../utils/progress.js";
 
-export async function scan(sourcePath) {
+export async function scan(sourcePath, options = {}) {
+  const { progress } = options;
+
   // Let's ensure that sourcePath exists and it is a directory.
   validatePath(sourcePath);
 
@@ -19,15 +20,13 @@ export async function scan(sourcePath) {
   // An exhaustive list of files and directories on disk.
   const dirents = await readdir(sourcePath, { withFileTypes: true, recursive: true });
 
-  // Create progress bar (only if not in verbose mode)
-  const bar = progressBar("⧗ Scanning files |{bar}| {percentage}% | {value}/{total} entries");
-
-  bar.start(dirents.length, 0);
+  const bar = progress?.();
+  bar?.start(dirents.length, 0);
 
   // Walk through entries and categorize them into buckets.
   for (const dirent of dirents) {
     // Update the progress here to account for the 'continue' below.
-    bar.increment();
+    bar?.increment();
 
     // We only care about files. Skip directories, symlinks, etc.
     if (!dirent.isFile()) {
@@ -57,7 +56,7 @@ export async function scan(sourcePath) {
     }
   }
 
-  bar.stop();
+  bar?.stop();
 
   checkInvariants(stats);
 

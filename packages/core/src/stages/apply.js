@@ -2,8 +2,6 @@ import { mkdir, copyFile } from "fs/promises";
 import { join, dirname, basename } from "path";
 import { writeMetadata } from "../core/exiftool.js";
 import { canKeep } from "../core/manifest.js";
-import { logger } from "../utils/logger.js";
-import { progressBar } from "../utils/progress.js";
 
 /**
  * Apply stage: copies files to destination and embeds metadata.
@@ -18,7 +16,9 @@ import { progressBar } from "../utils/progress.js";
  * @param {Object} options - Options object
  * @param {string} options.destination - Target root directory
  */
-export async function apply(manifest, options) {
+export async function apply(manifest, options = {}) {
+  const { logger, progress } = options;
+
   // Only process keepers - deletions and errors are handled by exclusion.
   // If dedupe was skipped, status is undefined, so !== 'delete' is true.
   const keepers = manifest.filter(canKeep);
@@ -27,8 +27,8 @@ export async function apply(manifest, options) {
     return;
   }
 
-  const bar = progressBar("⧗ Applying changes |{bar}| {percentage}% | {value}/{total} files");
-  bar.start(keepers.length, 0);
+  const bar = progress?.();
+  bar?.start(keepers.length, 0);
 
   for (const entry of keepers) {
     try {
@@ -60,15 +60,15 @@ export async function apply(manifest, options) {
         await copyFile(entry.json.path, destPath + ".json");
       }
     } catch (error) {
-      logger.error(error.message);
+      logger?.error(error.message);
       entry.apply = {
         status: "error",
         reason: error.message,
       };
     }
 
-    bar.increment();
+    bar?.increment();
   }
 
-  bar.stop();
+  bar?.stop();
 }

@@ -1,5 +1,4 @@
 import { basename, dirname, extname } from "path";
-import { progressBar } from "../utils/progress.js";
 
 // Regex for Google Takeout metadata suffixes (longest to shortest for greedy matching).
 const metadataSuffixPattern = new RegExp(
@@ -50,7 +49,8 @@ const editedSuffixPattern = new RegExp(
  *   stats: { unmatchedMetadataFiles: Set<string>, unmatchedMediaFiles: Set<string> }
  * }} The manifest of linked files and matching statistics.
  */
-export function link(rawCollections, options) {
+export function link(rawCollections, options = {}) {
+  const { progress } = options;
   const { filesMedia, filesMetadata, filesMetadataAlbums } = rawCollections;
 
   // Stage 1: index metadata by directory for O(1) lookups.
@@ -86,8 +86,8 @@ export function link(rawCollections, options) {
   // will be passed on to later stages.
   const manifest = [];
 
-  const bar = progressBar("⧗ Linking files |{bar}| {percentage}% | {value}/{total} files");
-  bar.start(filesMedia.length, 0);
+  const bar = progress?.();
+  bar?.start(filesMedia.length, 0);
 
   // Stage 4: match media files to their metadata sidecars.
   for (const media of parsedMedia) {
@@ -102,10 +102,10 @@ export function link(rawCollections, options) {
       json: match(media, candidates, options),
     });
 
-    bar.increment();
+    bar?.increment();
   }
 
-  bar.stop();
+  bar?.stop();
 
   // Stage 5: compute statistics from the manifest.
   const unmatchedMetadataFiles = new Set(filesMetadata);

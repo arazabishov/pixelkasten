@@ -4,10 +4,10 @@ import { readMetadata } from "../core/exiftool.js";
 import { canKeep } from "../core/manifest.js";
 import { readSidecar } from "../core/sidecar.js";
 import { handlers } from "../handlers/index.js";
-import { logger } from "../utils/logger.js";
-import { progressBar } from "../utils/progress.js";
 
 export async function reconcile(manifest, options = {}) {
+  const { logger, progress } = options;
+
   // Stage 1: filter keepers. We use optional chaining (?.) to be safe if dedupe object is missing.
   // If dedupe was skipped, status is undefined, so !== 'delete' is true.
   const keepers = manifest.filter(canKeep);
@@ -24,8 +24,8 @@ export async function reconcile(manifest, options = {}) {
   const batchSize = 512;
   const batches = Math.ceil(keepers.length / batchSize);
 
-  const bar = progressBar("⧗ Reconciling metadata |{bar}| {percentage}% | {value}/{total} batches");
-  bar.start(batches, 0);
+  const bar = progress?.();
+  bar?.start(batches, 0);
 
   // Stage 3: sliding window loop to process files in chunks to prevent OOM.
   for (let offset = 0; offset < keepers.length; offset += batchSize) {
@@ -46,7 +46,7 @@ export async function reconcile(manifest, options = {}) {
       try {
         entry.metadata = await resolve(entry.mediaPath, entry.json?.path, rawDiskTags, options);
       } catch (error) {
-        logger.error(error.message);
+        logger?.error(error.message);
         entry.metadata = {
           status: "error",
           reason: error.message,
@@ -58,10 +58,10 @@ export async function reconcile(manifest, options = {}) {
 
     await Promise.all(tasks);
 
-    bar.increment();
+    bar?.increment();
   }
 
-  bar.stop();
+  bar?.stop();
 }
 
 async function resolve(mediaPath, jsonPath, rawDiskTags, options) {

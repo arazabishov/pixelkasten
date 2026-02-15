@@ -1,9 +1,9 @@
 import cliProgress from "cli-progress";
 
-export function progressBar(format) {
+export function progressBar() {
   const bar = new cliProgress.SingleBar(
     {
-      format,
+      format: "⧗ {bar} {percentage}% | {value}/{total}",
       hideCursor: true,
     },
     cliProgress.Presets.shades_classic
