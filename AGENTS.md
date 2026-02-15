@@ -5,8 +5,14 @@ This file provides guidance to AI coding agents when working with code in this r
 ## Commands
 
 ```bash
-# Run all tests
+# Run all tests (unit + integration)
 npm test
+
+# Run unit tests only
+npm run test:unit
+
+# Run integration tests only (requires exiftool)
+npm run test:integration
 
 # Run a single test file
 node --test --experimental-test-module-mocks test/stages/link.test.js
@@ -16,6 +22,21 @@ npm start -- -s <source> -d <destination>
 
 # Format code
 npx prettier --write .
+```
+
+## Integration Test Fixtures
+
+Pre-generated JPEG files live in `test/integration/fixtures/media/`. To add a new fixture:
+
+```bash
+# Copy the blank JPEG as a starting point
+cp test/integration/fixtures/media/no-metadata.jpg test/integration/fixtures/media/new-profile.jpg
+
+# Stamp it with metadata using exiftool
+exiftool -SubSecDateTimeOriginal="2024:01:01 00:00:00+00:00" test/integration/fixtures/media/new-profile.jpg
+
+# For GPS data
+exiftool -Composite:GPSLatitude=48.8584 -Composite:GPSLongitude=2.2945 -GPSAltitude=35 -GPSAltitudeRef=0 test/integration/fixtures/media/new-profile.jpg
 ```
 
 ## Architecture
