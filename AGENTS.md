@@ -29,13 +29,13 @@ npx prettier --write .
 This is an npm workspaces monorepo with two packages:
 
 - **`packages/core`** (`@pixelkasten/core`) - Core pipeline logic. No CLI dependencies. Private package.
-- **`packages/cli`** (`pixelkasten`) - CLI entry point. Depends on `@pixelkasten/core`.
+- **`packages/cli`** (`@pixelkasten/cli`) - CLI entry point. Depends on `@pixelkasten/core`.
 
 Shared config (ESLint, Prettier) lives at the root. Dev dependencies are at root level.
 
 ### Core Package (`packages/core`)
 
-Contains the pipeline stages, handlers, and core utilities. All stages accept `logger` and `progress` via an `options` parameter (defaulting to no-ops), making the core independently consumable without CLI dependencies.
+Contains the pipeline stages, handlers, and core utilities. All stages accept optional `logger` and `progress` via the `options` parameter, making the core independently consumable without CLI dependencies.
 
 ### CLI Package (`packages/cli`)
 
