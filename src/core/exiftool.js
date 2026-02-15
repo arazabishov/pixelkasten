@@ -1,5 +1,26 @@
 import { execa } from "execa";
 
+/**
+ * Checks whether exiftool is available on the system PATH.
+ *
+ * @returns {Promise<boolean>}
+ */
+export async function isAvailable() {
+  try {
+    await execa("exiftool", ["-ver"]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Reads metadata from files using exiftool.
+ *
+ * @param {string[]} filePaths - Paths to the files to read metadata from
+ * @param {string[]} tags - Metadata tags to extract (e.g., ["EXIF:DateTimeOriginal"])
+ * @returns {Promise<Map<string, object>>} Map of file paths to their metadata
+ */
 export async function readMetadata(filePaths, tags = []) {
   const args = [
     "-api",

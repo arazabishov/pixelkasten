@@ -3,6 +3,7 @@
 import { Command } from "commander";
 import { runPipeline } from "./pipeline.js";
 import { logger } from "./utils/logger.js";
+import { isAvailable } from "./core/exiftool.js";
 
 const program = new Command();
 
@@ -29,23 +30,31 @@ program.parse(process.argv);
 
 const options = program.opts();
 
-// Validate --prefer option
+if (!options.source || !options.destination) {
+  logger.error("Please specify both --source and --destination. Use --help for documentation.");
+
+  process.exit(1);
+}
+
 if (options.prefer && !["album", "loose"].includes(options.prefer)) {
   logger.error(`Invalid --prefer value: "${options.prefer}". Must be either "album" or "loose".`);
+
   process.exit(1);
 }
 
-if (options.source && options.destination) {
-  if (options.dryRun) {
-    logger.warn("Dry run mode - no files will be modified");
+if (!options.skipEmbed || !options.skipRename) {
+  const available = await isAvailable();
+  if (!available) {
+    logger.error("exiftool is not installed. Please install it before running pixelkasten.");
+
+    process.exit(1);
   }
-
-  await runPipeline(options);
-
-  logger.info("Finished!");
-} else {
-  logger.error("Please specify both source and destination directories.");
-  logger.info('Run "pixelkasten --help" for usage information.');
-
-  process.exit(1);
 }
+
+if (options.dryRun) {
+  logger.warn("Dry run mode - no files will be modified");
+}
+
+await runPipeline(options);
+
+logger.info("Finished!");
