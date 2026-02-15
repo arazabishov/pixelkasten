@@ -1,7 +1,5 @@
 import { createHash } from "crypto";
 import { createReadStream } from "fs";
-import { logger } from "../utils/logger.js";
-import { progressBar } from "../utils/progress.js";
 
 /**
  * Calculates SHA-256 hashes for all media files in the manifest.
@@ -15,12 +13,14 @@ import { progressBar } from "../utils/progress.js";
  *   json: { path: string, confidence: number } | null,
  *   source: { type: 'album', name: string } | { type: 'loose' }
  * }>} manifest - The manifest of media files to hash.
+ * @param {Object} [options] - Optional configuration.
  * @returns {Promise<void>} Modifies the manifest in-place by adding a `dedupe` property
  *   to each entry containing the calculated hash and initial action state.
  */
-export async function dedupeHash(manifest) {
-  const bar = progressBar("⧗ Calculating hashes |{bar}| {percentage}% | {value}/{total} entries");
-  bar.start(manifest.length, 0);
+export async function dedupeHash(manifest, options = {}) {
+  const { logger, progress } = options;
+  const bar = progress?.();
+  bar?.start(manifest.length, 0);
 
   for (const [index, entry] of manifest.entries()) {
     try {
@@ -34,7 +34,7 @@ export async function dedupeHash(manifest) {
         },
       };
     } catch (error) {
-      logger.error(error.message);
+      logger?.error(error.message);
       manifest[index] = {
         ...entry,
         dedupe: {
@@ -45,10 +45,10 @@ export async function dedupeHash(manifest) {
       };
     }
 
-    bar.increment();
+    bar?.increment();
   }
 
-  bar.stop();
+  bar?.stop();
 }
 
 function calculateHash(filePath) {
@@ -93,8 +93,9 @@ function calculateHash(filePath) {
  *   `dedupe.status` to either 'keep' or 'delete'.
  * @throws {Error} If any entry ends up with an invalid status after resolution.
  */
-export async function dedupeResolve(manifest, options) {
-  const bar = progressBar("⧗ Resolving duplicates |{bar}| {percentage}% | {value}/{total} entries");
+export async function dedupeResolve(manifest, options = {}) {
+  const { progress } = options;
+  const bar = progress?.();
 
   // Group entries by hash, skipping entries that failed hashing
   const hashes = new Map();
@@ -106,7 +107,7 @@ export async function dedupeResolve(manifest, options) {
     }
   }
 
-  bar.start(hashes.size, 0);
+  bar?.start(hashes.size, 0);
 
   // Resolve duplicates
   const hashGroups = Array.from(hashes.values());
@@ -132,10 +133,10 @@ export async function dedupeResolve(manifest, options) {
       }
     }
 
-    bar.increment();
+    bar?.increment();
   }
 
-  bar.stop();
+  bar?.stop();
 
   checkInvariants(manifest);
 }

@@ -1,7 +1,6 @@
 import { writeFile } from "fs/promises";
 import { join, relative } from "path";
 import { stringify } from "csv-stringify/sync";
-import { logger } from "../utils/logger.js";
 
 /**
  * Writes a per-file CSV report to the destination directory.
@@ -12,7 +11,9 @@ import { logger } from "../utils/logger.js";
  * @param {string} options.destination - Destination directory path
  * @returns {Promise<string>} The path to the written report file
  */
-export async function report(manifest, options) {
+export async function report(manifest, options = {}) {
+  const { logger } = options;
+
   const rows = manifest.map((entry) => {
     // All paths are relative to the source directory
     const media = relative(options.source, entry.mediaPath);
@@ -38,7 +39,7 @@ export async function report(manifest, options) {
     })
   );
 
-  logger.info(`Report written to ${reportPath}`);
+  logger?.info(`Report written to ${reportPath}`);
   return reportPath;
 }
 

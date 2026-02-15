@@ -1,9 +1,17 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
-import { runPipeline } from "./pipeline.js";
-import { logger } from "./utils/logger.js";
-import { checkExiftool } from "./core/exiftool.js";
+import { runPipeline, checkExiftool } from "@pixelkasten/core";
+import { logger } from "./logger.js";
+import { progressBar } from "./progress.js";
+import {
+  logScanReport,
+  logLinkReport,
+  logDuplicatesReport,
+  logReconcileReport,
+  logRenameReport,
+  logApplyReport,
+} from "./reports.js";
 
 const program = new Command();
 
@@ -50,6 +58,21 @@ if (options.dryRun) {
   logger.warn("Dry run mode - no files will be modified");
 }
 
-await runPipeline(options);
+const pipelineOptions = {
+  ...options,
+  logger,
+  progress: progressBar,
+};
+
+const hooks = {
+  onScan: logScanReport,
+  onLink: logLinkReport,
+  onDedupe: logDuplicatesReport,
+  onReconcile: logReconcileReport,
+  onRename: logRenameReport,
+  onApply: logApplyReport,
+};
+
+await runPipeline(pipelineOptions, hooks);
 
 logger.info("Finished!");

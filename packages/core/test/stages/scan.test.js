@@ -1,18 +1,6 @@
 import { test, describe, mock, beforeEach } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 
-mock.module("../../src/utils/progress.js", {
-  namedExports: {
-    progressBar: mock.fn(() => {
-      return {
-        start: mock.fn(),
-        increment: mock.fn(),
-        stop: mock.fn(),
-      };
-    }),
-  },
-});
-
 const readdirMock = mock.fn();
 const statMock = mock.fn();
 mock.module("fs/promises", {

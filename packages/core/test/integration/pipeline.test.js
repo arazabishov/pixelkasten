@@ -1,30 +1,9 @@
-import { test, describe, mock } from "node:test";
+import { test, describe } from "node:test";
 import { strictEqual, ok } from "node:assert";
 import { readdir, readFile, writeFile } from "fs/promises";
 import { join } from "path";
 import { checkExiftool, readMetadata } from "../../src/core/exiftool.js";
 import { createTempDir, buildTakeout } from "./fixtures/fixtures.js";
-
-mock.module("../../src/utils/logger.js", {
-  namedExports: {
-    logger: {
-      info: mock.fn(),
-      warn: mock.fn(),
-      error: mock.fn(),
-    },
-  },
-});
-mock.module("../../src/utils/progress.js", {
-  namedExports: {
-    progressBar: mock.fn(() => {
-      return {
-        start: mock.fn(),
-        increment: mock.fn(),
-        stop: mock.fn(),
-      };
-    }),
-  },
-});
 
 const { runPipeline } = await import("../../src/pipeline.js");
 

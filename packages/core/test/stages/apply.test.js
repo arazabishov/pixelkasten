@@ -1,27 +1,6 @@
 import { test, describe, beforeEach, mock } from "node:test";
 import { strictEqual, deepStrictEqual } from "node:assert";
 
-mock.module("../../src/utils/logger.js", {
-  namedExports: {
-    logger: {
-      error: mock.fn(),
-      info: mock.fn(),
-      warn: mock.fn(),
-    },
-  },
-});
-mock.module("../../src/utils/progress.js", {
-  namedExports: {
-    progressBar: mock.fn(() => {
-      return {
-        start: mock.fn(),
-        increment: mock.fn(),
-        stop: mock.fn(),
-      };
-    }),
-  },
-});
-
 const mkdirMock = mock.fn();
 const copyFileMock = mock.fn();
 mock.module("fs/promises", {

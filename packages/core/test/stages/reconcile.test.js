@@ -1,27 +1,6 @@
 import { test, describe, beforeEach, mock } from "node:test";
 import { strictEqual, deepStrictEqual, ok } from "node:assert";
 
-mock.module("../../src/utils/logger.js", {
-  namedExports: {
-    logger: {
-      error: mock.fn(),
-      info: mock.fn(),
-      warn: mock.fn(),
-    },
-  },
-});
-mock.module("../../src/utils/progress.js", {
-  namedExports: {
-    progressBar: mock.fn(() => {
-      return {
-        start: mock.fn(),
-        increment: mock.fn(),
-        stop: mock.fn(),
-      };
-    }),
-  },
-});
-
 const readMetadataMock = mock.fn();
 mock.module("../../src/core/exiftool.js", {
   namedExports: {

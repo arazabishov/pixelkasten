@@ -1,7 +1,6 @@
 import { extname } from "path";
 import { parseIsoDate } from "../core/datetime.js";
 import { canKeep } from "../core/manifest.js";
-import { logger } from "../utils/logger.js";
 
 const monthFormatter = new Intl.DateTimeFormat("en-US", {
   month: "long",
@@ -14,8 +13,11 @@ const monthFormatter = new Intl.DateTimeFormat("en-US", {
  * Collisions are handled with -1, -2, -3 suffixes.
  *
  * @param {Array} manifest - The manifest array from previous stages
+ * @param {Object} [options] - Optional configuration.
  */
-export function rename(manifest) {
+export function rename(manifest, options = {}) {
+  const { logger } = options;
+
   // Stage 1: filter out deletions, errors, and unsupported formats.
   const candidates = manifest.filter(
     (entry) => canKeep(entry) && entry.metadata?.status !== "skipped"
@@ -36,7 +38,7 @@ export function rename(manifest) {
     try {
       entry.rename = resolveTargetPath(entry, usedPaths, albumDates);
     } catch (error) {
-      logger.error(error.message);
+      logger?.error(error.message);
       entry.rename = {
         status: "error",
         reason: error.message,

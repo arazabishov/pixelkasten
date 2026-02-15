@@ -1,15 +1,5 @@
-import { test, describe, mock } from "node:test";
+import { test, describe } from "node:test";
 import { strictEqual, ok } from "node:assert";
-
-mock.module("../../src/utils/logger.js", {
-  namedExports: {
-    logger: {
-      error: mock.fn(),
-      info: mock.fn(),
-      warn: mock.fn(),
-    },
-  },
-});
 
 const { rename } = await import("../../src/stages/rename.js");
 
