@@ -90,7 +90,10 @@ describe("pipeline integration", () => {
     const noExifFile = join(dest, "2024/03 - March/20240321-102410.jpg");
     const fullExifFile = join(dest, "2024/07 - July/20240702-155627.jpg");
     const partialExifFile = join(dest, "2024/03 - March/20240320-015104.jpg");
-    const diskMetadata = await readMetadata([noExifFile, fullExifFile, partialExifFile], verifyTags);
+    const diskMetadata = await readMetadata(
+      [noExifFile, fullExifFile, partialExifFile],
+      verifyTags
+    );
 
     // No-EXIF file: was empty, should now have timestamp + GPS from sidecar
     const noExifMeta = diskMetadata.get(noExifFile);
@@ -132,7 +135,11 @@ describe("pipeline integration", () => {
 
     // Verify GPS was written from sidecar
     assertApproxEqual(partialExifMeta["Composite:GPSLatitude"], 35.6762, "Partial-EXIF latitude");
-    assertApproxEqual(partialExifMeta["Composite:GPSLongitude"], 139.6503, "Partial-EXIF longitude");
+    assertApproxEqual(
+      partialExifMeta["Composite:GPSLongitude"],
+      139.6503,
+      "Partial-EXIF longitude"
+    );
 
     // Verify CSV report reflects per-file statuses
     const reportContent = await readFile(join(dest, "report.csv"), "utf8");
@@ -148,7 +155,10 @@ describe("pipeline integration", () => {
 
     // Verify partial-EXIF file was embedded (GPS written from sidecar)
     const partialExifRow = reportRows.find((r) => r.includes("IMG_003.jpg"));
-    ok(partialExifRow.includes("embedded"), "Partial-EXIF file should have 'embedded' status in report");
+    ok(
+      partialExifRow.includes("embedded"),
+      "Partial-EXIF file should have 'embedded' status in report"
+    );
   });
 
   test("should deduplicate album copies over loose copies", async (context) => {
