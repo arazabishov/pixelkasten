@@ -4,9 +4,13 @@ CLI entry point — orchestrates the AI pipeline phases.
 Usage:
     uv run pixelkasten-ai embed -s ~/photos -o ./output
     uv run pixelkasten-ai caption -m ./output/manifest.json --model llava
+    uv run pixelkasten-ai enrich -m ./output/manifest.json
+    uv run pixelkasten-ai organize -m ./output/manifest.json
 
-Phase 1 (embed): scan → embed → cluster → classify → write manifest
-Phase 2 (caption): read manifest → caption representatives via VLM → enrich manifest
+Phase 1 (embed):    scan → embed → cluster → classify → write manifest
+Phase 2 (caption):  read manifest → caption representatives via VLM → enrich manifest
+Phase 3a (enrich):  read manifest → EXIF from representatives → enrich manifest
+Phase 3b (organize): read manifest → LLM reasoning → organization proposal
 """
 
 import typer
@@ -14,6 +18,7 @@ from pathlib import Path
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 from rich.table import Table
+from rich.tree import Tree
 
 app = typer.Typer(
     name="pixelkasten-ai",
@@ -267,3 +272,232 @@ def caption(
         table.add_row(Path(path).name, cap)
 
     console.print(table)
+
+
+@app.command()
+def enrich(
+    manifest_path: Path = typer.Option(
+        ...,
+        "--manifest", "-m",
+        help="Path to a manifest.json file.",
+        exists=True,
+        dir_okay=False,
+        resolve_path=True,
+    ),
+):
+    """
+    Run Phase 3a: read EXIF metadata from representative images via exiftool.
+
+    Reads timestamps, GPS coordinates, and camera model from cluster
+    representatives and enriches the manifest with date ranges and
+    locations per cluster.
+
+    Requires exiftool installed (brew install exiftool).
+    """
+    from pixelkasten_ai.exif import check_exiftool, read_exif_for_representatives
+    from pixelkasten_ai.manifest import read_manifest, enrich_manifest_exif
+
+    # --- Step 1: Check exiftool ---
+    console.print("\n[bold]Step 1/3:[/bold] Checking exiftool...")
+
+    try:
+        check_exiftool()
+    except RuntimeError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(code=1)
+
+    console.print("  exiftool found")
+
+    # --- Step 2: Read EXIF from representatives ---
+    manifest = read_manifest(manifest_path)
+
+    n_representatives = sum(
+        1 for e in manifest["entries"]
+        if e.get("is_representative", False) and e.get("status") == "ok"
+    )
+
+    if n_representatives == 0:
+        console.print("[red]No representative images found in manifest.[/red]")
+        raise typer.Exit(code=1)
+
+    console.print(f"\n[bold]Step 2/3:[/bold] Reading EXIF from {n_representatives} representatives...")
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Reading EXIF", total=n_representatives)
+
+        def on_progress(processed):
+            progress.update(task, completed=processed)
+
+        exif_data = read_exif_for_representatives(manifest, on_progress=on_progress)
+
+    n_with_timestamp = sum(1 for e in exif_data.values() if e.get("timestamp"))
+    n_with_gps = sum(1 for e in exif_data.values() if e.get("gps"))
+    console.print(f"  With timestamp: {n_with_timestamp} / {len(exif_data)}")
+    console.print(f"  With GPS: {n_with_gps} / {len(exif_data)}")
+
+    # --- Step 3: Enrich manifest ---
+    console.print(f"\n[bold]Step 3/3:[/bold] Writing enriched manifest...")
+
+    enrich_manifest_exif(manifest_path, exif_data)
+
+    console.print(f"\n[green bold]Done![/green bold] Manifest enriched: {manifest_path}")
+
+    # Print a sample of EXIF results.
+    table = Table(title="Sample EXIF Data", show_header=True)
+    table.add_column("Image", style="cyan", max_width=40)
+    table.add_column("Timestamp", max_width=25)
+    table.add_column("GPS", max_width=20)
+    table.add_column("Camera", max_width=20)
+
+    for path, exif in list(exif_data.items())[:5]:
+        gps_str = ""
+        if exif.get("gps"):
+            gps_str = f"{exif['gps']['latitude']}, {exif['gps']['longitude']}"
+        table.add_row(
+            Path(path).name,
+            exif.get("timestamp") or "-",
+            gps_str or "-",
+            exif.get("camera") or "-",
+        )
+
+    console.print(table)
+
+
+@app.command()
+def organize(
+    manifest_path: Path = typer.Option(
+        ...,
+        "--manifest", "-m",
+        help="Path to an enriched manifest.json file.",
+        exists=True,
+        dir_okay=False,
+        resolve_path=True,
+    ),
+    output: Path = typer.Option(
+        None,
+        "--output", "-o",
+        help="Path to write organization.json. Defaults to same directory as manifest.",
+        resolve_path=True,
+    ),
+    model: str = typer.Option(
+        "qwen3.5:35b",
+        "--model",
+        help="Ollama text model for organization reasoning.",
+    ),
+):
+    """
+    Run Phase 3b: propose a directory structure using a local LLM.
+
+    Reads the enriched manifest (with captions + EXIF), feeds cluster
+    summaries to the LLM, and writes an organization.json proposal.
+
+    This is propose-only -- no files are moved. Review organization.json
+    before any apply step.
+
+    Requires Ollama running locally with a text model pulled.
+    """
+    from pixelkasten_ai.caption import check_ollama
+    from pixelkasten_ai.manifest import read_manifest
+    from pixelkasten_ai.organize import (
+        build_cluster_summary_text,
+        propose_organization,
+        build_organization_plan,
+        write_organization_plan,
+    )
+
+    # --- Step 1: Check Ollama ---
+    console.print("\n[bold]Step 1/4:[/bold] Checking Ollama...")
+
+    try:
+        check_ollama(model)
+    except RuntimeError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(code=1)
+
+    console.print(f"  Model: {model}")
+
+    # --- Step 2: Build cluster summaries ---
+    console.print(f"\n[bold]Step 2/4:[/bold] Reading manifest...")
+
+    manifest = read_manifest(manifest_path)
+    clusters = manifest.get("clusters", {})
+
+    if not clusters:
+        console.print("[red]No clusters found in manifest. Run embed first.[/red]")
+        raise typer.Exit(code=1)
+
+    # Warn if no EXIF data is present.
+    has_exif = any(
+        entry.get("exif") for entry in manifest["entries"]
+    )
+    if not has_exif:
+        console.print(
+            "[yellow]  No EXIF data found in manifest. "
+            "Run 'enrich' first for better date-based organization.[/yellow]"
+        )
+
+    summary_text = build_cluster_summary_text(manifest)
+    console.print(f"  Clusters: {len(clusters)}")
+
+    # Print cluster preview table.
+    table = Table(title="Cluster Summary", show_header=True)
+    table.add_column("Cluster", style="cyan", justify="right")
+    table.add_column("Size", justify="right")
+    table.add_column("Date Range", max_width=25)
+    table.add_column("Captions", max_width=50)
+
+    for cid in sorted(clusters.keys(), key=lambda x: int(x)):
+        c = clusters[cid]
+        date_range = ""
+        if c.get("date_range"):
+            date_range = f"{c['date_range']['earliest'][:10]} to {c['date_range']['latest'][:10]}"
+        cap_preview = "; ".join(c.get("captions", []))[:50]
+        table.add_row(cid, str(c.get("size", 0)), date_range or "-", cap_preview or "-")
+
+    console.print(table)
+
+    # --- Step 3: LLM reasoning ---
+    console.print(f"\n[bold]Step 3/4:[/bold] Sending to LLM for organization proposal...")
+
+    with console.status("LLM is reasoning about directory structure..."):
+        try:
+            cluster_directories = propose_organization(manifest, model)
+        except ValueError as e:
+            console.print(f"[red]{e}[/red]")
+            raise typer.Exit(code=1)
+
+    console.print(f"  Proposed directories for {len(cluster_directories)} clusters")
+
+    # --- Step 4: Write plan ---
+    console.print(f"\n[bold]Step 4/4:[/bold] Writing organization plan...")
+
+    plan = build_organization_plan(manifest, cluster_directories)
+
+    output_path = output if output is not None else manifest_path.parent / "organization.json"
+    write_organization_plan(plan, cluster_directories, model, output_path)
+
+    n_organized = sum(1 for p in plan if not p["target"].startswith("Unsorted/"))
+    n_unsorted = sum(1 for p in plan if p["target"].startswith("Unsorted/"))
+
+    console.print(f"\n[green bold]Done![/green bold] Organization plan written to {output_path}")
+    console.print(f"  Organized: {n_organized} images")
+    console.print(f"  Unsorted: {n_unsorted} images")
+
+    # Print proposed directory tree.
+    tree = Tree("[bold]Proposed Organization[/bold]")
+    dir_counts: dict[str, int] = {}
+    for p in plan:
+        target_dir = str(Path(p["target"]).parent)
+        dir_counts[target_dir] = dir_counts.get(target_dir, 0) + 1
+
+    for dir_path in sorted(dir_counts.keys()):
+        count = dir_counts[dir_path]
+        tree.add(f"{dir_path}/ ({count} images)")
+
+    console.print(tree)

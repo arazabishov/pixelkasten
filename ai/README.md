@@ -16,7 +16,7 @@ If you're new to ML, here are the key terms used throughout this codebase:
 
 - **HDBSCAN** — A clustering algorithm that automatically discovers groups in data without needing to specify the number of groups upfront. It also identifies "noise" — data points that don't fit any group.
 
-- **VLM** — Vision Language Model. A model that can look at an image and produce a text description. Used in Phase 2 (not yet implemented) for richer captioning of cluster representatives.
+- **VLM** — Vision Language Model. A model that can look at an image and produce a text description. Used in Phase 2 for richer captioning of cluster representatives.
 
 - **MPS** — Metal Performance Shaders. PyTorch's GPU acceleration for Apple Silicon. Uses the GPU cores for faster inference.
 
@@ -32,6 +32,17 @@ If you're new to ML, here are the key terms used throughout this codebase:
 - A vision model pulled — recommended options:
   - `ollama pull llava` — LLaVA, purpose-built for image understanding (recommended)
   - `ollama pull moondream` — Moondream, lightweight and fast
+
+### Phase 3a (EXIF enrichment) additionally requires:
+
+- [exiftool](https://exiftool.org/) — `brew install exiftool`
+
+### Phase 3b (organization) additionally requires:
+
+- Ollama with a text reasoning model:
+  - `ollama pull qwen3.5:35b` — Best quality for 64GB RAM machines, multimodal (recommended)
+  - `ollama pull qwen2.5:14b` — Good balance for 16-32GB RAM
+  - `ollama pull qwen2.5:7b` — Lightweight, works on most machines
 
 ## Setup
 
@@ -80,6 +91,35 @@ uv run pixelkasten-ai caption -m ./output/manifest.json --prompt "What is happen
 # See all Phase 2 options
 uv run pixelkasten-ai caption --help
 ```
+
+### Phase 3a: EXIF Enrichment
+
+Enrich the manifest with timestamps, GPS coordinates, and camera info from representative images:
+
+```bash
+# Read EXIF from representatives and enrich the manifest
+uv run pixelkasten-ai enrich -m ./output/manifest.json
+```
+
+### Phase 3b: Organization Proposal
+
+Feed cluster summaries to a local LLM to propose a directory structure:
+
+```bash
+# Propose organization using Qwen 2.5 32B (default)
+uv run pixelkasten-ai organize -m ./output/manifest.json
+
+# Use a different text model
+uv run pixelkasten-ai organize -m ./output/manifest.json --model qwen2.5:14b
+
+# Custom output path
+uv run pixelkasten-ai organize -m ./output/manifest.json -o ./my-plan.json
+
+# See all Phase 3b options
+uv run pixelkasten-ai organize --help
+```
+
+The organize command writes an `organization.json` file with proposed `source -> target` mappings. This is propose-only — no files are moved. Review the output before any future apply step.
 
 ## Output
 
@@ -136,7 +176,8 @@ These can be reused for re-clustering with different parameters, similarity sear
 This module is part of the broader pixelkasten project. See `spec/ai-categorization.md` for the full design and `spec/architecture.md` for how it integrates with the Node.js pipeline.
 
 ```
-Phase 1 (embed):    images → embeddings → clusters → tags → manifest
-Phase 2 (caption):  cluster representatives → VLM captions → enriched manifest
-Phase 3 (future):   manifest → agent reasoning → organized archive
+Phase 1 (embed):     images → embeddings → clusters → tags → manifest
+Phase 2 (caption):   cluster representatives → VLM captions → enriched manifest
+Phase 3a (enrich):   representative images → exiftool → EXIF metadata → enriched manifest
+Phase 3b (organize): enriched manifest → LLM reasoning → organization.json proposal
 ```

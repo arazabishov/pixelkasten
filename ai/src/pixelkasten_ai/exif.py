@@ -1,0 +1,282 @@
+"""
+EXIF metadata reading via exiftool — Phase 3a of the AI pipeline.
+
+Reads timestamps, GPS coordinates, and camera model from image files
+using exiftool as a subprocess. Only processes representative images
+(the same selective strategy used in Phase 2 captioning) to avoid
+running exiftool on every image in the library.
+
+Prerequisites:
+    - exiftool installed and on PATH (`brew install exiftool`)
+"""
+
+import json
+import re
+import subprocess
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Callable, TypedDict
+
+
+class GpsData(TypedDict, total=False):
+    latitude: float
+    longitude: float
+    altitude: float | None
+
+
+class ExifData(TypedDict, total=False):
+    timestamp: str | None
+    gps: GpsData | None
+    camera: str | None
+
+
+def check_exiftool() -> None:
+    """
+    Verify that exiftool is installed and available on PATH.
+
+    Raises RuntimeError with a clear installation message if not found.
+    """
+    try:
+        result = subprocess.run(
+            ["exiftool", "-ver"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(
+                "exiftool is installed but returned an error. "
+                "Check your installation."
+            )
+    except FileNotFoundError:
+        raise RuntimeError(
+            "exiftool is not installed. Install it with: brew install exiftool"
+        )
+
+
+def read_exif(file_paths: list[Path]) -> dict[str, ExifData]:
+    """
+    Read EXIF metadata from multiple files in a single exiftool invocation.
+
+    Uses exiftool's -json mode with stdin file list for efficiency (one
+    process for all files, not one per file). This mirrors the batched
+    approach in packages/core/src/core/exiftool.js.
+
+    Args:
+        file_paths: List of image file paths to read.
+
+    Returns:
+        Dict mapping file path (string) to parsed ExifData. Files that
+        fail to read or have no relevant metadata get an ExifData with
+        all None values.
+    """
+    if not file_paths:
+        return {}
+
+    args = [
+        "exiftool",
+        "-json",
+        "-n",               # Numeric values (decimal GPS, not DMS strings)
+        "-G",               # Group names (EXIF:, Composite:, etc.)
+        "-fast",            # Skip non-requested tags for speed
+        # Timestamps (priority order)
+        "-EXIF:DateTimeOriginal",
+        "-EXIF:CreateDate",
+        "-QuickTime:CreationDate",
+        "-QuickTime:CreateDate",
+        # GPS (Composite gives cross-format decimal lat/lon)
+        "-Composite:GPSLatitude",
+        "-Composite:GPSLongitude",
+        "-Composite:GPSAltitude",
+        # Camera
+        "-EXIF:Model",
+        "-EXIF:Make",
+        "-@", "-",          # Read file list from stdin
+    ]
+
+    stdin_text = "\n".join(str(p) for p in file_paths)
+
+    result = subprocess.run(
+        args,
+        input=stdin_text,
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
+
+    # exiftool returns 1 for minor warnings (missing tags), not errors.
+    if result.returncode not in (0, 1):
+        raise RuntimeError(f"exiftool failed: {result.stderr}")
+
+    if not result.stdout.strip():
+        return {str(p): _empty_exif() for p in file_paths}
+
+    entries = json.loads(result.stdout)
+
+    parsed = {}
+    for entry in entries:
+        source_file = entry.get("SourceFile", "")
+        parsed[source_file] = _parse_exiftool_entry(entry)
+
+    # Fill in any files that didn't appear in the output.
+    for p in file_paths:
+        key = str(p)
+        if key not in parsed:
+            parsed[key] = _empty_exif()
+
+    return parsed
+
+
+def read_exif_for_representatives(
+    manifest: dict,
+    on_progress: Callable[[int], None] | None = None,
+) -> dict[str, ExifData]:
+    """
+    Read EXIF from representative images in a manifest.
+
+    Filters to entries where is_representative=True and status="ok",
+    then batch-reads EXIF for all of them in a single exiftool call.
+
+    Args:
+        manifest: Parsed manifest dict (from read_manifest).
+        on_progress: Optional callback, called with count processed.
+
+    Returns:
+        Dict of {image_path: ExifData} for all representatives.
+    """
+    representatives = [
+        entry for entry in manifest["entries"]
+        if entry.get("is_representative", False) and entry.get("status") == "ok"
+    ]
+
+    file_paths = [Path(entry["path"]) for entry in representatives]
+
+    if on_progress is not None:
+        on_progress(0)
+
+    result = read_exif(file_paths)
+
+    if on_progress is not None:
+        on_progress(len(file_paths))
+
+    return result
+
+
+def _empty_exif() -> ExifData:
+    """Return an ExifData with all None values."""
+    return ExifData(timestamp=None, gps=None, camera=None)
+
+
+def _parse_exiftool_entry(raw: dict) -> ExifData:
+    """
+    Parse a single exiftool JSON entry into our normalized ExifData shape.
+
+    Handles the tag priority chain:
+    - Timestamp: DateTimeOriginal > CreateDate (EXIF) > CreationDate (QT)
+    - GPS: Composite GPSLatitude + GPSLongitude (skip 0,0)
+    - Camera: Model (fallback: Make)
+    """
+    # Timestamp: try tags in priority order.
+    timestamp = None
+    for tag in [
+        "EXIF:DateTimeOriginal",
+        "EXIF:CreateDate",
+        "QuickTime:CreationDate",
+        "QuickTime:CreateDate",
+    ]:
+        if tag in raw:
+            timestamp = _normalize_timestamp(raw[tag])
+            if timestamp is not None:
+                break
+
+    # GPS: use Composite tags (cross-format, already decimal with -n).
+    gps = None
+    lat = raw.get("Composite:GPSLatitude")
+    lon = raw.get("Composite:GPSLongitude")
+    if _validate_gps(lat, lon):
+        gps = GpsData(
+            latitude=float(lat),
+            longitude=float(lon),
+            altitude=_safe_float(raw.get("Composite:GPSAltitude")),
+        )
+
+    # Camera: prefer Model, fall back to Make.
+    camera = raw.get("EXIF:Model") or raw.get("EXIF:Make") or None
+
+    return ExifData(timestamp=timestamp, gps=gps, camera=camera)
+
+
+# Pattern: "YYYY:MM:DD HH:MM:SS" optionally followed by timezone offset.
+_EXIF_TIMESTAMP_RE = re.compile(
+    r"^(\d{4}):(\d{2}):(\d{2})\s+(\d{2}):(\d{2}):(\d{2})(.*)?$"
+)
+
+
+def _normalize_timestamp(raw_value) -> str | None:
+    """
+    Normalize an exiftool timestamp value to ISO 8601.
+
+    Handles:
+    - EXIF string: "2019:07:15 14:30:00" -> "2019-07-15T14:30:00"
+    - EXIF with tz: "2019:07:15 14:30:00+02:00" -> "2019-07-15T14:30:00+02:00"
+    - Numeric (Unix epoch): 1563197400 -> "2019-07-15T14:30:00"
+
+    Returns None if the value is missing, empty, or unparseable.
+    """
+    if raw_value is None:
+        return None
+
+    # Numeric (Unix epoch).
+    if isinstance(raw_value, (int, float)):
+        try:
+            dt = datetime.fromtimestamp(raw_value, tz=timezone.utc)
+            return dt.strftime("%Y-%m-%dT%H:%M:%S")
+        except (ValueError, OSError):
+            return None
+
+    raw_str = str(raw_value).strip()
+    if not raw_str or raw_str == "0000:00:00 00:00:00":
+        return None
+
+    m = _EXIF_TIMESTAMP_RE.match(raw_str)
+    if m:
+        year, month, day, hour, minute, second = m.group(1, 2, 3, 4, 5, 6)
+        tz_part = (m.group(7) or "").strip()
+        iso = f"{year}-{month}-{day}T{hour}:{minute}:{second}"
+        if tz_part:
+            iso += tz_part
+        return iso
+
+    return None
+
+
+def _validate_gps(lat, lon) -> bool:
+    """
+    Validate GPS coordinates. Returns False for missing or zero-zero data.
+
+    Per the project's guiding principle: if latitude or longitude are
+    0, 0.0, null, or undefined, skip geo data entirely.
+    """
+    if lat is None or lon is None:
+        return False
+
+    try:
+        lat_f = float(lat)
+        lon_f = float(lon)
+    except (ValueError, TypeError):
+        return False
+
+    if lat_f == 0.0 and lon_f == 0.0:
+        return False
+
+    return True
+
+
+def _safe_float(value) -> float | None:
+    """Convert to float, returning None if not possible."""
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return None
