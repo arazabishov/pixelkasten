@@ -120,6 +120,58 @@ def write_manifest(
     return manifest_path
 
 
+def enrich_manifest(manifest_path: Path, captions: dict[str, str]) -> None:
+    """
+    Enrich an existing manifest with VLM captions and cluster summaries.
+
+    Reads the manifest, adds a `caption` field to entries that were
+    captioned, builds a top-level `clusters` summary aggregating captions
+    and top tags per cluster, and writes the result back to disk.
+
+    Args:
+        manifest_path: Path to the manifest.json file.
+        captions: Dict mapping image path → caption string,
+            as returned by caption_representatives().
+    """
+    manifest = read_manifest(manifest_path)
+
+    # Add captions to individual entries.
+    for entry in manifest["entries"]:
+        if entry["path"] in captions:
+            entry["caption"] = captions[entry["path"]]
+
+    # Build per-cluster summaries.
+    clusters: dict[str, dict] = {}
+    for entry in manifest["entries"]:
+        cluster_id = entry.get("cluster")
+        if cluster_id is None or cluster_id == -1:
+            continue
+
+        key = str(cluster_id)
+        if key not in clusters:
+            clusters[key] = {
+                "size": 0,
+                "captions": [],
+                "top_tags": [],
+            }
+
+        clusters[key]["size"] += 1
+
+        if "caption" in entry:
+            clusters[key]["captions"].append(entry["caption"])
+
+        # Collect tags for this cluster (we'll dedupe later).
+        for tag in entry.get("tags", []):
+            tag_name = tag["name"]
+            if tag_name not in clusters[key]["top_tags"]:
+                clusters[key]["top_tags"].append(tag_name)
+
+    manifest["clusters"] = clusters
+
+    with open(manifest_path, "w") as f:
+        json.dump(manifest, f, indent=2)
+
+
 def read_manifest(manifest_path: Path) -> dict:
     """
     Read a manifest.json file back into memory.
