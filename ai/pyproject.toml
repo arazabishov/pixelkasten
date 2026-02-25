@@ -20,6 +20,10 @@ dependencies = [
     # and formatted tables.
     "typer>=0.15.0",
     "rich>=13.0.0",
+
+    # Ollama Python client for VLM captioning (Phase 2). Sends images to a
+    # local Ollama server running vision models (LLaVA, Moondream, etc.).
+    "ollama>=0.4.0",
 ]
 
 [dependency-groups]

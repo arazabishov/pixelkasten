@@ -1,15 +1,12 @@
 """
-CLI entry point — orchestrates the Phase 1 pipeline.
+CLI entry point — orchestrates the AI pipeline phases.
 
 Usage:
-    uv run pixelkasten-ai -s ~/photos -o ./output
+    uv run pixelkasten-ai embed -s ~/photos -o ./output
+    uv run pixelkasten-ai caption -m ./output/manifest.json --model llava
 
-This runs the full Phase 1 pipeline:
-    scan → embed → cluster → classify → write manifest
-
-The output directory will contain:
-    - manifest.json: Per-image metadata (cluster, tags, scores).
-    - embeddings.npy: Raw embedding vectors for reuse.
+Phase 1 (embed): scan → embed → cluster → classify → write manifest
+Phase 2 (caption): read manifest → caption representatives via VLM → enrich manifest
 """
 
 import typer
@@ -18,22 +15,16 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 from rich.table import Table
 
-from pixelkasten_ai.scan import scan, is_image
-from pixelkasten_ai.embed import load_model, embed_images, embed_texts
-from pixelkasten_ai.cluster import cluster_embeddings, find_representatives, cluster_summary
-from pixelkasten_ai.classify import classify, build_label_list, DEFAULT_LABEL_SETS
-from pixelkasten_ai.manifest import write_manifest
-
 app = typer.Typer(
     name="pixelkasten-ai",
-    help="AI-powered photo categorization using CLIP embeddings.",
+    help="AI-powered photo categorization using CLIP embeddings and VLM captioning.",
     add_completion=False,
 )
 console = Console()
 
 
 @app.command()
-def run(
+def embed(
     source: Path = typer.Option(
         ...,
         "--source", "-s",
@@ -70,12 +61,14 @@ def run(
     ),
 ):
     """
-    Run the Phase 1 AI categorization pipeline.
-
-    Scans a directory for images, generates CLIP embeddings, clusters
-    similar images together, and classifies them against predefined labels.
-    Results are written to a manifest file for inspection and downstream use.
+    Run the Phase 1 pipeline: scan, embed, cluster, classify, write manifest.
     """
+    from pixelkasten_ai.scan import scan, is_image
+    from pixelkasten_ai.embed import load_model, embed_images, embed_texts
+    from pixelkasten_ai.cluster import cluster_embeddings, find_representatives, cluster_summary
+    from pixelkasten_ai.classify import classify, build_label_list, DEFAULT_LABEL_SETS
+    from pixelkasten_ai.manifest import write_manifest
+
     # --- Step 1: Scan for images ---
     console.print("\n[bold]Step 1/5:[/bold] Scanning for images...")
     all_files = scan(source)
@@ -174,3 +167,103 @@ def run(
 
     console.print(f"\n[green bold]Done![/green bold] Manifest written to {manifest_path}")
     console.print(f"  Embeddings saved to {output / 'embeddings.npy'}")
+
+
+@app.command()
+def caption(
+    manifest_path: Path = typer.Option(
+        ...,
+        "--manifest", "-m",
+        help="Path to a Phase 1 manifest.json file.",
+        exists=True,
+        dir_okay=False,
+        resolve_path=True,
+    ),
+    model: str = typer.Option(
+        "llava",
+        "--model",
+        help="Ollama vision model to use. LLaVA is recommended for image understanding.",
+    ),
+    prompt: str = typer.Option(
+        None,
+        "--prompt",
+        help="Custom captioning prompt. Defaults to a general-purpose description prompt.",
+    ),
+):
+    """
+    Run the Phase 2 pipeline: caption cluster representatives via a local VLM.
+
+    Requires Ollama running locally with a vision model pulled.
+    Reads a Phase 1 manifest, captions representative images, and writes
+    enriched results (captions + cluster summaries) back to the manifest.
+    """
+    from pixelkasten_ai.manifest import read_manifest, enrich_manifest
+    from pixelkasten_ai.caption import (
+        check_ollama, caption_representatives, DEFAULT_PROMPT,
+    )
+
+    # --- Step 1: Validate prerequisites ---
+    console.print("\n[bold]Step 1/3:[/bold] Checking Ollama...")
+
+    try:
+        check_ollama(model)
+    except RuntimeError as e:
+        console.print(f"[red]{e}[/red]")
+        raise typer.Exit(code=1)
+
+    console.print(f"  Model: {model}")
+
+    # --- Step 2: Caption representatives ---
+    manifest = read_manifest(manifest_path)
+
+    n_representatives = sum(
+        1 for e in manifest["entries"]
+        if e.get("is_representative", False) and e.get("status") == "ok"
+    )
+
+    if n_representatives == 0:
+        console.print("[red]No representative images found in manifest.[/red]")
+        raise typer.Exit(code=1)
+
+    console.print(f"\n[bold]Step 2/3:[/bold] Captioning {n_representatives} representatives...")
+
+    captioning_prompt = prompt if prompt is not None else DEFAULT_PROMPT
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Captioning images", total=n_representatives)
+
+        def on_progress(processed):
+            progress.update(task, completed=processed)
+
+        captions = caption_representatives(
+            manifest, model, captioning_prompt, on_progress=on_progress,
+        )
+
+    console.print(f"  Captioned: {len(captions)} / {n_representatives} images")
+
+    if len(captions) == 0:
+        console.print("[red]No images could be captioned. Check Ollama logs.[/red]")
+        raise typer.Exit(code=1)
+
+    # --- Step 3: Enrich manifest ---
+    console.print(f"\n[bold]Step 3/3:[/bold] Writing enriched manifest...")
+
+    enrich_manifest(manifest_path, captions)
+
+    console.print(f"\n[green bold]Done![/green bold] Manifest enriched: {manifest_path}")
+
+    # Print a sample of captions.
+    table = Table(title="Sample Captions", show_header=True)
+    table.add_column("Image", style="cyan", max_width=50)
+    table.add_column("Caption", max_width=80)
+
+    for path, cap in list(captions.items())[:5]:
+        table.add_row(Path(path).name, cap)
+
+    console.print(table)

@@ -26,6 +26,13 @@ If you're new to ML, here are the key terms used throughout this codebase:
 - [uv](https://docs.astral.sh/uv/) (Python package manager)
 - ~2GB disk space for the CLIP model weights (downloaded on first run)
 
+### Phase 2 (VLM captioning) additionally requires:
+
+- [Ollama](https://ollama.com/) installed and running (`ollama serve`)
+- A vision model pulled — recommended options:
+  - `ollama pull llava` — LLaVA, purpose-built for image understanding (recommended)
+  - `ollama pull moondream` — Moondream, lightweight and fast
+
 ## Setup
 
 ```bash
@@ -37,21 +44,41 @@ uv sync
 
 ## Usage
 
+### Phase 1: Embed & Cluster
+
 ```bash
 # Run the Phase 1 pipeline on a directory of photos
-uv run pixelkasten-ai -s ~/photos -o ./output
+uv run pixelkasten-ai embed -s ~/photos -o ./output
 
 # Use a smaller/faster model (less accurate but quicker)
-uv run pixelkasten-ai -s ~/photos -o ./output --model ViT-B-32
+uv run pixelkasten-ai embed -s ~/photos -o ./output --model ViT-B-32
 
 # Adjust clustering sensitivity (larger = fewer, bigger clusters)
-uv run pixelkasten-ai -s ~/photos -o ./output --min-cluster-size 20
+uv run pixelkasten-ai embed -s ~/photos -o ./output --min-cluster-size 20
 
 # Lower batch size if running out of memory
-uv run pixelkasten-ai -s ~/photos -o ./output --batch-size 16
+uv run pixelkasten-ai embed -s ~/photos -o ./output --batch-size 16
 
-# See all options
-uv run pixelkasten-ai --help
+# See all Phase 1 options
+uv run pixelkasten-ai embed --help
+```
+
+### Phase 2: VLM Captioning
+
+After Phase 1 produces a manifest, caption the cluster representatives using a local vision model:
+
+```bash
+# Caption representatives using LLaVA (default)
+uv run pixelkasten-ai caption -m ./output/manifest.json
+
+# Use a different vision model
+uv run pixelkasten-ai caption -m ./output/manifest.json --model moondream
+
+# Custom captioning prompt
+uv run pixelkasten-ai caption -m ./output/manifest.json --prompt "What is happening in this photo?"
+
+# See all Phase 2 options
+uv run pixelkasten-ai caption --help
 ```
 
 ## Output
@@ -109,7 +136,7 @@ These can be reused for re-clustering with different parameters, similarity sear
 This module is part of the broader pixelkasten project. See `spec/ai-categorization.md` for the full design and `spec/architecture.md` for how it integrates with the Node.js pipeline.
 
 ```
-Phase 1 (this module):  images → embeddings → clusters → tags → manifest
-Phase 2 (future):       cluster representatives → VLM captions → enriched manifest
-Phase 3 (future):       manifest → agent reasoning → organized archive
+Phase 1 (embed):    images → embeddings → clusters → tags → manifest
+Phase 2 (caption):  cluster representatives → VLM captions → enriched manifest
+Phase 3 (future):   manifest → agent reasoning → organized archive
 ```
