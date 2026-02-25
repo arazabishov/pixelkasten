@@ -172,6 +172,77 @@ def enrich_manifest(manifest_path: Path, captions: dict[str, str]) -> None:
         json.dump(manifest, f, indent=2)
 
 
+def enrich_manifest_exif(
+    manifest_path: Path,
+    exif_data: dict[str, dict],
+) -> None:
+    """
+    Enrich an existing manifest with EXIF metadata and cluster date/location summaries.
+
+    Reads the manifest, adds an `exif` field to entries that have EXIF data,
+    enriches the `clusters` dict with date_range, locations, and cameras per
+    cluster, and writes back to disk.
+
+    Args:
+        manifest_path: Path to manifest.json.
+        exif_data: Dict mapping image path -> ExifData dict,
+            as returned by read_exif_for_representatives().
+    """
+    manifest = read_manifest(manifest_path)
+
+    # Add EXIF data to individual entries.
+    for entry in manifest["entries"]:
+        if entry["path"] in exif_data:
+            entry["exif"] = exif_data[entry["path"]]
+
+    # Enrich cluster summaries with date ranges, locations, and cameras.
+    clusters = manifest.get("clusters", {})
+    for key, cluster in clusters.items():
+        timestamps = []
+        locations = []
+        cameras = []
+
+        # Scan entries belonging to this cluster for EXIF data.
+        for entry in manifest["entries"]:
+            if str(entry.get("cluster")) != key:
+                continue
+            exif = entry.get("exif")
+            if exif is None:
+                continue
+
+            if exif.get("timestamp"):
+                timestamps.append(exif["timestamp"])
+            if exif.get("gps"):
+                # Deduplicate by rounding to 2 decimal places (~1km precision).
+                rounded = (
+                    round(exif["gps"]["latitude"], 2),
+                    round(exif["gps"]["longitude"], 2),
+                )
+                if rounded not in [(loc["latitude"], loc["longitude"]) for loc in locations]:
+                    locations.append({
+                        "latitude": rounded[0],
+                        "longitude": rounded[1],
+                    })
+            if exif.get("camera") and exif["camera"] not in cameras:
+                cameras.append(exif["camera"])
+
+        if timestamps:
+            timestamps.sort()
+            cluster["date_range"] = {
+                "earliest": timestamps[0],
+                "latest": timestamps[-1],
+            }
+        if locations:
+            cluster["locations"] = locations
+        if cameras:
+            cluster["cameras"] = cameras
+
+    manifest["clusters"] = clusters
+
+    with open(manifest_path, "w") as f:
+        json.dump(manifest, f, indent=2)
+
+
 def read_manifest(manifest_path: Path) -> dict:
     """
     Read a manifest.json file back into memory.
