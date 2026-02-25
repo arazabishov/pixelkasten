@@ -119,7 +119,18 @@ uv run pixelkasten-ai organize -m ./output/manifest.json -o ./my-plan.json
 uv run pixelkasten-ai organize --help
 ```
 
-The organize command writes an `organization.json` file with proposed `source -> target` mappings. This is propose-only — no files are moved. Review the output before any future apply step.
+The organize command writes an `organization.json` file with proposed `source -> target` mappings. This is propose-only — no files are moved. Review the output before applying.
+
+### Phase 4: Apply
+
+After reviewing `organization.json`, copy files into the proposed directory structure:
+
+```bash
+# Copy files to the organized directory
+uv run pixelkasten-ai apply -p ./output/organization.json -d ./organized-photos
+```
+
+This copies (not moves) files — originals stay untouched.
 
 ## Output
 
@@ -180,4 +191,5 @@ Phase 1 (embed):     images → embeddings → clusters → tags → manifest
 Phase 2 (caption):   cluster representatives → VLM captions → enriched manifest
 Phase 3a (enrich):   representative images → exiftool → EXIF metadata → enriched manifest
 Phase 3b (organize): enriched manifest → LLM reasoning → organization.json proposal
+Phase 4 (apply):     organization.json → copy files → organized directory
 ```
