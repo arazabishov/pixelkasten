@@ -12,6 +12,7 @@ Prerequisites:
 """
 
 import json
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
@@ -189,25 +190,59 @@ def propose_organization(
     return _parse_llm_response(raw_response)
 
 
+_MONTH_ABBR = [
+    "", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+]
+
+
+def _date_directory_from_timestamp(timestamp: str) -> str | None:
+    """
+    Derive a YYYY/MM - Mon/ directory path from an ISO 8601 timestamp.
+
+    Returns None if the timestamp can't be parsed.
+    """
+    if not timestamp:
+        return None
+
+    try:
+        # Timestamps are like "2019-07-15T14:30:00" or with timezone.
+        date_part = timestamp[:10]
+        year, month, _day = date_part.split("-")
+        month_int = int(month)
+        if month_int < 1 or month_int > 12:
+            return None
+        return f"{year}/{month} - {_MONTH_ABBR[month_int]}"
+    except (ValueError, IndexError):
+        return None
+
+
 def build_organization_plan(
     manifest: dict,
     cluster_directories: dict[str, str],
+    noise_exif: dict[str, dict] | None = None,
 ) -> list[dict]:
     """
     Convert the LLM's cluster->directory mapping into per-image source->target pairs.
 
     For each image in the manifest:
     - If it belongs to a cluster with a proposed directory, map it there.
-    - If it's noise (cluster=-1) or unmapped, put it in Unsorted/.
+    - If it's noise (cluster=-1) but has EXIF timestamp, place it in the
+      date-based directory (YYYY/MM - Mon/) without an event subfolder.
+    - Otherwise, put it in Unsorted/.
     - Preserve the original filename.
 
     Args:
         manifest: Parsed manifest dict.
         cluster_directories: The LLM's proposed mapping.
+        noise_exif: Optional dict of image_path -> ExifData for noise images.
+            Used to derive date directories for unclustered images.
 
     Returns:
         List of dicts with: source, target, cluster, reason.
     """
+    noise_exif = noise_exif or {}
+
     plan = []
     for entry in manifest["entries"]:
         if entry.get("status") != "ok":
@@ -226,12 +261,32 @@ def build_organization_plan(
                 "cluster": cluster_id,
                 "reason": f"Cluster {cluster_key}: {Path(directory).name}",
             })
+            continue
+
+        # Noise/unmapped image: try to place by date if EXIF is available.
+        # Check both the manifest entry's exif and the noise_exif lookup.
+        timestamp = None
+        entry_exif = entry.get("exif")
+        if entry_exif and entry_exif.get("timestamp"):
+            timestamp = entry_exif["timestamp"]
+        elif source in noise_exif and noise_exif[source].get("timestamp"):
+            timestamp = noise_exif[source]["timestamp"]
+
+        date_dir = _date_directory_from_timestamp(timestamp) if timestamp else None
+
+        if date_dir:
+            plan.append({
+                "source": source,
+                "target": f"{date_dir}/{filename}",
+                "cluster": cluster_id if cluster_id is not None else -1,
+                "reason": f"Unclustered, placed by date ({timestamp[:10]})",
+            })
         else:
             plan.append({
                 "source": source,
                 "target": f"Unsorted/{filename}",
                 "cluster": cluster_id if cluster_id is not None else -1,
-                "reason": "Unclustered image",
+                "reason": "Unclustered, no date available",
             })
 
     return plan
@@ -267,6 +322,51 @@ def write_organization_plan(
 
     with open(output_path, "w") as f:
         json.dump(output, f, indent=2)
+
+
+def apply_organization_plan(
+    plan_path: Path,
+    destination: Path,
+    on_progress: Callable[[int], None] | None = None,
+) -> dict[str, int]:
+    """
+    Execute an organization plan by copying files to the proposed structure.
+
+    Reads organization.json, copies each source file to destination/target.
+    Uses shutil.copy2 to preserve file metadata (timestamps, etc.).
+
+    Args:
+        plan_path: Path to organization.json.
+        destination: Root directory to copy files into.
+        on_progress: Optional callback, called with count of files processed.
+
+    Returns:
+        Dict with stats: {"copied": N, "skipped": N, "failed": N}
+    """
+    with open(plan_path) as f:
+        organization = json.load(f)
+
+    plan = organization["plan"]
+    stats = {"copied": 0, "skipped": 0, "failed": 0}
+
+    for i, entry in enumerate(plan):
+        source = Path(entry["source"])
+        target = destination / entry["target"]
+
+        if not source.exists():
+            stats["skipped"] += 1
+        else:
+            try:
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source, target)
+                stats["copied"] += 1
+            except Exception:
+                stats["failed"] += 1
+
+        if on_progress is not None:
+            on_progress(i + 1)
+
+    return stats
 
 
 def _parse_llm_response(raw: str) -> dict[str, str]:

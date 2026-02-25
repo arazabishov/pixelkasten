@@ -412,7 +412,7 @@ def organize(
     )
 
     # --- Step 1: Check Ollama ---
-    console.print("\n[bold]Step 1/4:[/bold] Checking Ollama...")
+    console.print("\n[bold]Step 1/5:[/bold] Checking Ollama...")
 
     try:
         check_ollama(model)
@@ -423,7 +423,7 @@ def organize(
     console.print(f"  Model: {model}")
 
     # --- Step 2: Build cluster summaries ---
-    console.print(f"\n[bold]Step 2/4:[/bold] Reading manifest...")
+    console.print(f"\n[bold]Step 2/5:[/bold] Reading manifest...")
 
     manifest = read_manifest(manifest_path)
     clusters = manifest.get("clusters", {})
@@ -463,7 +463,7 @@ def organize(
     console.print(table)
 
     # --- Step 3: LLM reasoning ---
-    console.print(f"\n[bold]Step 3/4:[/bold] Sending to LLM for organization proposal...")
+    console.print(f"\n[bold]Step 3/5:[/bold] Sending to LLM for organization proposal...")
 
     with console.status("LLM is reasoning about directory structure..."):
         try:
@@ -474,10 +474,36 @@ def organize(
 
     console.print(f"  Proposed directories for {len(cluster_directories)} clusters")
 
-    # --- Step 4: Write plan ---
-    console.print(f"\n[bold]Step 4/4:[/bold] Writing organization plan...")
+    # --- Step 4: Read EXIF for noise images ---
+    # Noise images (cluster=-1) weren't enriched by the enrich step (which
+    # only processes representatives). Read their EXIF now so we can place
+    # them in date-based directories instead of Unsorted/.
+    noise_entries = [
+        e for e in manifest["entries"]
+        if e.get("status") == "ok"
+        and (e.get("cluster") is None or e.get("cluster") == -1 or str(e.get("cluster")) not in cluster_directories)
+        and not e.get("exif", {}).get("timestamp")
+    ]
 
-    plan = build_organization_plan(manifest, cluster_directories)
+    noise_exif = {}
+    if noise_entries:
+        from pixelkasten_ai.exif import read_exif
+
+        noise_paths = [Path(e["path"]) for e in noise_entries]
+        console.print(f"\n[bold]Step 4/5:[/bold] Reading EXIF for {len(noise_paths)} unclustered images...")
+
+        with console.status("Reading EXIF..."):
+            noise_exif = read_exif(noise_paths)
+
+        n_with_date = sum(1 for e in noise_exif.values() if e.get("timestamp"))
+        console.print(f"  {n_with_date} of {len(noise_paths)} have timestamps (will be placed by date)")
+    else:
+        console.print(f"\n[bold]Step 4/5:[/bold] No unclustered images need EXIF reading")
+
+    # --- Step 5: Write plan ---
+    console.print(f"\n[bold]Step 5/5:[/bold] Writing organization plan...")
+
+    plan = build_organization_plan(manifest, cluster_directories, noise_exif=noise_exif)
 
     output_path = output if output is not None else manifest_path.parent / "organization.json"
     write_organization_plan(plan, cluster_directories, model, output_path)
@@ -501,3 +527,63 @@ def organize(
         tree.add(f"{dir_path}/ ({count} images)")
 
     console.print(tree)
+
+
+@app.command()
+def apply(
+    plan_path: Path = typer.Option(
+        ...,
+        "--plan", "-p",
+        help="Path to an organization.json file.",
+        exists=True,
+        dir_okay=False,
+        resolve_path=True,
+    ),
+    destination: Path = typer.Option(
+        ...,
+        "--destination", "-d",
+        help="Root directory to copy files into.",
+        resolve_path=True,
+    ),
+):
+    """
+    Apply an organization plan by copying files to the proposed structure.
+
+    Reads organization.json and copies each file to destination/target.
+    Originals are not modified — this is a copy, not a move.
+    """
+    import json as json_mod
+    from pixelkasten_ai.organize import apply_organization_plan
+
+    # Read plan to get total count.
+    with open(plan_path) as f:
+        organization = json_mod.load(f)
+
+    total = len(organization["plan"])
+
+    if total == 0:
+        console.print("[red]Organization plan is empty.[/red]")
+        raise typer.Exit(code=1)
+
+    console.print(f"\n[bold]Copying {total} files to {destination}...[/bold]")
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Copying files", total=total)
+
+        def on_progress(processed):
+            progress.update(task, completed=processed)
+
+        stats = apply_organization_plan(plan_path, destination, on_progress=on_progress)
+
+    console.print(f"\n[green bold]Done![/green bold] Files copied to {destination}")
+    console.print(f"  Copied: {stats['copied']}")
+    if stats["skipped"] > 0:
+        console.print(f"  [yellow]Skipped (source missing): {stats['skipped']}[/yellow]")
+    if stats["failed"] > 0:
+        console.print(f"  [red]Failed: {stats['failed']}[/red]")
