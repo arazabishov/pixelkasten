@@ -344,14 +344,14 @@ def enrich(
     # --- Step 3: Reverse geocode GPS coordinates ---
     from pixelkasten_ai.exif import reverse_geocode
 
-    location_names = {}
+    location_data = {}
     if n_with_gps > 0:
         console.print(f"\n[bold]Step 3/4:[/bold] Reverse geocoding {n_with_gps} GPS coordinates...")
 
         with console.status("Resolving locations..."):
-            location_names = reverse_geocode(exif_data)
+            location_data = reverse_geocode(exif_data)
 
-        unique_locations = set(location_names.values())
+        unique_locations = set(loc["display_name"] for loc in location_data.values())
         console.print(f"  Resolved to {len(unique_locations)} unique locations")
     else:
         console.print(f"\n[bold]Step 3/4:[/bold] No GPS data to geocode")
@@ -359,7 +359,7 @@ def enrich(
     # --- Step 4: Enrich manifest ---
     console.print(f"\n[bold]Step 4/4:[/bold] Writing enriched manifest...")
 
-    enrich_manifest_exif(manifest_path, exif_data, location_names=location_names)
+    enrich_manifest_exif(manifest_path, exif_data, location_data=location_data)
 
     console.print(f"\n[green bold]Done![/green bold] Manifest enriched: {manifest_path}")
 
@@ -371,7 +371,8 @@ def enrich(
     table.add_column("Camera", max_width=18)
 
     for path, exif in list(exif_data.items())[:5]:
-        loc_str = location_names.get(path, "")
+        loc_info = location_data.get(path)
+        loc_str = loc_info["display_name"] if loc_info else ""
         if not loc_str and exif.get("gps"):
             loc_str = f"{exif['gps']['latitude']}, {exif['gps']['longitude']}"
         table.add_row(
@@ -457,8 +458,13 @@ def refine(
         merge_time_hours=merge_time,
     )
 
+    console.print(f"  Ejected (no EXIF): {stats['ejected']}")
     console.print(f"  Splits performed: {stats['splits']}")
     console.print(f"  Merges performed: {stats['merges']}")
+    console.print(f"  Absorbed (by location): {stats['absorbed_by_location']}")
+    console.print(f"  Absorbed (by similarity): {stats['absorbed_by_similarity']}")
+    if stats.get("home_location"):
+        console.print(f"  Home location: {stats['home_location']}")
 
     # --- Step 3: Update manifest ---
     console.print(f"\n[bold]Step 3/3:[/bold] Updating manifest...")

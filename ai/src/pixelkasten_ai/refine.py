@@ -4,17 +4,22 @@ Cluster refinement — improve cluster quality using EXIF timestamps.
 After HDBSCAN groups images by visual similarity (Phase 1) and EXIF
 timestamps are read (enrich), this module refines the clusters:
 
-1. **Split** clusters that span different time periods. If a cluster has
+1. **Eject** images with no EXIF metadata from clusters — these were
+   placed purely by visual similarity and are the most error-prone.
+
+2. **Split** clusters that span different time periods. If a cluster has
    a temporal gap > 48 hours between consecutive photos, it likely
    contains images from different events that just look similar.
 
-2. **Merge** clusters that are temporally close and visually similar.
+3. **Merge** clusters that are temporally close and visually similar.
    If two clusters are from the same day and their centroids have high
    cosine similarity, they're likely the same event that HDBSCAN over-split.
 
-This addresses two real-world quality issues:
-- "Beach in Turkey 2017" grouped with "Beach in Greece 2023" (needs split)
-- "Go-Karting Adventure" and "Indoor Go-Karting" as separate albums (needs merge)
+4. **Absorb** noise images into clusters when they share a non-home
+   location and overlapping dates. Travel photos that HDBSCAN missed
+   (e.g., a food photo in San Francisco) get placed into the right trip
+   album. Home-location images are not absorbed since location alone is
+   too ambiguous.
 """
 
 import numpy as np
@@ -31,11 +36,14 @@ def refine_clusters(
     """
     Refine cluster assignments using EXIF timestamps and embedding similarity.
 
-    1. Split clusters with temporal gaps > split_gap_hours.
-    2. Merge clusters that are temporally close (< merge_time_hours)
+    1. Eject images with no EXIF metadata from clusters.
+    2. Split clusters with temporal gaps > split_gap_hours.
+    3. Merge clusters that are temporally close (< merge_time_hours)
        AND have centroid cosine similarity > merge_similarity.
        Clusters that share a location (city) get a lower similarity
        threshold (0.3) since same-city + same-week is a strong signal.
+    4. Absorb noise images into clusters when they share a non-home
+       location and overlapping dates.
 
     Args:
         manifest: Parsed manifest dict (must have EXIF data from enrich step).
@@ -47,43 +55,74 @@ def refine_clusters(
     Returns:
         Tuple of (new_labels, stats) where:
         - new_labels: np.ndarray of shape (N,) with refined cluster IDs.
-        - stats: dict with "splits" and "merges" counts.
+        - stats: dict with counts for each operation.
     """
-    # Build mappings from embed_index → timestamp and location_name.
+    # Build mappings from embed_index → EXIF data.
     # This mirrors the two-index-space logic in manifest.py: failed entries
     # don't appear in embeddings, so embed_index skips them.
+    #
+    # For locations, we use the region-level identifier (e.g., "California, US")
+    # instead of the city name. This is the lowest common denominator that
+    # groups San Francisco, Stanford, Mountain View etc. as "same area" while
+    # keeping Oslo separate from California.
     timestamps = {}
-    locations = {}
+    regions = {}
+    has_any_exif = {}
     embed_index = 0
     for entry in manifest["entries"]:
         if entry.get("status") != "ok":
             continue
         exif = entry.get("exif")
         if exif:
+            has_exif = bool(exif.get("timestamp") or exif.get("gps") or exif.get("camera"))
+            has_any_exif[embed_index] = has_exif
             if exif.get("timestamp"):
                 timestamps[embed_index] = exif["timestamp"]
-            if exif.get("location_name"):
-                locations[embed_index] = exif["location_name"]
+            if exif.get("location_region"):
+                regions[embed_index] = exif["location_region"]
+        else:
+            has_any_exif[embed_index] = False
         embed_index += 1
 
     # Extract current labels from manifest.
     labels = _extract_labels(manifest)
 
-    # Step 1: Split clusters with temporal gaps.
+    # Step 1: Eject images with no EXIF metadata from clusters.
+    labels, n_ejected = _eject_metadataless(labels, has_any_exif)
+
+    # Step 2: Split clusters with temporal gaps.
     labels, n_splits = _split_by_temporal_gaps(labels, timestamps, split_gap_hours)
 
-    # Step 2: Merge temporally close, visually similar clusters.
+    # Step 3: Merge temporally close, visually similar clusters.
     labels, n_merges = _merge_similar_clusters(
         labels, embeddings, timestamps, merge_similarity, merge_time_hours,
-        locations=locations,
+        locations=regions,
+    )
+
+    # Step 4: Absorb noise images into clusters by time + non-home region.
+    home_region = _infer_home_location(regions)
+    labels, n_absorbed_loc = _absorb_noise_by_location(
+        labels, timestamps, regions, home_region,
+    )
+
+    # Step 5: Absorb GPS-less noise images by time + visual similarity.
+    # Images with timestamps but no GPS can't be matched by location.
+    # If their timestamp falls within a cluster's date range AND they're
+    # visually similar to the cluster centroid, absorb them.
+    labels, n_absorbed_vis = _absorb_noise_by_similarity(
+        labels, embeddings, timestamps, regions,
     )
 
     # Re-number labels to be contiguous (0, 1, 2, ...) with -1 preserved.
     labels = _renumber_labels(labels)
 
     stats = {
+        "ejected": n_ejected,
         "splits": n_splits,
         "merges": n_merges,
+        "absorbed_by_location": n_absorbed_loc,
+        "absorbed_by_similarity": n_absorbed_vis,
+        "home_location": home_region,
     }
 
     return labels, stats
@@ -98,6 +137,245 @@ def _extract_labels(manifest: dict) -> np.ndarray:
         cluster = entry.get("cluster")
         labels.append(cluster if cluster is not None else -1)
     return np.array(labels, dtype=int)
+
+
+def _eject_metadataless(
+    labels: np.ndarray,
+    has_any_exif: dict[int, bool],
+) -> tuple[np.ndarray, int]:
+    """
+    Eject images with no EXIF metadata from clusters.
+
+    Images without any EXIF data (no timestamp, no GPS, no camera) were
+    placed in clusters purely by visual similarity. These are the most
+    error-prone assignments (e.g., a WhatsApp portrait ending up in a
+    Golden Gate Bridge album). Move them to noise (-1).
+
+    Returns (new_labels, eject_count).
+    """
+    new_labels = labels.copy()
+    eject_count = 0
+
+    for idx in range(len(new_labels)):
+        if new_labels[idx] == -1:
+            continue
+        if not has_any_exif.get(idx, False):
+            new_labels[idx] = -1
+            eject_count += 1
+
+    return new_labels, eject_count
+
+
+def _infer_home_location(locations: dict[int, str]) -> str | None:
+    """
+    Infer the user's home location from the most frequent city in the library.
+
+    The home location is used to avoid absorbing noise images into clusters
+    just because they share the same city. Travel photos (rare locations)
+    are strong signals; home photos (frequent location) are not.
+
+    Returns the most common location name, or None if no GPS data.
+    """
+    if not locations:
+        return None
+
+    from collections import Counter
+    counts = Counter(locations.values())
+    most_common = counts.most_common(1)[0]
+
+    # Only consider it "home" if it appears significantly more than others.
+    # If the top location has fewer than 5 images, there's no clear home.
+    if most_common[1] < 5:
+        return None
+
+    return most_common[0]
+
+
+def _absorb_noise_by_location(
+    labels: np.ndarray,
+    timestamps: dict[int, str],
+    locations: dict[int, str],
+    home_location: str | None,
+) -> tuple[np.ndarray, int]:
+    """
+    Absorb noise images into clusters when they share a non-home location
+    and overlapping dates.
+
+    For each noise image that has both a timestamp and a non-home location,
+    find clusters whose date range overlaps and that share the same location.
+    If exactly one cluster matches, absorb the image into it.
+
+    This catches travel photos that HDBSCAN missed visually (e.g., a food
+    photo taken in San Francisco during a Golden Gate Bridge trip).
+
+    Returns (new_labels, absorb_count).
+    """
+    new_labels = labels.copy()
+    absorb_count = 0
+
+    # Build per-cluster info: date range and locations.
+    cluster_info = {}
+    for idx in range(len(new_labels)):
+        cid = new_labels[idx]
+        if cid == -1:
+            continue
+
+        if cid not in cluster_info:
+            cluster_info[cid] = {
+                "min_time": None,
+                "max_time": None,
+                "locations": set(),
+            }
+
+        dt = _parse_timestamp(timestamps.get(idx))
+        if dt is not None:
+            if cluster_info[cid]["min_time"] is None or dt < cluster_info[cid]["min_time"]:
+                cluster_info[cid]["min_time"] = dt
+            if cluster_info[cid]["max_time"] is None or dt > cluster_info[cid]["max_time"]:
+                cluster_info[cid]["max_time"] = dt
+
+        loc = locations.get(idx)
+        if loc:
+            cluster_info[cid]["locations"].add(loc)
+
+    # Scan noise images for absorption candidates.
+    for idx in range(len(new_labels)):
+        if new_labels[idx] != -1:
+            continue
+
+        ts = timestamps.get(idx)
+        loc = locations.get(idx)
+
+        # Need both timestamp and location to absorb.
+        if not ts or not loc:
+            continue
+
+        # Skip home location — too ambiguous.
+        if home_location and loc == home_location:
+            continue
+
+        dt = _parse_timestamp(ts)
+        if dt is None:
+            continue
+
+        # Find clusters that match on location and date range.
+        candidates = []
+        for cid, info in cluster_info.items():
+            if loc not in info["locations"]:
+                continue
+            if info["min_time"] is None:
+                continue
+            # Check if the image's date falls within the cluster's range
+            # (with a 24-hour buffer on each side).
+            buffer = 24 * 3600
+            min_dt = info["min_time"]
+            max_dt = info["max_time"]
+            img_ts = dt.timestamp()
+            if (min_dt.timestamp() - buffer) <= img_ts <= (max_dt.timestamp() + buffer):
+                candidates.append(cid)
+
+        # Only absorb if exactly one cluster matches (unambiguous).
+        if len(candidates) == 1:
+            new_labels[idx] = candidates[0]
+            # Update cluster info with the new image's data.
+            cid = candidates[0]
+            if dt < cluster_info[cid]["min_time"]:
+                cluster_info[cid]["min_time"] = dt
+            if dt > cluster_info[cid]["max_time"]:
+                cluster_info[cid]["max_time"] = dt
+            absorb_count += 1
+
+    return new_labels, absorb_count
+
+
+def _absorb_noise_by_similarity(
+    labels: np.ndarray,
+    embeddings: np.ndarray,
+    timestamps: dict[int, str],
+    locations: dict[int, str],
+    similarity_threshold: float = 0.5,
+) -> tuple[np.ndarray, int]:
+    """
+    Absorb GPS-less noise images into clusters by time + visual similarity.
+
+    For noise images that have a timestamp but NO GPS data, check if their
+    timestamp falls within a cluster's date range. If it does, compute
+    cosine similarity to the cluster centroid. If similarity exceeds the
+    threshold, absorb the image.
+
+    This catches trip photos from cameras without GPS (e.g., DSC photos
+    taken during a San Francisco trip but without geotagging).
+
+    Only absorbs if exactly one cluster matches (unambiguous).
+
+    Returns (new_labels, absorb_count).
+    """
+    new_labels = labels.copy()
+    absorb_count = 0
+
+    # Build per-cluster info: date range and centroid.
+    cluster_info = {}
+    for cid in set(new_labels):
+        if cid == -1:
+            continue
+
+        mask = new_labels == cid
+        indices = np.where(mask)[0]
+        cluster_vecs = embeddings[indices]
+
+        centroid = cluster_vecs.mean(axis=0)
+        norm = np.linalg.norm(centroid)
+        if norm > 0:
+            centroid = centroid / norm
+
+        dts = []
+        for idx in indices:
+            dt = _parse_timestamp(timestamps.get(int(idx)))
+            if dt is not None:
+                dts.append(dt)
+
+        cluster_info[cid] = {
+            "centroid": centroid,
+            "min_time": min(dts) if dts else None,
+            "max_time": max(dts) if dts else None,
+        }
+
+    # Scan noise images: only those with timestamp but NO location.
+    for idx in range(len(new_labels)):
+        if new_labels[idx] != -1:
+            continue
+
+        ts = timestamps.get(idx)
+        loc = locations.get(idx)
+
+        # Only target images with timestamp but no GPS.
+        if not ts or loc:
+            continue
+
+        dt = _parse_timestamp(ts)
+        if dt is None:
+            continue
+
+        # Find clusters whose date range covers this timestamp.
+        candidates = []
+        buffer = 24 * 3600
+        for cid, info in cluster_info.items():
+            if info["min_time"] is None:
+                continue
+            img_ts = dt.timestamp()
+            if (info["min_time"].timestamp() - buffer) <= img_ts <= (info["max_time"].timestamp() + buffer):
+                # Check visual similarity.
+                similarity = float(embeddings[idx] @ info["centroid"])
+                if similarity >= similarity_threshold:
+                    candidates.append((cid, similarity))
+
+        # Only absorb if exactly one cluster matches.
+        if len(candidates) == 1:
+            cid = candidates[0][0]
+            new_labels[idx] = cid
+            absorb_count += 1
+
+    return new_labels, absorb_count
 
 
 def _parse_timestamp(ts: str | None) -> datetime | None:
