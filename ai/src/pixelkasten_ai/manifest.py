@@ -183,6 +183,7 @@ def enrich_manifest(manifest_path: Path, captions: dict[str, str]) -> None:
 def enrich_manifest_exif(
     manifest_path: Path,
     exif_data: dict[str, dict],
+    location_names: dict[str, str] | None = None,
 ) -> None:
     """
     Enrich an existing manifest with EXIF metadata and cluster date/location summaries.
@@ -194,14 +195,21 @@ def enrich_manifest_exif(
     Args:
         manifest_path: Path to manifest.json.
         exif_data: Dict mapping image path -> ExifData dict,
-            as returned by read_exif_for_representatives().
+            as returned by read_exif_for_all().
+        location_names: Optional dict mapping image path -> location name string
+            (e.g., "San Francisco, California, US") from reverse geocoding.
     """
+    location_names = location_names or {}
     manifest = read_manifest(manifest_path)
 
-    # Add EXIF data to individual entries.
+    # Add EXIF data and location names to individual entries.
     for entry in manifest["entries"]:
         if entry["path"] in exif_data:
             entry["exif"] = exif_data[entry["path"]]
+        if entry["path"] in location_names:
+            if "exif" not in entry:
+                entry["exif"] = {}
+            entry["exif"]["location_name"] = location_names[entry["path"]]
 
     # Enrich cluster summaries with date ranges, locations, and cameras.
     clusters = manifest.get("clusters", {})
@@ -244,6 +252,17 @@ def enrich_manifest_exif(
             cluster["locations"] = locations
         if cameras:
             cluster["cameras"] = cameras
+
+        # Collect unique location names for this cluster.
+        cluster_location_names = []
+        for entry in manifest["entries"]:
+            if str(entry.get("cluster")) != key:
+                continue
+            loc_name = entry.get("exif", {}).get("location_name")
+            if loc_name and loc_name not in cluster_location_names:
+                cluster_location_names.append(loc_name)
+        if cluster_location_names:
+            cluster["location_names"] = cluster_location_names
 
     manifest["clusters"] = clusters
 

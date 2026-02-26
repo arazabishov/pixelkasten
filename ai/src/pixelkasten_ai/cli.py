@@ -298,7 +298,7 @@ def enrich(
     from pixelkasten_ai.manifest import read_manifest, enrich_manifest_exif
 
     # --- Step 1: Check exiftool ---
-    console.print("\n[bold]Step 1/3:[/bold] Checking exiftool...")
+    console.print("\n[bold]Step 1/4:[/bold] Checking exiftool...")
 
     try:
         check_exiftool()
@@ -320,7 +320,7 @@ def enrich(
         console.print("[red]No images found in manifest.[/red]")
         raise typer.Exit(code=1)
 
-    console.print(f"\n[bold]Step 2/3:[/bold] Reading EXIF from {n_images} images...")
+    console.print(f"\n[bold]Step 2/4:[/bold] Reading EXIF from {n_images} images...")
 
     with Progress(
         SpinnerColumn(),
@@ -341,28 +341,43 @@ def enrich(
     console.print(f"  With timestamp: {n_with_timestamp} / {len(exif_data)}")
     console.print(f"  With GPS: {n_with_gps} / {len(exif_data)}")
 
-    # --- Step 3: Enrich manifest ---
-    console.print(f"\n[bold]Step 3/3:[/bold] Writing enriched manifest...")
+    # --- Step 3: Reverse geocode GPS coordinates ---
+    from pixelkasten_ai.exif import reverse_geocode
 
-    enrich_manifest_exif(manifest_path, exif_data)
+    location_names = {}
+    if n_with_gps > 0:
+        console.print(f"\n[bold]Step 3/4:[/bold] Reverse geocoding {n_with_gps} GPS coordinates...")
+
+        with console.status("Resolving locations..."):
+            location_names = reverse_geocode(exif_data)
+
+        unique_locations = set(location_names.values())
+        console.print(f"  Resolved to {len(unique_locations)} unique locations")
+    else:
+        console.print(f"\n[bold]Step 3/4:[/bold] No GPS data to geocode")
+
+    # --- Step 4: Enrich manifest ---
+    console.print(f"\n[bold]Step 4/4:[/bold] Writing enriched manifest...")
+
+    enrich_manifest_exif(manifest_path, exif_data, location_names=location_names)
 
     console.print(f"\n[green bold]Done![/green bold] Manifest enriched: {manifest_path}")
 
     # Print a sample of EXIF results.
     table = Table(title="Sample EXIF Data", show_header=True)
-    table.add_column("Image", style="cyan", max_width=40)
-    table.add_column("Timestamp", max_width=25)
-    table.add_column("GPS", max_width=20)
-    table.add_column("Camera", max_width=20)
+    table.add_column("Image", style="cyan", max_width=35)
+    table.add_column("Timestamp", max_width=22)
+    table.add_column("Location", max_width=30)
+    table.add_column("Camera", max_width=18)
 
     for path, exif in list(exif_data.items())[:5]:
-        gps_str = ""
-        if exif.get("gps"):
-            gps_str = f"{exif['gps']['latitude']}, {exif['gps']['longitude']}"
+        loc_str = location_names.get(path, "")
+        if not loc_str and exif.get("gps"):
+            loc_str = f"{exif['gps']['latitude']}, {exif['gps']['longitude']}"
         table.add_row(
             Path(path).name,
             exif.get("timestamp") or "-",
-            gps_str or "-",
+            loc_str or "-",
             exif.get("camera") or "-",
         )
 
@@ -390,9 +405,9 @@ def refine(
         help="Minimum centroid cosine similarity to merge clusters.",
     ),
     merge_time: float = typer.Option(
-        24.0,
+        168.0,
         "--merge-time",
-        help="Maximum hours apart for clusters to be merge candidates.",
+        help="Maximum hours apart for clusters to be merge candidates. Default is 7 days.",
     ),
 ):
     """

@@ -315,3 +315,55 @@ def _safe_float(value) -> float | None:
         return float(value)
     except (ValueError, TypeError):
         return None
+
+
+def reverse_geocode(exif_data: dict[str, ExifData]) -> dict[str, str]:
+    """
+    Resolve GPS coordinates to human-readable location names.
+
+    Takes the output of read_exif() or read_exif_for_all(), extracts
+    unique GPS coordinates, batch-resolves them via the reverse_geocoder
+    library (offline, no API calls), and returns a mapping from image
+    path to location name string.
+
+    Args:
+        exif_data: Dict mapping image path -> ExifData.
+
+    Returns:
+        Dict mapping image path -> location name (e.g., "San Francisco, California, US").
+        Only includes entries that have valid GPS data.
+    """
+    import reverse_geocoder as rg
+
+    # Collect unique coordinates (rounded to 2 decimal places for dedup).
+    coord_to_paths: dict[tuple[float, float], list[str]] = {}
+    for path, exif in exif_data.items():
+        gps = exif.get("gps")
+        if not gps:
+            continue
+        rounded = (round(gps["latitude"], 2), round(gps["longitude"], 2))
+        if rounded not in coord_to_paths:
+            coord_to_paths[rounded] = []
+        coord_to_paths[rounded].append(path)
+
+    if not coord_to_paths:
+        return {}
+
+    # Batch resolve all unique coordinates in one call.
+    coords_list = list(coord_to_paths.keys())
+    results = rg.search(coords_list)
+
+    # Build path -> location name mapping.
+    location_names = {}
+    for coord, result in zip(coords_list, results):
+        city = result.get("name", "")
+        admin1 = result.get("admin1", "")
+        country = result.get("cc", "")
+
+        parts = [p for p in [city, admin1, country] if p]
+        name = ", ".join(parts)
+
+        for path in coord_to_paths[coord]:
+            location_names[path] = name
+
+    return location_names
