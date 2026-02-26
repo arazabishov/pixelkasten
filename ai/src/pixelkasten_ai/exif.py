@@ -317,20 +317,32 @@ def _safe_float(value) -> float | None:
         return None
 
 
-def reverse_geocode(exif_data: dict[str, ExifData]) -> dict[str, str]:
+class LocationInfo(TypedDict):
+    city: str
+    region: str
+    country: str
+    display_name: str
+
+
+def reverse_geocode(exif_data: dict[str, ExifData]) -> dict[str, LocationInfo]:
     """
-    Resolve GPS coordinates to human-readable location names.
+    Resolve GPS coordinates to structured location data.
 
     Takes the output of read_exif() or read_exif_for_all(), extracts
     unique GPS coordinates, batch-resolves them via the reverse_geocoder
-    library (offline, no API calls), and returns a mapping from image
-    path to location name string.
+    library (offline, no API calls), and returns structured location info.
+
+    The returned LocationInfo includes city, region (state/province),
+    country code, and a display_name for human-readable output. The
+    region + country combination is used for hierarchical matching
+    (e.g., "California, US" groups San Francisco, Stanford, and
+    Mountain View together).
 
     Args:
         exif_data: Dict mapping image path -> ExifData.
 
     Returns:
-        Dict mapping image path -> location name (e.g., "San Francisco, California, US").
+        Dict mapping image path -> LocationInfo.
         Only includes entries that have valid GPS data.
     """
     import reverse_geocoder as rg
@@ -353,17 +365,24 @@ def reverse_geocode(exif_data: dict[str, ExifData]) -> dict[str, str]:
     coords_list = list(coord_to_paths.keys())
     results = rg.search(coords_list)
 
-    # Build path -> location name mapping.
-    location_names = {}
+    # Build path -> LocationInfo mapping.
+    location_data = {}
     for coord, result in zip(coords_list, results):
         city = result.get("name", "")
-        admin1 = result.get("admin1", "")
+        region = result.get("admin1", "")
         country = result.get("cc", "")
 
-        parts = [p for p in [city, admin1, country] if p]
-        name = ", ".join(parts)
+        parts = [p for p in [city, region, country] if p]
+        display_name = ", ".join(parts)
+
+        info = LocationInfo(
+            city=city,
+            region=region,
+            country=country,
+            display_name=display_name,
+        )
 
         for path in coord_to_paths[coord]:
-            location_names[path] = name
+            location_data[path] = info
 
-    return location_names
+    return location_data

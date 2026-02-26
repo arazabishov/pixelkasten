@@ -183,7 +183,7 @@ def enrich_manifest(manifest_path: Path, captions: dict[str, str]) -> None:
 def enrich_manifest_exif(
     manifest_path: Path,
     exif_data: dict[str, dict],
-    location_names: dict[str, str] | None = None,
+    location_data: dict[str, dict] | None = None,
 ) -> None:
     """
     Enrich an existing manifest with EXIF metadata and cluster date/location summaries.
@@ -196,20 +196,22 @@ def enrich_manifest_exif(
         manifest_path: Path to manifest.json.
         exif_data: Dict mapping image path -> ExifData dict,
             as returned by read_exif_for_all().
-        location_names: Optional dict mapping image path -> location name string
-            (e.g., "San Francisco, California, US") from reverse geocoding.
+        location_data: Optional dict mapping image path -> LocationInfo dict
+            with city, region, country, display_name from reverse geocoding.
     """
-    location_names = location_names or {}
+    location_data = location_data or {}
     manifest = read_manifest(manifest_path)
 
-    # Add EXIF data and location names to individual entries.
+    # Add EXIF data and location info to individual entries.
     for entry in manifest["entries"]:
         if entry["path"] in exif_data:
             entry["exif"] = exif_data[entry["path"]]
-        if entry["path"] in location_names:
+        if entry["path"] in location_data:
             if "exif" not in entry:
                 entry["exif"] = {}
-            entry["exif"]["location_name"] = location_names[entry["path"]]
+            loc = location_data[entry["path"]]
+            entry["exif"]["location_name"] = loc["display_name"]
+            entry["exif"]["location_region"] = f"{loc['region']}, {loc['country']}"
 
     # Enrich cluster summaries with date ranges, locations, and cameras.
     clusters = manifest.get("clusters", {})

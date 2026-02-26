@@ -59,8 +59,13 @@ For each cluster, propose a directory path following the naming convention above
 
 Reasoning guidelines:
 - Use EXIF dates for the YYYYMMDD prefix when available
-- Derive the event name from the captions and tags
-- If GPS coordinates are present, include the location in the event name when it adds value
+- Derive the event name from the captions, tags, and location data
+- When a cluster spans multiple cities in the same region, use a broader geographic name \
+that covers all cities (e.g., "Bay Area Trip" for San Francisco + Sunnyvale + Stanford, \
+or "California Road Trip" if cities are spread across the state)
+- When a cluster is in a single city, use that city name
+- Name the album after the primary location — if most photos are in one region, use that \
+region for the name even if a few photos are from elsewhere (transit, layovers)
 - You MAY place multiple clusters under the same event directory if they clearly belong \
 together (same date + location + topic)
 - For clusters without dates, group by theme under Unknown/
@@ -111,10 +116,45 @@ def build_cluster_summary_text(manifest: dict) -> str:
                 f"  Date range: {date_range['earliest']} to {date_range['latest']}"
             )
 
-        # Location names (reverse-geocoded) or raw GPS fallback.
-        location_names = cluster.get("location_names", [])
-        if location_names:
-            lines.append(f"  Location: {'; '.join(location_names)}")
+        # Location info: collect cities and regions, filtering out outliers.
+        # If 90%+ of geotagged images are in one region, stray GPS from
+        # transit or metadata errors gets ignored. This prevents "California
+        # and Netherlands Travel" when 2 of 58 photos were taken mid-flight.
+        from collections import Counter
+        city_counts = Counter()
+        region_counts = Counter()
+        for entry in manifest["entries"]:
+            if str(entry.get("cluster")) != cluster_id:
+                continue
+            exif = entry.get("exif", {})
+            if exif.get("location_name"):
+                city = exif["location_name"].split(",")[0].strip()
+                city_counts[city] += 1
+            if exif.get("location_region"):
+                region_counts[exif["location_region"]] += 1
+
+        # Filter: keep regions that represent >= 10% of geotagged images.
+        total_geotagged = sum(region_counts.values())
+        if total_geotagged > 0:
+            significant_regions = [
+                r for r, c in region_counts.items()
+                if c / total_geotagged >= 0.1
+            ]
+            # Keep only cities belonging to significant regions.
+            significant_cities = []
+            for entry in manifest["entries"]:
+                if str(entry.get("cluster")) != cluster_id:
+                    continue
+                exif = entry.get("exif", {})
+                if exif.get("location_region") in significant_regions:
+                    city = exif.get("location_name", "").split(",")[0].strip()
+                    if city and city not in significant_cities:
+                        significant_cities.append(city)
+
+            if significant_cities:
+                lines.append(f"  Cities: {', '.join(significant_cities)}")
+            if significant_regions:
+                lines.append(f"  Region: {', '.join(sorted(significant_regions))}")
         else:
             locations = cluster.get("locations", [])
             if locations:
