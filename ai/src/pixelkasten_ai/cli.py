@@ -286,15 +286,15 @@ def enrich(
     ),
 ):
     """
-    Run Phase 3a: read EXIF metadata from representative images via exiftool.
+    Read EXIF metadata from all images via exiftool and enrich the manifest.
 
-    Reads timestamps, GPS coordinates, and camera model from cluster
-    representatives and enriches the manifest with date ranges and
-    locations per cluster.
+    Reads timestamps, GPS coordinates, and camera model from all images
+    and enriches the manifest with per-entry EXIF data and per-cluster
+    date ranges, locations, and cameras.
 
     Requires exiftool installed (brew install exiftool).
     """
-    from pixelkasten_ai.exif import check_exiftool, read_exif_for_representatives
+    from pixelkasten_ai.exif import check_exiftool, read_exif_for_all
     from pixelkasten_ai.manifest import read_manifest, enrich_manifest_exif
 
     # --- Step 1: Check exiftool ---
@@ -308,19 +308,19 @@ def enrich(
 
     console.print("  exiftool found")
 
-    # --- Step 2: Read EXIF from representatives ---
+    # --- Step 2: Read EXIF from all images ---
     manifest = read_manifest(manifest_path)
 
-    n_representatives = sum(
+    n_images = sum(
         1 for e in manifest["entries"]
-        if e.get("is_representative", False) and e.get("status") == "ok"
+        if e.get("status") == "ok"
     )
 
-    if n_representatives == 0:
-        console.print("[red]No representative images found in manifest.[/red]")
+    if n_images == 0:
+        console.print("[red]No images found in manifest.[/red]")
         raise typer.Exit(code=1)
 
-    console.print(f"\n[bold]Step 2/3:[/bold] Reading EXIF from {n_representatives} representatives...")
+    console.print(f"\n[bold]Step 2/3:[/bold] Reading EXIF from {n_images} images...")
 
     with Progress(
         SpinnerColumn(),
@@ -329,12 +329,12 @@ def enrich(
         TaskProgressColumn(),
         console=console,
     ) as progress:
-        task = progress.add_task("Reading EXIF", total=n_representatives)
+        task = progress.add_task("Reading EXIF", total=n_images)
 
         def on_progress(processed):
             progress.update(task, completed=processed)
 
-        exif_data = read_exif_for_representatives(manifest, on_progress=on_progress)
+        exif_data = read_exif_for_all(manifest, on_progress=on_progress)
 
     n_with_timestamp = sum(1 for e in exif_data.values() if e.get("timestamp"))
     n_with_gps = sum(1 for e in exif_data.values() if e.get("gps"))
@@ -367,6 +367,117 @@ def enrich(
         )
 
     console.print(table)
+
+
+@app.command()
+def refine(
+    manifest_path: Path = typer.Option(
+        ...,
+        "--manifest", "-m",
+        help="Path to a manifest.json file (must have EXIF data from enrich step).",
+        exists=True,
+        dir_okay=False,
+        resolve_path=True,
+    ),
+    split_gap: float = typer.Option(
+        48.0,
+        "--split-gap",
+        help="Hours gap between photos to trigger a cluster split.",
+    ),
+    merge_similarity: float = typer.Option(
+        0.5,
+        "--merge-similarity",
+        help="Minimum centroid cosine similarity to merge clusters.",
+    ),
+    merge_time: float = typer.Option(
+        24.0,
+        "--merge-time",
+        help="Maximum hours apart for clusters to be merge candidates.",
+    ),
+):
+    """
+    Refine clusters using EXIF timestamps and embedding similarity.
+
+    Splits clusters that span different time periods (e.g., beach photos
+    from 2017 and 2023 grouped together) and merges clusters that are
+    from the same day and visually similar (e.g., indoor and outdoor shots
+    from the same go-karting event).
+
+    Requires the enrich step to have been run first (EXIF data in manifest).
+    """
+    from pixelkasten_ai.manifest import read_manifest, load_embeddings, update_manifest_clusters
+    from pixelkasten_ai.cluster import find_representatives, cluster_summary
+    from pixelkasten_ai.refine import refine_clusters
+
+    # --- Step 1: Load data ---
+    console.print("\n[bold]Step 1/3:[/bold] Loading manifest and embeddings...")
+
+    manifest = read_manifest(manifest_path)
+    embeddings = load_embeddings(manifest_path)
+
+    # Check that EXIF data exists.
+    has_exif = any(entry.get("exif") for entry in manifest["entries"])
+    if not has_exif:
+        console.print(
+            "[red]No EXIF data found in manifest. Run 'enrich' first.[/red]"
+        )
+        raise typer.Exit(code=1)
+
+    import numpy as np
+    before = cluster_summary(
+        np.array([
+            e.get("cluster", -1) for e in manifest["entries"] if e.get("status") == "ok"
+        ])
+    )
+    console.print(f"  Clusters before: {before['n_clusters']}")
+    console.print(f"  Noise before: {before['n_noise']} images")
+
+    # --- Step 2: Refine ---
+    console.print(f"\n[bold]Step 2/3:[/bold] Refining clusters...")
+
+    new_labels, stats = refine_clusters(
+        manifest, embeddings,
+        split_gap_hours=split_gap,
+        merge_similarity=merge_similarity,
+        merge_time_hours=merge_time,
+    )
+
+    console.print(f"  Splits performed: {stats['splits']}")
+    console.print(f"  Merges performed: {stats['merges']}")
+
+    # --- Step 3: Update manifest ---
+    console.print(f"\n[bold]Step 3/3:[/bold] Updating manifest...")
+
+    representatives = find_representatives(embeddings, new_labels)
+    update_manifest_clusters(manifest_path, new_labels, representatives)
+
+    after = cluster_summary(new_labels)
+    console.print(f"\n[green bold]Done![/green bold] Manifest updated: {manifest_path}")
+    console.print(f"  Clusters after: {after['n_clusters']}")
+    console.print(f"  Noise after: {after['n_noise']} images")
+
+    # Show before/after comparison.
+    if before['n_clusters'] != after['n_clusters']:
+        delta = after['n_clusters'] - before['n_clusters']
+        sign = "+" if delta > 0 else ""
+        console.print(f"  Change: {sign}{delta} clusters ({before['n_clusters']} → {after['n_clusters']})")
+
+    # Print cluster sizes.
+    if after["cluster_sizes"]:
+        table = Table(title="Refined Cluster Sizes", show_header=True)
+        table.add_column("Cluster", style="cyan", justify="right")
+        table.add_column("Images", justify="right")
+        table.add_column("Representatives", justify="right")
+
+        for cluster_id in sorted(after["cluster_sizes"]):
+            n_reps = len(representatives.get(cluster_id, []))
+            table.add_row(
+                str(cluster_id),
+                str(after["cluster_sizes"][cluster_id]),
+                str(n_reps),
+            )
+
+        console.print(table)
 
 
 @app.command()

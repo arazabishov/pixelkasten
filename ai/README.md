@@ -92,16 +92,41 @@ uv run pixelkasten-ai caption -m ./output/manifest.json --prompt "What is happen
 uv run pixelkasten-ai caption --help
 ```
 
-### Phase 3a: EXIF Enrichment
+### Phase 2b: EXIF Enrichment
 
-Enrich the manifest with timestamps, GPS coordinates, and camera info from representative images:
+Read EXIF metadata (timestamps, GPS, camera) from all images:
 
 ```bash
-# Read EXIF from representatives and enrich the manifest
 uv run pixelkasten-ai enrich -m ./output/manifest.json
 ```
 
-### Phase 3b: Organization Proposal
+### Phase 2c: Cluster Refinement
+
+Refine clusters using EXIF timestamps — split clusters that span different time periods, merge clusters from the same event:
+
+```bash
+# Refine with default thresholds
+uv run pixelkasten-ai refine -m ./output/manifest.json
+
+# Adjust split sensitivity (hours gap to trigger split)
+uv run pixelkasten-ai refine -m ./output/manifest.json --split-gap 24
+
+# Adjust merge sensitivity (cosine similarity threshold)
+uv run pixelkasten-ai refine -m ./output/manifest.json --merge-similarity 0.4
+
+# See all options
+uv run pixelkasten-ai refine --help
+```
+
+### Phase 3: VLM Captioning
+
+Caption the refined cluster representatives (run after refine, not before):
+
+```bash
+uv run pixelkasten-ai caption -m ./output/manifest.json
+```
+
+### Phase 4: Organization Proposal
 
 Feed cluster summaries to a local LLM to propose a directory structure:
 
@@ -121,7 +146,7 @@ uv run pixelkasten-ai organize --help
 
 The organize command writes an `organization.json` file with proposed `source -> target` mappings. This is propose-only — no files are moved. Review the output before applying.
 
-### Phase 4: Apply
+### Phase 5: Apply
 
 After reviewing `organization.json`, copy files into the proposed directory structure:
 
@@ -187,9 +212,10 @@ These can be reused for re-clustering with different parameters, similarity sear
 This module is part of the broader pixelkasten project. See `spec/ai-categorization.md` for the full design and `spec/architecture.md` for how it integrates with the Node.js pipeline.
 
 ```
-Phase 1 (embed):     images → embeddings → clusters → tags → manifest
-Phase 2 (caption):   cluster representatives → VLM captions → enriched manifest
-Phase 3a (enrich):   representative images → exiftool → EXIF metadata → enriched manifest
-Phase 3b (organize): enriched manifest → LLM reasoning → organization.json proposal
-Phase 4 (apply):     organization.json → copy files → organized directory
+Phase 1  (embed):    images → embeddings → clusters → tags → manifest
+Phase 2a (enrich):   all images → exiftool → EXIF metadata → enriched manifest
+Phase 2b (refine):   EXIF timestamps + embeddings → split/merge clusters → updated manifest
+Phase 3  (caption):  refined cluster representatives → VLM captions → enriched manifest
+Phase 4  (organize): enriched manifest → LLM reasoning → organization.json proposal
+Phase 5  (apply):    organization.json → copy files → organized directory
 ```
