@@ -127,6 +127,41 @@ def read_exif(file_paths: list[Path]) -> dict[str, ExifData]:
     return parsed
 
 
+def read_exif_for_all(
+    manifest: dict,
+    on_progress: Callable[[int], None] | None = None,
+) -> dict[str, ExifData]:
+    """
+    Read EXIF from all successfully embedded images in a manifest.
+
+    Filters to entries where status="ok", then batch-reads EXIF for all
+    of them in a single exiftool call.
+
+    Args:
+        manifest: Parsed manifest dict (from read_manifest).
+        on_progress: Optional callback, called with count processed.
+
+    Returns:
+        Dict of {image_path: ExifData} for all ok-status images.
+    """
+    ok_entries = [
+        entry for entry in manifest["entries"]
+        if entry.get("status") == "ok"
+    ]
+
+    file_paths = [Path(entry["path"]) for entry in ok_entries]
+
+    if on_progress is not None:
+        on_progress(0)
+
+    result = read_exif(file_paths)
+
+    if on_progress is not None:
+        on_progress(len(file_paths))
+
+    return result
+
+
 def read_exif_for_representatives(
     manifest: dict,
     on_progress: Callable[[int], None] | None = None,
