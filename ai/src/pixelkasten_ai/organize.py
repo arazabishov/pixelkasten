@@ -164,7 +164,7 @@ def build_cluster_summary_text(manifest: dict) -> str:
         # Cameras from Phase 3a.
         cameras = cluster.get("cameras", [])
         if cameras:
-            lines.append(f"  Camera: {', '.join(cameras)}")
+            lines.append(f"  Camera: {', '.join(str(c) for c in cameras)}")
 
         lines.append("")
 

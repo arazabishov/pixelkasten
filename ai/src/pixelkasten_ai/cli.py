@@ -379,7 +379,7 @@ def enrich(
             Path(path).name,
             exif.get("timestamp") or "-",
             loc_str or "-",
-            exif.get("camera") or "-",
+            str(exif.get("camera") or "-"),
         )
 
     console.print(table)
