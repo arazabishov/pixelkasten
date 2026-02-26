@@ -24,6 +24,10 @@ dependencies = [
     # Ollama Python client for VLM captioning (Phase 2). Sends images to a
     # local Ollama server running vision models (LLaVA, Moondream, etc.).
     "ollama>=0.4.0",
+
+    # Offline reverse geocoding — resolves GPS coordinates to city/country
+    # names using a local dataset (~30MB). No API calls, no rate limits.
+    "reverse_geocoder>=1.5.1",
 ]
 
 [dependency-groups]

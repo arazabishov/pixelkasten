@@ -26,7 +26,7 @@ def refine_clusters(
     embeddings: np.ndarray,
     split_gap_hours: float = 48.0,
     merge_similarity: float = 0.5,
-    merge_time_hours: float = 24.0,
+    merge_time_hours: float = 168.0,
 ) -> tuple[np.ndarray, dict]:
     """
     Refine cluster assignments using EXIF timestamps and embedding similarity.
@@ -34,6 +34,8 @@ def refine_clusters(
     1. Split clusters with temporal gaps > split_gap_hours.
     2. Merge clusters that are temporally close (< merge_time_hours)
        AND have centroid cosine similarity > merge_similarity.
+       Clusters that share a location (city) get a lower similarity
+       threshold (0.3) since same-city + same-week is a strong signal.
 
     Args:
         manifest: Parsed manifest dict (must have EXIF data from enrich step).
@@ -47,17 +49,21 @@ def refine_clusters(
         - new_labels: np.ndarray of shape (N,) with refined cluster IDs.
         - stats: dict with "splits" and "merges" counts.
     """
-    # Build a mapping from embed_index → timestamp for all ok-status entries.
+    # Build mappings from embed_index → timestamp and location_name.
     # This mirrors the two-index-space logic in manifest.py: failed entries
     # don't appear in embeddings, so embed_index skips them.
     timestamps = {}
+    locations = {}
     embed_index = 0
     for entry in manifest["entries"]:
         if entry.get("status") != "ok":
             continue
         exif = entry.get("exif")
-        if exif and exif.get("timestamp"):
-            timestamps[embed_index] = exif["timestamp"]
+        if exif:
+            if exif.get("timestamp"):
+                timestamps[embed_index] = exif["timestamp"]
+            if exif.get("location_name"):
+                locations[embed_index] = exif["location_name"]
         embed_index += 1
 
     # Extract current labels from manifest.
@@ -69,6 +75,7 @@ def refine_clusters(
     # Step 2: Merge temporally close, visually similar clusters.
     labels, n_merges = _merge_similar_clusters(
         labels, embeddings, timestamps, merge_similarity, merge_time_hours,
+        locations=locations,
     )
 
     # Re-number labels to be contiguous (0, 1, 2, ...) with -1 preserved.
@@ -184,6 +191,7 @@ def _merge_similar_clusters(
     timestamps: dict[int, str],
     similarity_threshold: float,
     time_threshold_hours: float,
+    locations: dict[int, str] | None = None,
 ) -> tuple[np.ndarray, int]:
     """
     Merge clusters that are temporally close and visually similar.
@@ -192,13 +200,21 @@ def _merge_similar_clusters(
     time_threshold_hours of each other AND their centroid cosine similarity
     exceeds similarity_threshold. If both conditions are met, merges them.
 
+    Clusters that share a location (city name) get a lower similarity
+    threshold (0.3 instead of the configured value), since same-city +
+    same-week is a strong signal that they're the same trip/event.
+
     Returns (new_labels, merge_count).
     """
+    locations = locations or {}
+    # Lower similarity threshold when clusters share a location.
+    location_similarity_threshold = min(similarity_threshold, 0.3)
+
     new_labels = labels.copy()
     merge_count = 0
     time_threshold_seconds = time_threshold_hours * 3600
 
-    # Build per-cluster info: centroid and time range.
+    # Build per-cluster info: centroid, time range, and location names.
     cluster_info = {}
     unique_clusters = [c for c in set(new_labels) if c != -1]
 
@@ -220,10 +236,18 @@ def _merge_similar_clusters(
             if dt is not None:
                 dts.append(dt)
 
+        # Collect unique location names for this cluster.
+        loc_names = set()
+        for idx in indices:
+            loc = locations.get(int(idx))
+            if loc:
+                loc_names.add(loc)
+
         cluster_info[cluster_id] = {
             "centroid": centroid,
             "min_time": min(dts) if dts else None,
             "max_time": max(dts) if dts else None,
+            "locations": loc_names,
         }
 
     # Check all pairs for merge candidates. Use a union-find approach:
@@ -247,9 +271,17 @@ def _merge_similar_clusters(
                 if not _temporally_close(info_a, info_b, time_threshold_seconds):
                     continue
 
+                # Determine the effective similarity threshold.
+                # If clusters share a location, use the lower threshold.
+                shares_location = bool(info_a["locations"] & info_b["locations"])
+                effective_threshold = (
+                    location_similarity_threshold if shares_location
+                    else similarity_threshold
+                )
+
                 # Check visual similarity.
                 similarity = float(info_a["centroid"] @ info_b["centroid"])
-                if similarity < similarity_threshold:
+                if similarity < effective_threshold:
                     continue
 
                 # Merge: reassign id_b → id_a.
@@ -268,6 +300,7 @@ def _merge_similar_clusters(
                     "centroid": new_centroid,
                     "min_time": _safe_min(info_a["min_time"], info_b["min_time"]),
                     "max_time": _safe_max(info_a["max_time"], info_b["max_time"]),
+                    "locations": info_a["locations"] | info_b["locations"],
                 }
                 del cluster_info[id_b]
 

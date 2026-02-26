@@ -660,6 +660,7 @@ dependencies = [
     { name = "numpy" },
     { name = "ollama" },
     { name = "open-clip-torch" },
+    { name = "reverse-geocoder" },
     { name = "rich" },
     { name = "scikit-learn" },
     { name = "typer" },
@@ -676,6 +677,7 @@ requires-dist = [
     { name = "numpy", specifier = ">=1.26.0" },
     { name = "ollama", specifier = ">=0.4.0" },
     { name = "open-clip-torch", specifier = ">=2.29.0" },
+    { name = "reverse-geocoder", specifier = ">=1.5.1" },
     { name = "rich", specifier = ">=13.0.0" },
     { name = "scikit-learn", specifier = ">=1.3.0" },
     { name = "typer", specifier = ">=0.15.0" },
@@ -940,6 +942,16 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/ae/42/7edc3344dcc87b698e9755f7f685d463852d481302539dae07135202d3ca/regex-2026.2.19-cp314-cp314t-win_amd64.whl", hash = "sha256:64128549b600987e0f335c2365879895f860a9161f283b14207c800a6ed623d3", size = 284443, upload-time = "2026-02-19T19:03:42.954Z" },
     { url = "https://files.pythonhosted.org/packages/3a/45/affdf2d851b42adf3d13fc5b3b059372e9bd299371fd84cf5723c45871fa/regex-2026.2.19-cp314-cp314t-win_arm64.whl", hash = "sha256:a09ae430e94c049dc6957f6baa35ee3418a3a77f3c12b6e02883bd80a2b679b0", size = 274932, upload-time = "2026-02-19T19:03:45.488Z" },
 ]
+
+[[package]]
+name = "reverse-geocoder"
+version = "1.5.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+    { name = "scipy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/0b/0f/b7d5d4b36553731f11983e19e1813a1059ad0732c5162c01b3220c927d31/reverse_geocoder-1.5.1.tar.gz", hash = "sha256:2a2e781b5f69376d922b78fe8978f1350c84fce0ddb07e02c834ecf98b57c75c", size = 2246559, upload-time = "2016-09-15T16:46:46.277Z" }
 
 [[package]]
 name = "rich"

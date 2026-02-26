@@ -111,11 +111,15 @@ def build_cluster_summary_text(manifest: dict) -> str:
                 f"  Date range: {date_range['earliest']} to {date_range['latest']}"
             )
 
-        # GPS locations from Phase 3a.
-        locations = cluster.get("locations", [])
-        if locations:
-            coords = [f"{loc['latitude']}, {loc['longitude']}" for loc in locations]
-            lines.append(f"  GPS: {'; '.join(coords)}")
+        # Location names (reverse-geocoded) or raw GPS fallback.
+        location_names = cluster.get("location_names", [])
+        if location_names:
+            lines.append(f"  Location: {'; '.join(location_names)}")
+        else:
+            locations = cluster.get("locations", [])
+            if locations:
+                coords = [f"{loc['latitude']}, {loc['longitude']}" for loc in locations]
+                lines.append(f"  GPS: {'; '.join(coords)}")
 
         # Cameras from Phase 3a.
         cameras = cluster.get("cameras", [])
@@ -254,6 +258,24 @@ def build_organization_plan(
         cluster_key = str(cluster_id) if cluster_id is not None else None
 
         if cluster_key and cluster_key in cluster_directories:
+            # Single-image clusters aren't useful as albums. Place them
+            # in the bare month directory instead, like noise images.
+            clusters = manifest.get("clusters", {})
+            cluster_size = clusters.get(cluster_key, {}).get("size", 0)
+            entry_exif = entry.get("exif")
+            entry_ts = entry_exif.get("timestamp") if entry_exif else None
+
+            if cluster_size == 1 and entry_ts:
+                date_dir = _date_directory_from_timestamp(entry_ts)
+                if date_dir:
+                    plan.append({
+                        "source": source,
+                        "target": f"{date_dir}/{filename}",
+                        "cluster": cluster_id,
+                        "reason": "Single-image cluster, placed by date",
+                    })
+                    continue
+
             directory = cluster_directories[cluster_key]
             plan.append({
                 "source": source,
