@@ -31,21 +31,20 @@ similar photos and propose a directory structure for organizing them.
 
 Directories follow this exact format:
 ```
-YYYY/MM - Mon/YYYYMMDD - Event Name/
+YYYY/YYYYMMDD - Event Name/
 ```
 
 Examples:
-- 2019/07 - Jul/20190715 - Beach Vacation in Antalya/
-- 2024/04 - Apr/20240415 - Trip to Japan/
-- 2023/12 - Dec/20231225 - Christmas Dinner/
+- 2019/20190715 - Beach Vacation in Antalya/
+- 2024/20240415 - Trip to Japan/
+- 2023/20231225 - Christmas Dinner/
 
 Rules:
 - Year directory: 4 digits (YYYY)
-- Month directory: 2-digit month, space, dash, space, 3-char abbreviation (MM - Mon)
 - Event directory: YYYYMMDD (date of earliest photo), space, dash, space, descriptive name
 - Event names should be concise but descriptive (2-5 words)
-- If multiple clusters fall in the same month, they get separate event directories
-- If no date is available, use "Unknown/00 - Unknown/Descriptive Name" as the path
+- Albums and loose files live directly under the year directory (no month subdirectories)
+- If no date is available, use "Unknown/Descriptive Name" as the path
 
 ## Cluster Data
 
@@ -73,8 +72,8 @@ together (same date + location + topic)
 Respond with ONLY a JSON object mapping cluster_id to directory path. \
 No explanation, no markdown fences, no extra text. Example:
 
-{{"7": "2019/07 - Jul/20190715 - Beach Vacation in Antalya", \
-"12": "2023/12 - Dec/20231225 - Christmas Dinner"}}
+{{"7": "2019/20190715 - Beach Vacation in Antalya", \
+"12": "2023/20231225 - Christmas Dinner"}}
 """
 
 
@@ -242,8 +241,9 @@ _MONTH_ABBR = [
 
 def _date_directory_from_timestamp(timestamp: str) -> str | None:
     """
-    Derive a YYYY/MM - Mon/ directory path from an ISO 8601 timestamp.
+    Derive a YYYY/ directory path from an ISO 8601 timestamp.
 
+    Loose files go directly under the year directory (no month subdirectory).
     Returns None if the timestamp can't be parsed.
     """
     if not timestamp:
@@ -252,11 +252,8 @@ def _date_directory_from_timestamp(timestamp: str) -> str | None:
     try:
         # Timestamps are like "2019-07-15T14:30:00" or with timezone.
         date_part = timestamp[:10]
-        year, month, _day = date_part.split("-")
-        month_int = int(month)
-        if month_int < 1 or month_int > 12:
-            return None
-        return f"{year}/{month} - {_MONTH_ABBR[month_int]}"
+        year, _month, _day = date_part.split("-")
+        return year
     except (ValueError, IndexError):
         return None
 
