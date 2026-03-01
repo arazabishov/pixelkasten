@@ -70,6 +70,7 @@ This manifest is inspectable — you can open it, audit it, edit it before any f
 During this phase, the two tools are independent. The AI pipeline has its own CLI for running embeddings, captioning, and proposing organization. The Node.js Takeout pipeline continues to work as-is. They share only the naming scheme spec (`spec/naming-scheme.md`).
 
 This avoids:
+
 - Runtime coupling between Python and Node.js (no subprocess orchestration, no IPC).
 - Forcing users to install both runtimes for a single workflow.
 - Premature architectural decisions before we know what the AI pipeline needs.
@@ -82,14 +83,14 @@ This avoids:
 
 The Takeout pipeline stages, in order of complexity:
 
-| Stage | Lines | Complexity | Notes |
-|-------|-------|------------|-------|
-| scan | ~100 | Low | Directory traversal, file categorization |
-| rename | ~150 | Low | Date formatting, path construction, collision handling |
-| apply | ~100 | Low | File copy, metadata write via exiftool subprocess |
-| dedupe | ~100 | Low | SHA-256 hashing, resolution logic |
-| reconcile | ~150 | Medium | EXIF reading, sidecar comparison, write queue |
-| link | ~250 | High | Google Takeout sidecar matching with truncation patterns |
+| Stage     | Lines | Complexity | Notes                                                    |
+| --------- | ----- | ---------- | -------------------------------------------------------- |
+| scan      | ~100  | Low        | Directory traversal, file categorization                 |
+| rename    | ~150  | Low        | Date formatting, path construction, collision handling   |
+| apply     | ~100  | Low        | File copy, metadata write via exiftool subprocess        |
+| dedupe    | ~100  | Low        | SHA-256 hashing, resolution logic                        |
+| reconcile | ~150  | Medium     | EXIF reading, sidecar comparison, write queue            |
+| link      | ~250  | High       | Google Takeout sidecar matching with truncation patterns |
 
 Total: ~850 lines of core logic. The link stage is the only complex piece — it encodes empirically-discovered edge cases in Google's filename truncation. **Port the test suite first**, then port the implementation and verify tests pass.
 

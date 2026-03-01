@@ -3,20 +3,23 @@
 ## Problem
 
 The current rename stage (`packages/core/src/stages/rename.js`) uses full month names in directory paths (e.g., `03 - March`, `09 - September`). These have variable character widths which look misaligned in:
+
 - macOS Finder (proportional font — even digits have uneven widths)
 - Any GUI file manager using a proportional font
 
-Since Finder uses proportional fonts for *everything* including digits, no naming scheme will ever look perfectly aligned in Finder. This is Finder's limitation, not ours. Given that, we optimize for the one place where alignment *does* work: the terminal (monospaced fonts).
+Since Finder uses proportional fonts for _everything_ including digits, no naming scheme will ever look perfectly aligned in Finder. This is Finder's limitation, not ours. Given that, we optimize for the one place where alignment _does_ work: the terminal (monospaced fonts).
 
 ## Directory Format
 
 ### Current
+
 ```
 2024/03 - March/
 2024/09 - September/
 ```
 
 ### Proposed
+
 ```
 2024/03 - Mar/
 2024/09 - Sep/
@@ -25,6 +28,7 @@ Since Finder uses proportional fonts for *everything* including digits, no namin
 **Change:** 3-character month abbreviations instead of full names.
 
 **Rationale:**
+
 - All 3-char abbreviations are universally understood (Jan, Feb, Mar, Apr, May, Jun, Jul, Aug, Sep, Oct, Nov, Dec).
 - In a monospaced terminal, every directory name renders at the same width: `NN - NNN` (8 characters).
 - In Finder, they're no worse than full names (alignment is broken regardless) but are more compact.
@@ -34,6 +38,7 @@ Since Finder uses proportional fonts for *everything* including digits, no namin
 ## Filename Format
 
 ### Current
+
 ```
 20240301-133245.jpg
 ```
@@ -47,6 +52,7 @@ The compact `yyyymmdd-hhmmss` format should stay as-is.
 The motivation for adding dashes to the date is readability: `2024-03-01` is easier to parse at a glance than `20240301`. But introducing dashes in the date creates a separator problem — you need a different character to separate date from time, and the underscore (`_`) is the natural candidate. The underscore works functionally but doesn't look great aesthetically.
 
 The compact format avoids this entirely:
+
 - The single dash is an unambiguous separator: 8 digits (date), dash, 6 digits (time).
 - The directory structure `2024/03 - Mar/` already provides human-readable date context. The filename's primary job is to sort correctly and be unique — not to be read as a standalone date.
 - It's proven and already in use. Changing it means re-renaming the entire existing archive.
@@ -54,6 +60,7 @@ The compact format avoids this entirely:
 ### Collision Handling (Unchanged)
 
 When two files produce the same timestamp:
+
 ```
 20240301-133245.jpg
 20240301-133245-1.jpg
@@ -65,11 +72,13 @@ Suffix counter starts at 1 and increments until unique.
 ## Album Directories
 
 ### Current
+
 ```
 2024/04 - April/20240415 - Trip to Japan/
 ```
 
 ### Proposed
+
 ```
 2024/04 - Apr/20240415 - Trip to Japan/
 ```
