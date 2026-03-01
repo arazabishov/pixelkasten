@@ -178,8 +178,8 @@ Human-readable JSON with per-image metadata:
       "status": "ok",
       "cluster": 7,
       "tags": [
-        {"name": "scene:beach", "score": 0.3142},
-        {"name": "event:travel or vacation", "score": 0.2801}
+        { "name": "scene:beach", "score": 0.3142 },
+        { "name": "event:travel or vacation", "score": 0.2801 }
       ],
       "is_representative": true
     }

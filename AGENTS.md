@@ -74,6 +74,7 @@ Standalone Python project for AI-powered photo categorization. Not an npm packag
 **Prerequisites:** Python 3.12+, uv, exiftool (`brew install exiftool`), Ollama with vision + text models.
 
 **Key architecture decisions:**
+
 - Manifest-driven: each stage reads, enriches, and writes back `manifest.json`
 - EXIF read for all images (not just representatives) to enable temporal refinement
 - Region-level geocoding (state/province) for hierarchical location matching
@@ -81,6 +82,7 @@ Standalone Python project for AI-powered photo categorization. Not an npm packag
 - Location outlier filtering (< 10%) prevents transit GPS from polluting album names
 
 **Code conventions:**
+
 - All public functions should have full type annotations
 - Imports for heavy dependencies (torch, sklearn) are deferred inside CLI commands
 - Tests use pytest; fixtures in `ai/test/fixtures/media/`

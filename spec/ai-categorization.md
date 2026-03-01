@@ -22,17 +22,19 @@ The goal is to use AI models to semantically understand and organize these photo
 
 **Model options:**
 
-| Model | Size | Speed (M1 Max) | Notes |
-|-------|------|-----------------|-------|
-| CLIP ViT-L/14 | ~430M params | ~10-50ms/image | The standard. Well-supported everywhere. |
-| SigLIP ViT-SO | ~400M params | ~10-50ms/image | Google's improved CLIP. Better accuracy. |
-| Apple mlx-clip | Same models | Optimized for M-series | Native Apple Silicon via MLX framework. |
+| Model          | Size         | Speed (M1 Max)         | Notes                                    |
+| -------------- | ------------ | ---------------------- | ---------------------------------------- |
+| CLIP ViT-L/14  | ~430M params | ~10-50ms/image         | The standard. Well-supported everywhere. |
+| SigLIP ViT-SO  | ~400M params | ~10-50ms/image         | Google's improved CLIP. Better accuracy. |
+| Apple mlx-clip | Same models  | Optimized for M-series | Native Apple Silicon via MLX framework.  |
 
 **Output per image:**
+
 - A 768-dimensional float vector (embedding)
 - Zero-shot classification scores against predefined label sets
 
 **Example label sets:**
+
 ```
 Scenes:    ["beach", "mountain", "city street", "indoor", "garden", "forest"]
 Events:    ["birthday", "wedding", "graduation", "holiday dinner", "concert"]
@@ -48,6 +50,7 @@ Subjects:  ["portrait", "group photo", "landscape", "food", "pet", "document"]
 **What:** Run a local vision-language model on a small subset of images to generate rich natural-language descriptions.
 
 **Why selective:** Running a VLM on every image is wasteful. Instead:
+
 1. Cluster the embeddings from Phase 1 (HDBSCAN or k-means).
 2. Select representative images from each cluster — the image closest to the centroid plus a few outliers.
 3. Caption only those representatives (~5-10% of the library).
@@ -55,13 +58,14 @@ Subjects:  ["portrait", "group photo", "landscape", "food", "pet", "document"]
 
 **Model options (all run locally via Ollama on M1 Max 64GB):**
 
-| Model | Size | Speed | Best for |
-|-------|------|-------|----------|
-| Moondream2 | ~1.8B | ~1-2s/image | Fast captioning, purpose-built |
-| Florence-2 | ~0.7B | <1s/image | Structured output (captions, objects, OCR) |
-| LLaVA 7B | ~7B | ~3-5s/image | Richer understanding, more context |
+| Model      | Size  | Speed       | Best for                                   |
+| ---------- | ----- | ----------- | ------------------------------------------ |
+| Moondream2 | ~1.8B | ~1-2s/image | Fast captioning, purpose-built             |
+| Florence-2 | ~0.7B | <1s/image   | Structured output (captions, objects, OCR) |
+| LLaVA 7B   | ~7B   | ~3-5s/image | Richer understanding, more context         |
 
 **Output per representative image:**
+
 - Natural language caption (e.g., "family gathering around a dinner table with birthday cake, indoor, evening lighting")
 - Optionally: detected objects, text in image (OCR)
 
@@ -70,6 +74,7 @@ Subjects:  ["portrait", "group photo", "landscape", "food", "pet", "document"]
 **What:** Feed the structured metadata from Phases 1-2 into an LLM agent (Claude Code, Copilot CLI, or a standalone script) that reasons about organization and proposes a directory structure.
 
 **Input to the agent:**
+
 - Cluster summaries: representative captions, tag distributions, member count
 - Date ranges per cluster (from EXIF)
 - GPS locations per cluster (reverse-geocoded to place names)
@@ -119,11 +124,11 @@ The pipeline extends to video with minor adaptations:
 
 ## Cost Analysis
 
-| Phase | Compute | Cost | Time (100k photos) |
-|-------|---------|------|---------------------|
-| Phase 1: CLIP embeddings | Local (M1 Max) | Free | ~2-5 hours |
-| Phase 2: VLM captioning | Local (Ollama) | Free | ~30-60 min (5-10k samples) |
-| Phase 3: Agent reasoning | One LLM session | Negligible (text only) | Minutes |
+| Phase                    | Compute         | Cost                   | Time (100k photos)         |
+| ------------------------ | --------------- | ---------------------- | -------------------------- |
+| Phase 1: CLIP embeddings | Local (M1 Max)  | Free                   | ~2-5 hours                 |
+| Phase 2: VLM captioning  | Local (Ollama)  | Free                   | ~30-60 min (5-10k samples) |
+| Phase 3: Agent reasoning | One LLM session | Negligible (text only) | Minutes                    |
 
 The entire pipeline can process a large personal library without spending anything on API calls.
 
@@ -132,12 +137,14 @@ The entire pipeline can process a large personal library without spending anythi
 This pipeline is experimental. Before investing in consolidation or UI work (see `architecture.md`), we need to validate that the AI produces useful results on real photo libraries.
 
 **What to test:**
+
 - Does CLIP clustering produce semantically meaningful groups? Or are clusters dominated by visual similarity (all blue photos together) rather than semantic similarity (all beach photos together)?
 - Do zero-shot tag scores correlate with human judgment? Is "birthday party" actually scored higher for birthday photos than "landscape"?
 - Does selective VLM captioning on cluster representatives produce useful descriptions, or are the captions too generic?
 - Can an agent (or a rule-based script) turn the structured metadata into a directory structure that a human would actually want?
 
 **How to test:**
+
 - Run the pipeline on a personal photo library (1k-10k photos is sufficient for validation).
 - Manually review a sample of clusters: are the groupings sensible?
 - Compare the proposed organization against what you would have done manually.
