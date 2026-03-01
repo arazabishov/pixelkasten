@@ -101,7 +101,7 @@ def build_cluster_summary_text(manifest: dict) -> str:
         if captions:
             lines.append("  Captions:")
             for cap in captions:
-                lines.append(f"    - \"{cap}\"")
+                lines.append(f'    - "{cap}"')
 
         # Tags from Phase 1.
         tags = cluster.get("top_tags", [])
@@ -120,6 +120,7 @@ def build_cluster_summary_text(manifest: dict) -> str:
         # transit or metadata errors gets ignored. This prevents "California
         # and Netherlands Travel" when 2 of 58 photos were taken mid-flight.
         from collections import Counter
+
         city_counts = Counter()
         region_counts = Counter()
         for entry in manifest["entries"]:
@@ -136,8 +137,7 @@ def build_cluster_summary_text(manifest: dict) -> str:
         total_geotagged = sum(region_counts.values())
         if total_geotagged > 0:
             significant_regions = [
-                r for r, c in region_counts.items()
-                if c / total_geotagged >= 0.1
+                r for r, c in region_counts.items() if c / total_geotagged >= 0.1
             ]
             # Keep only cities belonging to significant regions.
             significant_cities = []
@@ -169,12 +169,15 @@ def build_cluster_summary_text(manifest: dict) -> str:
 
     # Count noise images.
     n_noise = sum(
-        1 for e in manifest["entries"]
+        1
+        for e in manifest["entries"]
         if e.get("cluster") == -1 and e.get("status") == "ok"
     )
     if n_noise > 0:
         lines.append(f"Unclustered images ({n_noise} images):")
-        lines.append("  These did not fit into any cluster. They will go into Unsorted/.")
+        lines.append(
+            "  These did not fit into any cluster. They will go into Unsorted/."
+        )
 
     return "\n".join(lines)
 
@@ -234,8 +237,19 @@ def propose_organization(
 
 
 _MONTH_ABBR = [
-    "", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    "",
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
 ]
 
 
@@ -305,21 +319,25 @@ def build_organization_plan(
             if cluster_size == 1 and entry_ts:
                 date_dir = _date_directory_from_timestamp(entry_ts)
                 if date_dir:
-                    plan.append({
-                        "source": source,
-                        "target": f"{date_dir}/{filename}",
-                        "cluster": cluster_id,
-                        "reason": "Single-image cluster, placed by date",
-                    })
+                    plan.append(
+                        {
+                            "source": source,
+                            "target": f"{date_dir}/{filename}",
+                            "cluster": cluster_id,
+                            "reason": "Single-image cluster, placed by date",
+                        }
+                    )
                     continue
 
             directory = cluster_directories[cluster_key]
-            plan.append({
-                "source": source,
-                "target": f"{directory}/{filename}",
-                "cluster": cluster_id,
-                "reason": f"Cluster {cluster_key}: {Path(directory).name}",
-            })
+            plan.append(
+                {
+                    "source": source,
+                    "target": f"{directory}/{filename}",
+                    "cluster": cluster_id,
+                    "reason": f"Cluster {cluster_key}: {Path(directory).name}",
+                }
+            )
             continue
 
         # Noise/unmapped image: try to place by date if EXIF is available.
@@ -334,19 +352,23 @@ def build_organization_plan(
         date_dir = _date_directory_from_timestamp(timestamp) if timestamp else None
 
         if date_dir:
-            plan.append({
-                "source": source,
-                "target": f"{date_dir}/{filename}",
-                "cluster": cluster_id if cluster_id is not None else -1,
-                "reason": f"Unclustered, placed by date ({timestamp[:10]})",
-            })
+            plan.append(
+                {
+                    "source": source,
+                    "target": f"{date_dir}/{filename}",
+                    "cluster": cluster_id if cluster_id is not None else -1,
+                    "reason": f"Unclustered, placed by date ({timestamp[:10]})",
+                }
+            )
         else:
-            plan.append({
-                "source": source,
-                "target": f"Unsorted/{filename}",
-                "cluster": cluster_id if cluster_id is not None else -1,
-                "reason": "Unclustered, no date available",
-            })
+            plan.append(
+                {
+                    "source": source,
+                    "target": f"Unsorted/{filename}",
+                    "cluster": cluster_id if cluster_id is not None else -1,
+                    "reason": "Unclustered, no date available",
+                }
+            )
 
     return plan
 

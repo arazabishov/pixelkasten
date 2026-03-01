@@ -71,13 +71,15 @@ def write_manifest(
     for path_index, path in enumerate(image_paths):
         if path_index in failed_set:
             # Record the failure so the user knows which files were skipped.
-            entries.append({
-                "path": str(path),
-                "status": "failed",
-                "cluster": None,
-                "tags": [],
-                "is_representative": False,
-            })
+            entries.append(
+                {
+                    "path": str(path),
+                    "status": "failed",
+                    "cluster": None,
+                    "tags": [],
+                    "is_representative": False,
+                }
+            )
             continue
 
         # Build tag list: each tag is {name, score} for readability.
@@ -86,13 +88,15 @@ def write_manifest(
             for name, score in classifications[embed_index]
         ]
 
-        entries.append({
-            "path": str(path),
-            "status": "ok",
-            "cluster": int(labels[embed_index]),
-            "tags": tags,
-            "is_representative": embed_index in representative_set,
-        })
+        entries.append(
+            {
+                "path": str(path),
+                "status": "ok",
+                "cluster": int(labels[embed_index]),
+                "tags": tags,
+                "is_representative": embed_index in representative_set,
+            }
+        )
 
         embed_index += 1
 
@@ -174,10 +178,12 @@ def _rebuild_cluster_summaries(manifest: dict) -> dict[str, dict]:
                     for loc in clusters[key]["locations"]
                 ]
                 if rounded not in existing:
-                    clusters[key]["locations"].append({
-                        "latitude": rounded[0],
-                        "longitude": rounded[1],
-                    })
+                    clusters[key]["locations"].append(
+                        {
+                            "latitude": rounded[0],
+                            "longitude": rounded[1],
+                        }
+                    )
 
             if exif.get("camera"):
                 if "cameras" not in clusters[key]:

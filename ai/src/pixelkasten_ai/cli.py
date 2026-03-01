@@ -18,7 +18,13 @@ Phase 5  (apply):    read organization.json → copy files to proposed structure
 import typer
 from pathlib import Path
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
+from rich.progress import (
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    BarColumn,
+    TaskProgressColumn,
+)
 from rich.table import Table
 from rich.tree import Tree
 
@@ -34,7 +40,8 @@ console = Console()
 def embed(
     source: Path = typer.Option(
         ...,
-        "--source", "-s",
+        "--source",
+        "-s",
         help="Directory containing photos to categorize.",
         exists=True,
         file_okay=False,
@@ -42,7 +49,8 @@ def embed(
     ),
     output: Path = typer.Option(
         Path("./output"),
-        "--output", "-o",
+        "--output",
+        "-o",
         help="Directory to write manifest.json and embeddings.npy.",
         resolve_path=True,
     ),
@@ -72,7 +80,11 @@ def embed(
     """
     from pixelkasten_ai.scan import scan, is_image
     from pixelkasten_ai.embed import load_model, embed_images, embed_texts
-    from pixelkasten_ai.cluster import cluster_embeddings, find_representatives, cluster_summary
+    from pixelkasten_ai.cluster import (
+        cluster_embeddings,
+        find_representatives,
+        cluster_summary,
+    )
     from pixelkasten_ai.classify import classify, build_label_list, DEFAULT_LABEL_SETS
     from pixelkasten_ai.manifest import write_manifest
 
@@ -85,7 +97,9 @@ def embed(
         console.print("[red]No supported images found in source directory.[/red]")
         raise typer.Exit(code=1)
 
-    console.print(f"  Found {len(image_files)} images ({len(all_files) - len(image_files)} videos skipped)")
+    console.print(
+        f"  Found {len(image_files)} images ({len(all_files) - len(image_files)} videos skipped)"
+    )
 
     # --- Step 2: Load CLIP model ---
     console.print("\n[bold]Step 2/5:[/bold] Loading CLIP model...")
@@ -111,21 +125,27 @@ def embed(
             progress.update(task, completed=processed)
 
         embeddings, failed_indices = embed_images(
-            model, preprocess, image_files, device,
-            batch_size=batch_size, on_progress=on_progress,
+            model,
+            preprocess,
+            image_files,
+            device,
+            batch_size=batch_size,
+            on_progress=on_progress,
         )
 
     n_embedded = len(image_files) - len(failed_indices)
     console.print(f"  Embedded: {n_embedded} images")
     if failed_indices:
-        console.print(f"  [yellow]Failed: {len(failed_indices)} images (corrupt or unreadable)[/yellow]")
+        console.print(
+            f"  [yellow]Failed: {len(failed_indices)} images (corrupt or unreadable)[/yellow]"
+        )
 
     if n_embedded == 0:
         console.print("[red]No images could be embedded. Check file formats.[/red]")
         raise typer.Exit(code=1)
 
     # --- Step 4: Cluster ---
-    console.print(f"\n[bold]Step 4/5:[/bold] Clustering embeddings...")
+    console.print("\n[bold]Step 4/5:[/bold] Clustering embeddings...")
 
     labels = cluster_embeddings(embeddings, min_cluster_size=min_cluster_size)
     summary = cluster_summary(labels)
@@ -152,14 +172,16 @@ def embed(
         console.print(table)
 
     # --- Step 5: Classify ---
-    console.print(f"\n[bold]Step 5/5:[/bold] Classifying images against labels...")
+    console.print("\n[bold]Step 5/5:[/bold] Classifying images against labels...")
 
     prefixed_names, raw_labels = build_label_list(DEFAULT_LABEL_SETS)
 
     with console.status("Embedding label texts..."):
         label_embeddings = embed_texts(model, tokenizer, raw_labels, device)
 
-    classifications = classify(embeddings, label_embeddings, prefixed_names, threshold=threshold)
+    classifications = classify(
+        embeddings, label_embeddings, prefixed_names, threshold=threshold
+    )
 
     # --- Write manifest ---
     manifest_path = write_manifest(
@@ -172,7 +194,9 @@ def embed(
         failed_indices=failed_indices,
     )
 
-    console.print(f"\n[green bold]Done![/green bold] Manifest written to {manifest_path}")
+    console.print(
+        f"\n[green bold]Done![/green bold] Manifest written to {manifest_path}"
+    )
     console.print(f"  Embeddings saved to {output / 'embeddings.npy'}")
 
 
@@ -180,7 +204,8 @@ def embed(
 def caption(
     manifest_path: Path = typer.Option(
         ...,
-        "--manifest", "-m",
+        "--manifest",
+        "-m",
         help="Path to a Phase 1 manifest.json file.",
         exists=True,
         dir_okay=False,
@@ -206,7 +231,9 @@ def caption(
     """
     from pixelkasten_ai.manifest import read_manifest, enrich_manifest
     from pixelkasten_ai.caption import (
-        check_ollama, caption_representatives, DEFAULT_PROMPT,
+        check_ollama,
+        caption_representatives,
+        DEFAULT_PROMPT,
     )
 
     # --- Step 1: Validate prerequisites ---
@@ -224,7 +251,8 @@ def caption(
     manifest = read_manifest(manifest_path)
 
     n_representatives = sum(
-        1 for e in manifest["entries"]
+        1
+        for e in manifest["entries"]
         if e.get("is_representative", False) and e.get("status") == "ok"
     )
 
@@ -232,7 +260,9 @@ def caption(
         console.print("[red]No representative images found in manifest.[/red]")
         raise typer.Exit(code=1)
 
-    console.print(f"\n[bold]Step 2/3:[/bold] Captioning {n_representatives} representatives...")
+    console.print(
+        f"\n[bold]Step 2/3:[/bold] Captioning {n_representatives} representatives..."
+    )
 
     captioning_prompt = prompt if prompt is not None else DEFAULT_PROMPT
 
@@ -249,7 +279,10 @@ def caption(
             progress.update(task, completed=processed)
 
         captions = caption_representatives(
-            manifest, model, captioning_prompt, on_progress=on_progress,
+            manifest,
+            model,
+            captioning_prompt,
+            on_progress=on_progress,
         )
 
     console.print(f"  Captioned: {len(captions)} / {n_representatives} images")
@@ -259,11 +292,13 @@ def caption(
         raise typer.Exit(code=1)
 
     # --- Step 3: Enrich manifest ---
-    console.print(f"\n[bold]Step 3/3:[/bold] Writing enriched manifest...")
+    console.print("\n[bold]Step 3/3:[/bold] Writing enriched manifest...")
 
     enrich_manifest(manifest_path, captions)
 
-    console.print(f"\n[green bold]Done![/green bold] Manifest enriched: {manifest_path}")
+    console.print(
+        f"\n[green bold]Done![/green bold] Manifest enriched: {manifest_path}"
+    )
 
     # Print a sample of captions.
     table = Table(title="Sample Captions", show_header=True)
@@ -280,7 +315,8 @@ def caption(
 def enrich(
     manifest_path: Path = typer.Option(
         ...,
-        "--manifest", "-m",
+        "--manifest",
+        "-m",
         help="Path to a manifest.json file.",
         exists=True,
         dir_okay=False,
@@ -313,10 +349,7 @@ def enrich(
     # --- Step 2: Read EXIF from all images ---
     manifest = read_manifest(manifest_path)
 
-    n_images = sum(
-        1 for e in manifest["entries"]
-        if e.get("status") == "ok"
-    )
+    n_images = sum(1 for e in manifest["entries"] if e.get("status") == "ok")
 
     if n_images == 0:
         console.print("[red]No images found in manifest.[/red]")
@@ -348,7 +381,9 @@ def enrich(
 
     location_data = {}
     if n_with_gps > 0:
-        console.print(f"\n[bold]Step 3/4:[/bold] Reverse geocoding {n_with_gps} GPS coordinates...")
+        console.print(
+            f"\n[bold]Step 3/4:[/bold] Reverse geocoding {n_with_gps} GPS coordinates..."
+        )
 
         with console.status("Resolving locations..."):
             location_data = reverse_geocode(exif_data)
@@ -356,14 +391,16 @@ def enrich(
         unique_locations = set(loc["display_name"] for loc in location_data.values())
         console.print(f"  Resolved to {len(unique_locations)} unique locations")
     else:
-        console.print(f"\n[bold]Step 3/4:[/bold] No GPS data to geocode")
+        console.print("\n[bold]Step 3/4:[/bold] No GPS data to geocode")
 
     # --- Step 4: Enrich manifest ---
-    console.print(f"\n[bold]Step 4/4:[/bold] Writing enriched manifest...")
+    console.print("\n[bold]Step 4/4:[/bold] Writing enriched manifest...")
 
     enrich_manifest_exif(manifest_path, exif_data, location_data=location_data)
 
-    console.print(f"\n[green bold]Done![/green bold] Manifest enriched: {manifest_path}")
+    console.print(
+        f"\n[green bold]Done![/green bold] Manifest enriched: {manifest_path}"
+    )
 
     # Print a sample of EXIF results.
     table = Table(title="Sample EXIF Data", show_header=True)
@@ -391,7 +428,8 @@ def enrich(
 def refine(
     manifest_path: Path = typer.Option(
         ...,
-        "--manifest", "-m",
+        "--manifest",
+        "-m",
         help="Path to a manifest.json file (must have EXIF data from enrich step).",
         exists=True,
         dir_okay=False,
@@ -423,7 +461,11 @@ def refine(
 
     Requires the enrich step to have been run first (EXIF data in manifest).
     """
-    from pixelkasten_ai.manifest import read_manifest, load_embeddings, update_manifest_clusters
+    from pixelkasten_ai.manifest import (
+        read_manifest,
+        load_embeddings,
+        update_manifest_clusters,
+    )
     from pixelkasten_ai.cluster import find_representatives, cluster_summary
     from pixelkasten_ai.refine import refine_clusters
 
@@ -436,25 +478,29 @@ def refine(
     # Check that EXIF data exists.
     has_exif = any(entry.get("exif") for entry in manifest["entries"])
     if not has_exif:
-        console.print(
-            "[red]No EXIF data found in manifest. Run 'enrich' first.[/red]"
-        )
+        console.print("[red]No EXIF data found in manifest. Run 'enrich' first.[/red]")
         raise typer.Exit(code=1)
 
     import numpy as np
+
     before = cluster_summary(
-        np.array([
-            e.get("cluster", -1) for e in manifest["entries"] if e.get("status") == "ok"
-        ])
+        np.array(
+            [
+                e.get("cluster", -1)
+                for e in manifest["entries"]
+                if e.get("status") == "ok"
+            ]
+        )
     )
     console.print(f"  Clusters before: {before['n_clusters']}")
     console.print(f"  Noise before: {before['n_noise']} images")
 
     # --- Step 2: Refine ---
-    console.print(f"\n[bold]Step 2/3:[/bold] Refining clusters...")
+    console.print("\n[bold]Step 2/3:[/bold] Refining clusters...")
 
     new_labels, stats = refine_clusters(
-        manifest, embeddings,
+        manifest,
+        embeddings,
         split_gap_hours=split_gap,
         merge_similarity=merge_similarity,
         merge_time_hours=merge_time,
@@ -469,7 +515,7 @@ def refine(
         console.print(f"  Home location: {stats['home_location']}")
 
     # --- Step 3: Update manifest ---
-    console.print(f"\n[bold]Step 3/3:[/bold] Updating manifest...")
+    console.print("\n[bold]Step 3/3:[/bold] Updating manifest...")
 
     representatives = find_representatives(embeddings, new_labels)
     update_manifest_clusters(manifest_path, new_labels, representatives)
@@ -480,10 +526,12 @@ def refine(
     console.print(f"  Noise after: {after['n_noise']} images")
 
     # Show before/after comparison.
-    if before['n_clusters'] != after['n_clusters']:
-        delta = after['n_clusters'] - before['n_clusters']
+    if before["n_clusters"] != after["n_clusters"]:
+        delta = after["n_clusters"] - before["n_clusters"]
         sign = "+" if delta > 0 else ""
-        console.print(f"  Change: {sign}{delta} clusters ({before['n_clusters']} → {after['n_clusters']})")
+        console.print(
+            f"  Change: {sign}{delta} clusters ({before['n_clusters']} → {after['n_clusters']})"
+        )
 
     # Print cluster sizes.
     if after["cluster_sizes"]:
@@ -507,7 +555,8 @@ def refine(
 def organize(
     manifest_path: Path = typer.Option(
         ...,
-        "--manifest", "-m",
+        "--manifest",
+        "-m",
         help="Path to an enriched manifest.json file.",
         exists=True,
         dir_okay=False,
@@ -515,7 +564,8 @@ def organize(
     ),
     output: Path = typer.Option(
         None,
-        "--output", "-o",
+        "--output",
+        "-o",
         help="Path to write organization.json. Defaults to same directory as manifest.",
         resolve_path=True,
     ),
@@ -539,7 +589,6 @@ def organize(
     from pixelkasten_ai.caption import check_ollama
     from pixelkasten_ai.manifest import read_manifest
     from pixelkasten_ai.organize import (
-        build_cluster_summary_text,
         propose_organization,
         build_organization_plan,
         write_organization_plan,
@@ -557,7 +606,7 @@ def organize(
     console.print(f"  Model: {model}")
 
     # --- Step 2: Build cluster summaries ---
-    console.print(f"\n[bold]Step 2/5:[/bold] Reading manifest...")
+    console.print("\n[bold]Step 2/5:[/bold] Reading manifest...")
 
     manifest = read_manifest(manifest_path)
     clusters = manifest.get("clusters", {})
@@ -567,16 +616,13 @@ def organize(
         raise typer.Exit(code=1)
 
     # Warn if no EXIF data is present.
-    has_exif = any(
-        entry.get("exif") for entry in manifest["entries"]
-    )
+    has_exif = any(entry.get("exif") for entry in manifest["entries"])
     if not has_exif:
         console.print(
             "[yellow]  No EXIF data found in manifest. "
             "Run 'enrich' first for better date-based organization.[/yellow]"
         )
 
-    summary_text = build_cluster_summary_text(manifest)
     console.print(f"  Clusters: {len(clusters)}")
 
     # Print cluster preview table.
@@ -597,7 +643,9 @@ def organize(
     console.print(table)
 
     # --- Step 3: LLM reasoning ---
-    console.print(f"\n[bold]Step 3/5:[/bold] Sending to LLM for organization proposal...")
+    console.print(
+        "\n[bold]Step 3/5:[/bold] Sending to LLM for organization proposal..."
+    )
 
     with console.status("LLM is reasoning about directory structure..."):
         try:
@@ -613,9 +661,14 @@ def organize(
     # only processes representatives). Read their EXIF now so we can place
     # them in date-based directories instead of Unsorted/.
     noise_entries = [
-        e for e in manifest["entries"]
+        e
+        for e in manifest["entries"]
         if e.get("status") == "ok"
-        and (e.get("cluster") is None or e.get("cluster") == -1 or str(e.get("cluster")) not in cluster_directories)
+        and (
+            e.get("cluster") is None
+            or e.get("cluster") == -1
+            or str(e.get("cluster")) not in cluster_directories
+        )
         and not e.get("exif", {}).get("timestamp")
     ]
 
@@ -624,28 +677,38 @@ def organize(
         from pixelkasten_ai.exif import read_exif
 
         noise_paths = [Path(e["path"]) for e in noise_entries]
-        console.print(f"\n[bold]Step 4/5:[/bold] Reading EXIF for {len(noise_paths)} unclustered images...")
+        console.print(
+            f"\n[bold]Step 4/5:[/bold] Reading EXIF for {len(noise_paths)} unclustered images..."
+        )
 
         with console.status("Reading EXIF..."):
             noise_exif = read_exif(noise_paths)
 
         n_with_date = sum(1 for e in noise_exif.values() if e.get("timestamp"))
-        console.print(f"  {n_with_date} of {len(noise_paths)} have timestamps (will be placed by date)")
+        console.print(
+            f"  {n_with_date} of {len(noise_paths)} have timestamps (will be placed by date)"
+        )
     else:
-        console.print(f"\n[bold]Step 4/5:[/bold] No unclustered images need EXIF reading")
+        console.print(
+            "\n[bold]Step 4/5:[/bold] No unclustered images need EXIF reading"
+        )
 
     # --- Step 5: Write plan ---
-    console.print(f"\n[bold]Step 5/5:[/bold] Writing organization plan...")
+    console.print("\n[bold]Step 5/5:[/bold] Writing organization plan...")
 
     plan = build_organization_plan(manifest, cluster_directories, noise_exif=noise_exif)
 
-    output_path = output if output is not None else manifest_path.parent / "organization.json"
+    output_path = (
+        output if output is not None else manifest_path.parent / "organization.json"
+    )
     write_organization_plan(plan, cluster_directories, model, output_path)
 
     n_organized = sum(1 for p in plan if not p["target"].startswith("Unsorted/"))
     n_unsorted = sum(1 for p in plan if p["target"].startswith("Unsorted/"))
 
-    console.print(f"\n[green bold]Done![/green bold] Organization plan written to {output_path}")
+    console.print(
+        f"\n[green bold]Done![/green bold] Organization plan written to {output_path}"
+    )
     console.print(f"  Organized: {n_organized} images")
     console.print(f"  Unsorted: {n_unsorted} images")
 
@@ -667,7 +730,8 @@ def organize(
 def apply(
     plan_path: Path = typer.Option(
         ...,
-        "--plan", "-p",
+        "--plan",
+        "-p",
         help="Path to an organization.json file.",
         exists=True,
         dir_okay=False,
@@ -675,7 +739,8 @@ def apply(
     ),
     destination: Path = typer.Option(
         ...,
-        "--destination", "-d",
+        "--destination",
+        "-d",
         help="Root directory to copy files into.",
         resolve_path=True,
     ),
@@ -718,6 +783,8 @@ def apply(
     console.print(f"\n[green bold]Done![/green bold] Files copied to {destination}")
     console.print(f"  Copied: {stats['copied']}")
     if stats["skipped"] > 0:
-        console.print(f"  [yellow]Skipped (source missing): {stats['skipped']}[/yellow]")
+        console.print(
+            f"  [yellow]Skipped (source missing): {stats['skipped']}[/yellow]"
+        )
     if stats["failed"] > 0:
         console.print(f"  [red]Failed: {stats['failed']}[/red]")

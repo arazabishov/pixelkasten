@@ -44,8 +44,7 @@ def check_exiftool() -> None:
         )
         if result.returncode != 0:
             raise RuntimeError(
-                "exiftool is installed but returned an error. "
-                "Check your installation."
+                "exiftool is installed but returned an error. Check your installation."
             )
     except FileNotFoundError:
         raise RuntimeError(
@@ -75,9 +74,9 @@ def read_exif(file_paths: list[Path]) -> dict[str, ExifData]:
     args = [
         "exiftool",
         "-json",
-        "-n",               # Numeric values (decimal GPS, not DMS strings)
-        "-G",               # Group names (EXIF:, Composite:, etc.)
-        "-fast",            # Skip non-requested tags for speed
+        "-n",  # Numeric values (decimal GPS, not DMS strings)
+        "-G",  # Group names (EXIF:, Composite:, etc.)
+        "-fast",  # Skip non-requested tags for speed
         # Timestamps (priority order)
         "-EXIF:DateTimeOriginal",
         "-EXIF:CreateDate",
@@ -90,7 +89,8 @@ def read_exif(file_paths: list[Path]) -> dict[str, ExifData]:
         # Camera
         "-EXIF:Model",
         "-EXIF:Make",
-        "-@", "-",          # Read file list from stdin
+        "-@",
+        "-",  # Read file list from stdin
     ]
 
     stdin_text = "\n".join(str(p) for p in file_paths)
@@ -143,10 +143,7 @@ def read_exif_for_all(
     Returns:
         Dict of {image_path: ExifData} for all ok-status images.
     """
-    ok_entries = [
-        entry for entry in manifest["entries"]
-        if entry.get("status") == "ok"
-    ]
+    ok_entries = [entry for entry in manifest["entries"] if entry.get("status") == "ok"]
 
     file_paths = [Path(entry["path"]) for entry in ok_entries]
 
@@ -179,7 +176,8 @@ def read_exif_for_representatives(
         Dict of {image_path: ExifData} for all representatives.
     """
     representatives = [
-        entry for entry in manifest["entries"]
+        entry
+        for entry in manifest["entries"]
         if entry.get("is_representative", False) and entry.get("status") == "ok"
     ]
 

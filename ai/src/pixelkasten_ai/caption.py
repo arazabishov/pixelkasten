@@ -34,9 +34,7 @@ def check_ollama(model: str) -> None:
     try:
         available = ollama_client.list()
     except Exception:
-        raise RuntimeError(
-            "Ollama is not running. Start it with: ollama serve"
-        )
+        raise RuntimeError("Ollama is not running. Start it with: ollama serve")
 
     model_names = [m.model for m in available.models]
 
@@ -97,7 +95,8 @@ def caption_representatives(
         Dict of {image_path: caption} for successfully captioned images.
     """
     representatives = [
-        entry for entry in manifest["entries"]
+        entry
+        for entry in manifest["entries"]
         if entry.get("is_representative", False) and entry.get("status") == "ok"
     ]
 
