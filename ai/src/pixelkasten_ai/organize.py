@@ -1,5 +1,5 @@
 """
-Agent-driven organization — Phase 3b of the AI pipeline.
+Agent-driven organization — Phase 4 of the AI pipeline.
 
 Feeds cluster summaries (captions, EXIF dates, GPS locations, tags) to a
 local text LLM via Ollama to propose a directory structure. The LLM never
@@ -268,8 +268,8 @@ def build_organization_plan(
 
     For each image in the manifest:
     - If it belongs to a cluster with a proposed directory, map it there.
-    - If it's noise (cluster=-1) but has EXIF timestamp, place it in the
-      date-based directory (YYYY/MM - Mon/) without an event subfolder.
+    - If it's a single-image cluster with a timestamp, place in YYYY/ (no album).
+    - If it's noise (cluster=-1) but has EXIF timestamp, place in YYYY/.
     - Otherwise, put it in Unsorted/.
     - Preserve the original filename.
 

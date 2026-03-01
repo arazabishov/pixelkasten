@@ -120,36 +120,17 @@ def write_manifest(
     return manifest_path
 
 
-def enrich_manifest(manifest_path: Path, captions: dict[str, str]) -> None:
+def _rebuild_cluster_summaries(manifest: dict) -> dict[str, dict]:
     """
-    Enrich an existing manifest with VLM captions and cluster summaries.
+    Build cluster summaries from manifest entries.
 
-    Reads the manifest, adds a `caption` field to entries that were
-    captioned, builds a top-level `clusters` summary aggregating captions
-    and top tags per cluster, and writes the result back to disk.
+    Iterates all ok-status entries and aggregates per-cluster:
+    size, captions, top_tags, date_range, locations, cameras, location_names.
 
-    Args:
-        manifest_path: Path to the manifest.json file.
-        captions: Dict mapping image path → caption string,
-            as returned by caption_representatives().
+    This is the single source of truth for cluster summary building,
+    used by all enrichment functions to avoid duplicated logic.
     """
-    manifest = read_manifest(manifest_path)
-
-    # Add captions to individual entries.
-    for entry in manifest["entries"]:
-        if entry["path"] in captions:
-            entry["caption"] = captions[entry["path"]]
-
-    # Update cluster summaries with captions. Preserve existing fields
-    # (date_range, locations, cameras) that were set by enrich/refine.
-    clusters = manifest.get("clusters", {})
-
-    for key, cluster in clusters.items():
-        # Rebuild captions and top_tags from entries (these change when
-        # new captions are added), but keep other fields intact.
-        cluster["captions"] = []
-        cluster["top_tags"] = []
-        cluster["size"] = 0
+    clusters: dict[str, dict] = {}
 
     for entry in manifest["entries"]:
         cluster_id = entry.get("cluster")
@@ -174,7 +155,74 @@ def enrich_manifest(manifest_path: Path, captions: dict[str, str]) -> None:
             if tag_name not in clusters[key]["top_tags"]:
                 clusters[key]["top_tags"].append(tag_name)
 
-    manifest["clusters"] = clusters
+        exif = entry.get("exif")
+        if exif:
+            if exif.get("timestamp"):
+                if "timestamps" not in clusters[key]:
+                    clusters[key]["timestamps"] = []
+                clusters[key]["timestamps"].append(exif["timestamp"])
+
+            if exif.get("gps"):
+                if "locations" not in clusters[key]:
+                    clusters[key]["locations"] = []
+                rounded = (
+                    round(exif["gps"]["latitude"], 2),
+                    round(exif["gps"]["longitude"], 2),
+                )
+                existing = [
+                    (loc["latitude"], loc["longitude"])
+                    for loc in clusters[key]["locations"]
+                ]
+                if rounded not in existing:
+                    clusters[key]["locations"].append({
+                        "latitude": rounded[0],
+                        "longitude": rounded[1],
+                    })
+
+            if exif.get("camera"):
+                if "cameras" not in clusters[key]:
+                    clusters[key]["cameras"] = []
+                if exif["camera"] not in clusters[key]["cameras"]:
+                    clusters[key]["cameras"].append(exif["camera"])
+
+            if exif.get("location_name"):
+                if "location_names" not in clusters[key]:
+                    clusters[key]["location_names"] = []
+                if exif["location_name"] not in clusters[key]["location_names"]:
+                    clusters[key]["location_names"].append(exif["location_name"])
+
+    # Convert timestamp lists to date ranges.
+    for cluster in clusters.values():
+        ts_list = cluster.pop("timestamps", [])
+        if ts_list:
+            ts_list.sort()
+            cluster["date_range"] = {
+                "earliest": ts_list[0],
+                "latest": ts_list[-1],
+            }
+
+    return clusters
+
+
+def enrich_manifest(manifest_path: Path, captions: dict[str, str]) -> None:
+    """
+    Enrich an existing manifest with VLM captions.
+
+    Adds caption fields to individual entries, then rebuilds cluster
+    summaries. Preserves all existing entry-level data (EXIF, etc.).
+
+    Args:
+        manifest_path: Path to the manifest.json file.
+        captions: Dict mapping image path → caption string,
+            as returned by caption_representatives().
+    """
+    manifest = read_manifest(manifest_path)
+
+    for entry in manifest["entries"]:
+        if entry["path"] in captions:
+            entry["caption"] = captions[entry["path"]]
+
+    manifest["clusters"] = _rebuild_cluster_summaries(manifest)
 
     with open(manifest_path, "w") as f:
         json.dump(manifest, f, indent=2)
@@ -186,11 +234,11 @@ def enrich_manifest_exif(
     location_data: dict[str, dict] | None = None,
 ) -> None:
     """
-    Enrich an existing manifest with EXIF metadata and cluster date/location summaries.
+    Enrich an existing manifest with EXIF metadata.
 
-    Reads the manifest, adds an `exif` field to entries that have EXIF data,
-    enriches the `clusters` dict with date_range, locations, and cameras per
-    cluster, and writes back to disk.
+    Adds exif fields (timestamp, GPS, camera, location) to individual
+    entries, then rebuilds cluster summaries with date ranges, locations,
+    and cameras.
 
     Args:
         manifest_path: Path to manifest.json.
@@ -202,7 +250,6 @@ def enrich_manifest_exif(
     location_data = location_data or {}
     manifest = read_manifest(manifest_path)
 
-    # Add EXIF data and location info to individual entries.
     for entry in manifest["entries"]:
         if entry["path"] in exif_data:
             entry["exif"] = exif_data[entry["path"]]
@@ -213,60 +260,7 @@ def enrich_manifest_exif(
             entry["exif"]["location_name"] = loc["display_name"]
             entry["exif"]["location_region"] = f"{loc['region']}, {loc['country']}"
 
-    # Enrich cluster summaries with date ranges, locations, and cameras.
-    clusters = manifest.get("clusters", {})
-    for key, cluster in clusters.items():
-        timestamps = []
-        locations = []
-        cameras = []
-
-        # Scan entries belonging to this cluster for EXIF data.
-        for entry in manifest["entries"]:
-            if str(entry.get("cluster")) != key:
-                continue
-            exif = entry.get("exif")
-            if exif is None:
-                continue
-
-            if exif.get("timestamp"):
-                timestamps.append(exif["timestamp"])
-            if exif.get("gps"):
-                # Deduplicate by rounding to 2 decimal places (~1km precision).
-                rounded = (
-                    round(exif["gps"]["latitude"], 2),
-                    round(exif["gps"]["longitude"], 2),
-                )
-                if rounded not in [(loc["latitude"], loc["longitude"]) for loc in locations]:
-                    locations.append({
-                        "latitude": rounded[0],
-                        "longitude": rounded[1],
-                    })
-            if exif.get("camera") and exif["camera"] not in cameras:
-                cameras.append(exif["camera"])
-
-        if timestamps:
-            timestamps.sort()
-            cluster["date_range"] = {
-                "earliest": timestamps[0],
-                "latest": timestamps[-1],
-            }
-        if locations:
-            cluster["locations"] = locations
-        if cameras:
-            cluster["cameras"] = cameras
-
-        # Collect unique location names for this cluster.
-        cluster_location_names = []
-        for entry in manifest["entries"]:
-            if str(entry.get("cluster")) != key:
-                continue
-            loc_name = entry.get("exif", {}).get("location_name")
-            if loc_name and loc_name not in cluster_location_names:
-                cluster_location_names.append(loc_name)
-        if cluster_location_names:
-            cluster["location_names"] = cluster_location_names
-
-    manifest["clusters"] = clusters
+    manifest["clusters"] = _rebuild_cluster_summaries(manifest)
 
     with open(manifest_path, "w") as f:
         json.dump(manifest, f, indent=2)
@@ -281,9 +275,8 @@ def update_manifest_clusters(
     Overwrite cluster assignments and representatives in the manifest.
 
     Used after the refine step to update the manifest with new cluster
-    IDs and re-selected representatives. Rebuilds the clusters summary
-    (size, captions, top_tags, date_range, locations, cameras) from
-    the updated assignments.
+    IDs and re-selected representatives. Rebuilds cluster summaries
+    from the updated assignments.
 
     Args:
         manifest_path: Path to manifest.json.
@@ -311,68 +304,7 @@ def update_manifest_clusters(
             del entry["caption"]
         embed_index += 1
 
-    # Rebuild clusters summary from updated assignments.
-    clusters: dict[str, dict] = {}
-    for entry in manifest["entries"]:
-        cluster_id = entry.get("cluster")
-        if cluster_id is None or cluster_id == -1:
-            continue
-
-        key = str(cluster_id)
-        if key not in clusters:
-            clusters[key] = {
-                "size": 0,
-                "captions": [],
-                "top_tags": [],
-            }
-
-        clusters[key]["size"] += 1
-
-        if "caption" in entry:
-            clusters[key]["captions"].append(entry["caption"])
-
-        for tag in entry.get("tags", []):
-            tag_name = tag["name"]
-            if tag_name not in clusters[key]["top_tags"]:
-                clusters[key]["top_tags"].append(tag_name)
-
-        # EXIF enrichment for cluster summaries.
-        exif = entry.get("exif")
-        if exif:
-            if exif.get("timestamp"):
-                if "timestamps" not in clusters[key]:
-                    clusters[key]["timestamps"] = []
-                clusters[key]["timestamps"].append(exif["timestamp"])
-            if exif.get("gps"):
-                if "locations" not in clusters[key]:
-                    clusters[key]["locations"] = []
-                rounded = (
-                    round(exif["gps"]["latitude"], 2),
-                    round(exif["gps"]["longitude"], 2),
-                )
-                existing = [(loc["latitude"], loc["longitude"]) for loc in clusters[key]["locations"]]
-                if rounded not in existing:
-                    clusters[key]["locations"].append({
-                        "latitude": rounded[0],
-                        "longitude": rounded[1],
-                    })
-            if exif.get("camera"):
-                if "cameras" not in clusters[key]:
-                    clusters[key]["cameras"] = []
-                if exif["camera"] not in clusters[key]["cameras"]:
-                    clusters[key]["cameras"].append(exif["camera"])
-
-    # Convert timestamp lists to date ranges and remove the temp field.
-    for cluster in clusters.values():
-        ts_list = cluster.pop("timestamps", [])
-        if ts_list:
-            ts_list.sort()
-            cluster["date_range"] = {
-                "earliest": ts_list[0],
-                "latest": ts_list[-1],
-            }
-
-    manifest["clusters"] = clusters
+    manifest["clusters"] = _rebuild_cluster_summaries(manifest)
 
     with open(manifest_path, "w") as f:
         json.dump(manifest, f, indent=2)
@@ -383,8 +315,7 @@ def read_manifest(manifest_path: Path) -> dict:
     Read a manifest.json file back into memory.
 
     Returns the parsed JSON as a dict. Use this to inspect results or
-    feed the manifest into downstream tools (Phase 2 captioning, agent
-    organization, etc.).
+    feed the manifest into downstream pipeline stages.
     """
     with open(manifest_path) as f:
         return json.load(f)

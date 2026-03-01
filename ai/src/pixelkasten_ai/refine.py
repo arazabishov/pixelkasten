@@ -1,5 +1,5 @@
 """
-Cluster refinement — improve cluster quality using EXIF timestamps.
+Cluster refinement — Phase 2b of the AI pipeline.
 
 After HDBSCAN groups images by visual similarity (Phase 1) and EXIF
 timestamps are read (enrich), this module refines the clusters:

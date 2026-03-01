@@ -1,10 +1,9 @@
 """
-EXIF metadata reading via exiftool — Phase 3a of the AI pipeline.
+EXIF metadata reading via exiftool — Phase 2a of the AI pipeline.
 
-Reads timestamps, GPS coordinates, and camera model from image files
-using exiftool as a subprocess. Only processes representative images
-(the same selective strategy used in Phase 2 captioning) to avoid
-running exiftool on every image in the library.
+Reads timestamps, GPS coordinates, and camera model from all images
+using exiftool as a subprocess. Also provides offline reverse geocoding
+to resolve GPS coordinates to city/region/country names.
 
 Prerequisites:
     - exiftool installed and on PATH (`brew install exiftool`)

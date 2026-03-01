@@ -7,10 +7,12 @@ Usage:
     uv run pixelkasten-ai enrich -m ./output/manifest.json
     uv run pixelkasten-ai organize -m ./output/manifest.json
 
-Phase 1 (embed):    scan → embed → cluster → classify → write manifest
-Phase 2 (caption):  read manifest → caption representatives via VLM → enrich manifest
-Phase 3a (enrich):  read manifest → EXIF from representatives → enrich manifest
-Phase 3b (organize): read manifest → LLM reasoning → organization proposal
+Phase 1  (embed):    scan → embed → cluster → classify → write manifest
+Phase 2a (enrich):   read manifest → EXIF from all images → enrich manifest
+Phase 2b (refine):   split/merge clusters using EXIF + embeddings → update manifest
+Phase 3  (caption):  caption cluster representatives via VLM → enrich manifest
+Phase 4  (organize): build cluster summaries → LLM reasoning → organization proposal
+Phase 5  (apply):    read organization.json → copy files to proposed structure
 """
 
 import typer
@@ -196,10 +198,10 @@ def caption(
     ),
 ):
     """
-    Run the Phase 2 pipeline: caption cluster representatives via a local VLM.
+    Caption cluster representatives via a local VLM.
 
     Requires Ollama running locally with a vision model pulled.
-    Reads a Phase 1 manifest, captions representative images, and writes
+    Reads the manifest, captions representative images, and writes
     enriched results (captions + cluster summaries) back to the manifest.
     """
     from pixelkasten_ai.manifest import read_manifest, enrich_manifest
@@ -524,13 +526,13 @@ def organize(
     ),
 ):
     """
-    Run Phase 3b: propose a directory structure using a local LLM.
+    Propose a directory structure using a local LLM.
 
     Reads the enriched manifest (with captions + EXIF), feeds cluster
     summaries to the LLM, and writes an organization.json proposal.
 
-    This is propose-only -- no files are moved. Review organization.json
-    before any apply step.
+    This is propose-only — no files are moved. Review organization.json
+    before applying.
 
     Requires Ollama running locally with a text model pulled.
     """
