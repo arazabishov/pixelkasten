@@ -1,10 +1,12 @@
 """
-VLM captioning via Ollama — Phase 2 of the AI pipeline.
+VLM captioning via Ollama — Phase 3 of the AI pipeline.
 
 Sends cluster representative images to a local vision-language model
 (LLaVA, Moondream, etc.) running on Ollama to generate free-form captions.
 This produces human-readable descriptions like "family dinner with birthday
 cake" instead of just zero-shot tag scores.
+
+Run after enrich and refine so that captions reflect the refined clusters.
 
 Prerequisites:
     - Ollama installed and running (`ollama serve`)

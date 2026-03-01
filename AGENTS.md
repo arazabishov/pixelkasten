@@ -22,6 +22,23 @@ npm start -- -s <source> -d <destination>
 
 # Format code
 npx prettier --write .
+
+# --- AI Pipeline (Python) ---
+
+# Run AI pipeline tests
+cd ai && uv run pytest -v
+
+# Run AI pipeline unit tests only
+cd ai && uv run pytest test/unit/ -v
+
+# Run the full AI pipeline
+cd ai
+uv run pixelkasten-ai embed -s <source> -o <output>
+uv run pixelkasten-ai enrich -m <output>/manifest.json
+uv run pixelkasten-ai refine -m <output>/manifest.json
+uv run pixelkasten-ai caption -m <output>/manifest.json
+uv run pixelkasten-ai organize -m <output>/manifest.json
+uv run pixelkasten-ai apply -p <output>/organization.json -d <destination>
 ```
 
 ## Monorepo Structure
@@ -40,6 +57,33 @@ Contains the pipeline stages, handlers, and core utilities. All stages accept op
 ### CLI Package (`packages/cli`)
 
 Contains the CLI entry point (`cli.js`), logger, progress bar, and report formatters. Wires up concrete `logger`, `progress`, and `hooks` implementations and passes them to `runPipeline()`.
+
+### AI Package (`ai/`)
+
+Standalone Python project for AI-powered photo categorization. Not an npm package — communicates with the Node.js pipeline only through JSON manifest files. Uses `uv` for dependency management and `pytest` for testing.
+
+**Pipeline stages (run in this order):**
+
+1. **embed** — Scan images, generate CLIP embeddings (768-dim vectors), cluster with HDBSCAN, classify with zero-shot labels. Produces `manifest.json` + `embeddings.npy`.
+2. **enrich** — Read EXIF (timestamps, GPS, camera) from all images via exiftool. Reverse geocode GPS to city/region/country. Write to manifest.
+3. **refine** — Fix clustering using EXIF: eject metadata-less images, split clusters at temporal gaps, merge temporally close + visually similar clusters, absorb travel noise by region, absorb GPS-less noise by visual similarity. Uses home location inference to avoid over-absorbing.
+4. **caption** — Send representative images to a local VLM (LLaVA/Qwen) via Ollama for human-readable captions.
+5. **organize** — Feed cluster summaries (captions, tags, dates, locations) to a local text LLM via Ollama. LLM proposes album names. Code builds directory paths from timestamps. Writes `organization.json`.
+6. **apply** — Copy files to the proposed directory structure. Originals untouched.
+
+**Prerequisites:** Python 3.12+, uv, exiftool (`brew install exiftool`), Ollama with vision + text models.
+
+**Key architecture decisions:**
+- Manifest-driven: each stage reads, enriches, and writes back `manifest.json`
+- EXIF read for all images (not just representatives) to enable temporal refinement
+- Region-level geocoding (state/province) for hierarchical location matching
+- Home location inferred from most frequent region — prevents over-absorbing local photos
+- Location outlier filtering (< 10%) prevents transit GPS from polluting album names
+
+**Code conventions:**
+- All public functions should have full type annotations
+- Imports for heavy dependencies (torch, sklearn) are deferred inside CLI commands
+- Tests use pytest; fixtures in `ai/test/fixtures/media/`
 
 ## Integration Test Fixtures
 

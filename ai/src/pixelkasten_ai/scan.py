@@ -2,9 +2,9 @@
 Image discovery — find all supported media files in a directory.
 
 This module walks a source directory and collects files whose extensions
-match the formats we can process. It mirrors the supported formats from
-the Node.js pipeline (packages/core/src/handlers/index.js) so both tools
-agree on what counts as a "photo" or "video."
+match the formats we can process. Images are embedded directly by CLIP.
+Videos are collected but skipped during embedding (frame extraction is
+not yet implemented).
 """
 
 from pathlib import Path
@@ -19,7 +19,7 @@ ALL_EXTENSIONS = IMAGE_EXTENSIONS | VIDEO_EXTENSIONS
 
 def scan(source: Path) -> list[Path]:
     """
-    Recursively find all supported media files under `source`.
+    Find all supported media files under `source`, including subdirectories.
 
     Returns a sorted list of absolute Path objects. Sorting ensures
     deterministic ordering — running the pipeline twice on the same
