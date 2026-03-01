@@ -48,3 +48,46 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run format:check
+
+  test-ai:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: ai
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install exiftool
+        run: sudo apt-get install -y libimage-exiftool-perl
+      - run: uv sync
+      - name: Unit tests
+        run: uv run pytest test/unit/ -v
+      - name: Integration tests
+        run: uv run pytest test/integration/ -v
+
+  lint-ai:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ai
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: uv sync
+      - name: Ruff check
+        run: uv run ruff check src/
+      - name: Ruff format check
+        run: uv run ruff format --check src/

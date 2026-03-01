@@ -74,7 +74,9 @@ def refine_clusters(
             continue
         exif = entry.get("exif")
         if exif:
-            has_exif = bool(exif.get("timestamp") or exif.get("gps") or exif.get("camera"))
+            has_exif = bool(
+                exif.get("timestamp") or exif.get("gps") or exif.get("camera")
+            )
             has_any_exif[embed_index] = has_exif
             if exif.get("timestamp"):
                 timestamps[embed_index] = exif["timestamp"]
@@ -95,14 +97,21 @@ def refine_clusters(
 
     # Step 3: Merge temporally close, visually similar clusters.
     labels, n_merges = _merge_similar_clusters(
-        labels, embeddings, timestamps, merge_similarity, merge_time_hours,
+        labels,
+        embeddings,
+        timestamps,
+        merge_similarity,
+        merge_time_hours,
         locations=regions,
     )
 
     # Step 4: Absorb noise images into clusters by time + non-home region.
     home_region = _infer_home_location(regions)
     labels, n_absorbed_loc = _absorb_noise_by_location(
-        labels, timestamps, regions, home_region,
+        labels,
+        timestamps,
+        regions,
+        home_region,
     )
 
     # Step 5: Absorb GPS-less noise images by time + visual similarity.
@@ -110,7 +119,10 @@ def refine_clusters(
     # If their timestamp falls within a cluster's date range AND they're
     # visually similar to the cluster centroid, absorb them.
     labels, n_absorbed_vis = _absorb_noise_by_similarity(
-        labels, embeddings, timestamps, regions,
+        labels,
+        embeddings,
+        timestamps,
+        regions,
     )
 
     # Re-number labels to be contiguous (0, 1, 2, ...) with -1 preserved.
@@ -180,6 +192,7 @@ def _infer_home_location(locations: dict[int, str]) -> str | None:
         return None
 
     from collections import Counter
+
     counts = Counter(locations.values())
     most_common = counts.most_common(1)[0]
 
@@ -229,9 +242,15 @@ def _absorb_noise_by_location(
 
         dt = _parse_timestamp(timestamps.get(idx))
         if dt is not None:
-            if cluster_info[cid]["min_time"] is None or dt < cluster_info[cid]["min_time"]:
+            if (
+                cluster_info[cid]["min_time"] is None
+                or dt < cluster_info[cid]["min_time"]
+            ):
                 cluster_info[cid]["min_time"] = dt
-            if cluster_info[cid]["max_time"] is None or dt > cluster_info[cid]["max_time"]:
+            if (
+                cluster_info[cid]["max_time"] is None
+                or dt > cluster_info[cid]["max_time"]
+            ):
                 cluster_info[cid]["max_time"] = dt
 
         loc = locations.get(idx)
@@ -363,7 +382,11 @@ def _absorb_noise_by_similarity(
             if info["min_time"] is None:
                 continue
             img_ts = dt.timestamp()
-            if (info["min_time"].timestamp() - buffer) <= img_ts <= (info["max_time"].timestamp() + buffer):
+            if (
+                (info["min_time"].timestamp() - buffer)
+                <= img_ts
+                <= (info["max_time"].timestamp() + buffer)
+            ):
                 # Check visual similarity.
                 similarity = float(embeddings[idx] @ info["centroid"])
                 if similarity >= similarity_threshold:
@@ -538,7 +561,7 @@ def _merge_similar_clusters(
         for i, id_a in enumerate(current_ids):
             if id_a not in cluster_info:
                 continue
-            for id_b in current_ids[i + 1:]:
+            for id_b in current_ids[i + 1 :]:
                 if id_b not in cluster_info:
                     continue
 
@@ -553,7 +576,8 @@ def _merge_similar_clusters(
                 # If clusters share a location, use the lower threshold.
                 shares_location = bool(info_a["locations"] & info_b["locations"])
                 effective_threshold = (
-                    location_similarity_threshold if shares_location
+                    location_similarity_threshold
+                    if shares_location
                     else similarity_threshold
                 )
 
@@ -604,7 +628,10 @@ def _temporally_close(info_a: dict, info_b: dict, threshold_seconds: float) -> b
         return False
 
     # Check if ranges overlap.
-    if info_a["min_time"] <= info_b["max_time"] and info_b["min_time"] <= info_a["max_time"]:
+    if (
+        info_a["min_time"] <= info_b["max_time"]
+        and info_b["min_time"] <= info_a["max_time"]
+    ):
         return True
 
     # Check gap between ranges.
