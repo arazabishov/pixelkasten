@@ -115,3 +115,28 @@ This scheme is durable because it contains no subjective formatting choices:
 - **No dependencies** on font rendering, OS, or file manager behavior.
 
 The only scenario that would force a rename is if we later add AI-derived semantic labels to the directory structure (e.g., `2024/03 - Mar/Beach Trip/`). This spec intentionally keeps the date-based scheme as the foundation, with semantic organization handled separately at a higher level if needed.
+
+## AI Pipeline Directory Structure
+
+The AI pipeline (`ai/`) uses a simplified variant without month subdirectories:
+
+```
+destination/
+  2016/
+    20161028 - San Francisco Bay Trip/
+      DSC_0809.JPG
+      IMG_20161031_200744.jpg
+    IMG_20161107_160447.jpg          ← loose files directly under year
+  2017/
+    20170101 - New Year Baku Trip/
+    20171128 - Oslo Christmas Market/
+    IMG_20170224_120000.jpg
+  Unsorted/
+    IMG-20161115-WA0000.jpg          ← no EXIF timestamp at all
+```
+
+Key differences from the Takeout pipeline scheme:
+
+- **No month directories** — albums and loose files live directly under the year. The `YYYYMMDD` prefix on album names provides chronological sorting.
+- **Album names from LLM** — the AI pipeline uses a local LLM to propose descriptive event names based on VLM captions, EXIF dates, and reverse-geocoded locations.
+- **Loose files preserve original filenames** — no renaming to `yyyymmdd-hhmmss` format (that logic lives in the Node.js `rename` stage and will be shared when the pipelines are consolidated).

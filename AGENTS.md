@@ -114,9 +114,11 @@ PixelKasten processes Google Photos Takeout exports through a multi-stage pipeli
 
 4. **Reconcile** (`packages/core/src/stages/reconcile.js`) - Reads existing EXIF/QuickTime metadata from disk and compares with sidecar data to determine what needs to be written.
 
-5. **Apply** (WIP) - Takes the in-memory manifest produced by prior stages and applies the actions to files on disk.
+5. **Rename** (`packages/core/src/stages/rename.js`) - Builds target file paths from timestamps using the naming scheme (`YYYY/MM - Mon/yyyymmdd-hhmmss.ext`). Handles album subdirectories and filename collisions.
 
-The **manifest** is the central data structure passed between stages, with each stage enriching entries with additional properties (`json`, `dedupe`, `metadata`).
+6. **Apply** (`packages/core/src/stages/apply.js`) - Takes the in-memory manifest produced by prior stages and applies the actions to files on disk (copy files, write metadata via exiftool).
+
+The **manifest** is the central data structure passed between stages, with each stage enriching entries with additional properties (`json`, `dedupe`, `metadata`, `rename`).
 
 The pipeline accepts a `hooks` object for inter-stage reporting. The CLI provides hooks that print tables; other consumers (e.g., Electron) can provide hooks that send IPC messages.
 
@@ -279,3 +281,28 @@ entry.rename = {
 // Bad - inline object
 entry.rename = { status: "error" };
 ```
+
+## Python Test Code Style
+
+Tests use `pytest`. Fixtures live in `ai/test/fixtures/media/` (copies of the Node.js fixtures).
+
+```python
+# Use descriptive class + method names
+class TestSplitByTemporalGaps:
+    def test_splits_cluster_at_48h_gap(self):
+
+# Create minimal inline test data per test (don't over-rely on shared fixtures)
+# Use numpy random with fixed seed for deterministic embeddings
+rng = np.random.RandomState(42)
+```
+
+## Consolidation Notes
+
+The long-term plan (see `spec/architecture.md`) is to consolidate the Node.js Takeout pipeline into the Python project, creating a single tool. Key considerations:
+
+- **Port the test suite first**, then port the implementation
+- The `link` stage (`packages/core/src/stages/link.js`) is the most complex — it encodes Google Takeout filename truncation edge cases documented in `docs/takeout.md`
+- The `rename` stage uses `Intl.DateTimeFormat` with `month: "long"` — the AI pipeline dropped month directories entirely (files go directly under `YYYY/`)
+- Both pipelines share the same exiftool subprocess pattern for metadata reading
+- GPS validation rules are aligned: both reject `(0, 0)` as Google's placeholder
+- Timestamp handling differs slightly: Node.js strips timezone offsets, Python preserves them

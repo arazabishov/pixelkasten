@@ -69,16 +69,39 @@ Subjects:  ["portrait", "group photo", "landscape", "food", "pet", "document"]
 - Natural language caption (e.g., "family gathering around a dinner table with birthday cake, indoor, evening lighting")
 - Optionally: detected objects, text in image (OCR)
 
+### Phase 2a: EXIF Enrichment
+
+**What:** Read EXIF metadata (timestamps, GPS, camera model) from all images via exiftool. Reverse geocode GPS coordinates to city/region/country using an offline database (`reverse_geocoder`).
+
+**Why all images:** Originally we only read EXIF from cluster representatives. Testing showed that temporal refinement (Phase 2b) needs timestamps for every image to detect gaps and overlaps. The overhead is low — exiftool processes hundreds of files per second in batch mode.
+
+**Output per image:** ISO 8601 timestamp, GPS coordinates, camera model, location name (e.g., "San Francisco, California, US"), location region (e.g., "California, US").
+
+### Phase 2b: Cluster Refinement
+
+**What:** Improve HDBSCAN's visual-only clustering using EXIF timestamps and location data. Five operations, in order:
+
+1. **Eject** images with no EXIF metadata from clusters — placed purely by visual similarity, most error-prone.
+2. **Split** clusters at temporal gaps > 48 hours — breaks "beach Turkey 2017 + beach Greece 2023" groupings.
+3. **Merge** clusters that are temporally close (< 7 days) and visually similar. Clusters sharing a region (state/province) get a lower similarity threshold. Fixes "Go-Karting Adventure" and "Indoor Go-Karting" being separate albums.
+4. **Absorb** noise images by location — if a noise image is in a non-home region during a cluster's date range, absorb it. Catches travel photos that HDBSCAN missed (e.g., food photo in San Francisco). Home location (most frequent region) is inferred and excluded.
+5. **Absorb** noise images by visual similarity — for GPS-less images with timestamps, check if they fall within a cluster's date range and are visually similar to the centroid.
+
+**Key design decisions:**
+
+- **Region-level matching** (state/province, not city) — groups San Francisco, Stanford, Mountain View under "California, US"
+- **Home location inference** — prevents absorbing every Oslo photo into the nearest Oslo cluster
+- **Location outlier filtering** — regions with < 10% of cluster images are excluded from naming (catches transit GPS like airplane flyovers)
+
 ### Phase 3: Agent-Driven Organization
 
-**What:** Feed the structured metadata from Phases 1-2 into an LLM agent (Claude Code, Copilot CLI, or a standalone script) that reasons about organization and proposes a directory structure.
+**What:** Feed the structured metadata from Phases 1-2 into a local text LLM via Ollama that proposes album names. Code deterministically builds directory paths from timestamps.
 
 **Input to the agent:**
 
 - Cluster summaries: representative captions, tag distributions, member count
 - Date ranges per cluster (from EXIF)
-- GPS locations per cluster (reverse-geocoded to place names)
-- User preferences: organize by event? by year+topic? by people?
+- Cities and regions per cluster (reverse-geocoded, with outlier filtering)
 
 **Why an agent:** The agent never sees raw image bytes — it works entirely with structured text. This makes it cheap (no vision tokens) and leverages what LLMs are best at: reasoning about categories, naming things, resolving ambiguity.
 
