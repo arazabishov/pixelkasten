@@ -20,7 +20,9 @@ The sequencing is:
 2. **If the AI works well enough to ship**, consolidate into Python. Port the Takeout pipeline (scan, link, dedupe, reconcile, rename, apply) into the same Python project. The rename/apply stages become shared infrastructure between both workflows.
 3. **If the AI doesn't pan out**, the Node.js codebase is unaffected. No wasted effort.
 
-## Phase 1: AI Pipeline in Python (Current Goal)
+## Phase 1: AI Pipeline in Python (Complete)
+
+The AI pipeline has been validated on real photo libraries and produces usable organization results. It has a full test suite (112 tests), CI integration, and has been iteratively improved through real-world testing.
 
 ### Project Structure
 
@@ -30,14 +32,24 @@ pixelkasten/
     core/             ← existing Node.js pipeline (untouched)
     cli/              ← existing Node.js CLI (untouched)
   ai/
-    pyproject.toml    ← project config, pinned deps
+    pyproject.toml    ← project config, dependencies, pytest config
     src/
-      embed.py        ← CLIP embeddings + clustering + zero-shot tagging
-      caption.py      ← VLM captioning via Ollama HTTP API
-      organize.py     ← agent-driven organization (or rule-based fallback)
-      manifest.py     ← manifest I/O (read/write JSON)
-    tests/
-    README.md         ← setup instructions (Python version, uv/pip, Ollama)
+      pixelkasten_ai/
+        cli.py        ← Typer CLI with 6 subcommands
+        scan.py       ← image discovery
+        embed.py      ← CLIP embeddings + batched inference
+        cluster.py    ← HDBSCAN clustering + representative selection
+        classify.py   ← zero-shot classification (may be removed)
+        exif.py       ← exiftool subprocess + reverse geocoding
+        refine.py     ← temporal split/merge + location-based absorption
+        caption.py    ← VLM captioning via Ollama
+        organize.py   ← LLM-driven album naming + organization plan
+        manifest.py   ← manifest I/O + enrichment functions
+    test/
+      unit/           ← 96 pure-logic tests
+      integration/    ← 16 tests (exiftool + pipeline data contracts)
+      fixtures/media/ ← real JPEGs with stamped metadata
+    README.md
 ```
 
 The `ai/` directory is a standalone Python project. Not an npm package, no npm workspace entry. It communicates with the rest of pixelkasten only through a JSON manifest file.
