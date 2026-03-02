@@ -76,6 +76,21 @@ def main(
         "--skip-refine",
         help="Skip temporal cluster refinement (catalog only).",
     ),
+    skip_rename: bool = typer.Option(
+        False,
+        "--skip-rename",
+        help="Skip target path computation.",
+    ),
+    fuzzy: bool = typer.Option(
+        True,
+        "--fuzzy/--no-fuzzy",
+        help="Enable fuzzy sidecar matching in link stage.",
+    ),
+    fuzzy_threshold: int = typer.Option(
+        40,
+        "--fuzzy-threshold",
+        help="Minimum filename length for fuzzy sidecar matching.",
+    ),
     workspace: Path = typer.Option(
         None,
         "--workspace",
@@ -135,9 +150,10 @@ def main(
         "skip_embed": skip_embed,
         "skip_caption": skip_caption,
         "skip_refine": skip_refine,
+        "skip_rename": skip_rename,
         "prefer": prefer,
-        "fuzzy": True,
-        "fuzzy_threshold": 40,
+        "fuzzy": fuzzy,
+        "fuzzy_threshold": fuzzy_threshold,
         "rescan": rescan,
     }
 

@@ -64,5 +64,3 @@ def scan(source_path: str) -> dict:
         "files_other_ignored": files_other_ignored,
         "files_total": files_total,
     }
-
-

@@ -15,7 +15,7 @@ import os
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, TypedDict
+from typing import TypedDict
 
 from pixelkasten.core.datetime import normalize_disk_date
 
@@ -202,55 +202,14 @@ def read_exif(file_paths: list[Path]) -> dict[str, ExifData]:
     for p in file_paths:
         key = str(p)
         if key not in parsed:
-            parsed[key] = _empty_exif()
+            parsed[key] = ExifData(timestamp=None, gps=None, camera=None)
 
     return parsed
-
-
-def read_exif_for_representatives(
-    manifest: dict,
-    on_progress: Callable[[int], None] | None = None,
-) -> dict[str, ExifData]:
-    """
-    Read EXIF from representative images in a manifest.
-
-    Filters to entries where is_representative=True and status="ok",
-    then batch-reads EXIF for all of them in a single exiftool call.
-
-    Args:
-        manifest: Parsed manifest dict (from read_manifest).
-        on_progress: Optional callback, called with count processed.
-
-    Returns:
-        Dict of {image_path: ExifData} for all representatives.
-    """
-    representatives = [
-        entry
-        for entry in manifest["entries"]
-        if entry.get("is_representative", False) and entry.get("status") == "ok"
-    ]
-
-    file_paths = [Path(entry["path"]) for entry in representatives]
-
-    if on_progress is not None:
-        on_progress(0)
-
-    result = read_exif(file_paths)
-
-    if on_progress is not None:
-        on_progress(len(file_paths))
-
-    return result
 
 
 # ---------------------------------------------------------------------------
 # Tag parsing helpers
 # ---------------------------------------------------------------------------
-
-
-def _empty_exif() -> ExifData:
-    """Return an ExifData with all None values."""
-    return ExifData(timestamp=None, gps=None, camera=None)
 
 
 def _parse_exiftool_entry(raw: dict) -> ExifData:

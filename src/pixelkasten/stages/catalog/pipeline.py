@@ -11,7 +11,11 @@ manifest but don't get cluster labels, captions, or album assignments.
 from pathlib import Path
 
 from pixelkasten.stages.catalog.caption import caption_representatives
-from pixelkasten.stages.catalog.classify import DEFAULT_LABEL_SETS, build_label_list, classify
+from pixelkasten.stages.catalog.classify import (
+    DEFAULT_LABEL_SETS,
+    build_label_list,
+    classify,
+)
 from pixelkasten.stages.catalog.cluster import (
     cluster_embeddings,
     cluster_summary,
@@ -95,15 +99,14 @@ def run_catalog(
 
     # Write cluster info onto manifest entries
     ok_indices = [i for i in range(len(image_paths)) if i not in failed_indices]
-    for idx, entry_idx in enumerate(range(len(image_entries))):
-        if entry_idx < len(ok_indices):
-            image_entries[entry_idx]["cluster"] = int(labels[ok_indices[entry_idx]])
-            image_entries[entry_idx]["status"] = "ok"
-            image_entries[entry_idx]["is_representative"] = ok_indices[entry_idx] in [
-                r for reps in representatives.values() for r in reps
-            ]
+    reps_flat = {r for reps in representatives.values() for r in reps}
+    for i, entry in enumerate(image_entries):
+        if i < len(ok_indices):
+            entry["cluster"] = int(labels[ok_indices[i]])
+            entry["status"] = "ok"
+            entry["is_representative"] = ok_indices[i] in reps_flat
         else:
-            image_entries[entry_idx]["status"] = "failed"
+            entry["status"] = "failed"
 
     # Build manifest dict for refine/caption/propose
     summary = cluster_summary(labels)

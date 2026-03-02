@@ -77,10 +77,8 @@ def _resolve_album_dates(candidates: list[dict]) -> dict[str, dict]:
 def _is_earlier_date(a: dict, b: dict) -> bool:
     """Returns True if date a is earlier than date b."""
     for field in ["year", "month", "day", "hour", "minute", "second"]:
-        av = int(a[field]) if isinstance(a[field], str) else a[field]
-        bv = int(b[field]) if isinstance(b[field], str) else b[field]
-        if av != bv:
-            return av < bv
+        if a[field] != b[field]:
+            return a[field] < b[field]
     return False
 
 
@@ -105,7 +103,7 @@ def _resolve_target_path(
     if not parsed:
         raise ValueError(f"No valid date format found for {entry['mediaPath']}")
 
-    year = parsed["year"]
+    year = str(parsed["year"]).zfill(4)
     month = str(parsed["month"]).zfill(2)
     day = str(parsed["day"]).zfill(2)
     hour = str(parsed["hour"]).zfill(2)
@@ -121,7 +119,7 @@ def _resolve_target_path(
 
     # Use album's earliest date for directory, or entry's own date
     dir_date = album_date or parsed
-    dir_year = dir_date["year"]
+    dir_year = str(dir_date["year"]).zfill(4)
     dir_month = str(dir_date["month"]).zfill(2)
     dir_day = str(dir_date["day"]).zfill(2)
 

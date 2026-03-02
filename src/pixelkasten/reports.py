@@ -182,15 +182,13 @@ def render_rename_table(console: Console, manifest: list[dict]) -> None:
     n_processed = sum(
         1 for e in keepers if e.get("rename", {}).get("status") == "processed"
     )
-    n_skipped = sum(
-        1 for e in keepers if e.get("metadata", {}).get("status") == "skipped"
-    )
+    n_skipped = sum(1 for e in keepers if "rename" not in e)
     n_error = sum(1 for e in keepers if e.get("rename", {}).get("status") == "error")
 
     table = _make_table("Rename", "Action")
     table.add_row("To rename", str(n_processed))
     if n_skipped:
-        table.add_row("Unsupported", str(n_skipped))
+        table.add_row("Skipped", str(n_skipped))
     if n_error:
         table.add_row("[red]Errors[/red]", f"[red]{n_error}[/red]")
 

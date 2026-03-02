@@ -44,7 +44,7 @@ def parse_iso_date(iso_date: str) -> dict | None:
     Parse an ISO date string into its components.
 
     Returns a dict with:
-        - year: str (4 digits)
+        - year: int
         - month: int (1-12)
         - day: int (1-31)
         - hour: int (0-23)
@@ -62,7 +62,7 @@ def parse_iso_date(iso_date: str) -> dict | None:
         return None
 
     return {
-        "year": str(dt.year),
+        "year": dt.year,
         "month": dt.month,
         "day": dt.day,
         "hour": dt.hour,
