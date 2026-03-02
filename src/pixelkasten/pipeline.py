@@ -97,7 +97,9 @@ def run_pipeline(
     if options.get("catalog"):
         from pixelkasten.stages.catalog import run_catalog
 
-        manifest = run_catalog(manifest, options, workspace=workspace)
+        manifest = run_catalog(
+            manifest, options, workspace=workspace, progress=progress
+        )
 
     if not options.get("skip_rename"):
         rename(manifest, options)

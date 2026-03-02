@@ -102,7 +102,7 @@ def caption_representatives(
 
     captions = {}
     for i, entry in enumerate(representatives):
-        image_path = entry["path"]
+        image_path = entry["mediaPath"]
         caption = caption_image(model, Path(image_path), prompt)
 
         if caption is not None:

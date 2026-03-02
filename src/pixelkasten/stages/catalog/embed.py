@@ -94,7 +94,7 @@ def load_model(
     # create_model_and_transforms returns (model, train_preprocess, val_preprocess).
     # We only need val_preprocess — the one used for inference, not training.
     model, _, preprocess = open_clip.create_model_and_transforms(
-        model_name, pretrained=pretrained, device=device
+        model_name, pretrained=pretrained, device=device, force_quick_gelu=True
     )
 
     tokenizer = open_clip.get_tokenizer(model_name)
