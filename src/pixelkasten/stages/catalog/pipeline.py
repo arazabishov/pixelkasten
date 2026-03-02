@@ -10,16 +10,16 @@ manifest but don't get cluster labels, captions, or album assignments.
 
 from pathlib import Path
 
-from pixelkasten.catalog.caption import caption_representatives
-from pixelkasten.catalog.classify import DEFAULT_LABEL_SETS, build_label_list, classify
-from pixelkasten.catalog.cluster import (
+from pixelkasten.stages.catalog.caption import caption_representatives
+from pixelkasten.stages.catalog.classify import DEFAULT_LABEL_SETS, build_label_list, classify
+from pixelkasten.stages.catalog.cluster import (
     cluster_embeddings,
     cluster_summary,
     find_representatives,
 )
-from pixelkasten.catalog.embed import embed_images, embed_texts, load_model
-from pixelkasten.catalog.propose import propose_albums
-from pixelkasten.catalog.refine import refine_clusters
+from pixelkasten.stages.catalog.embed import embed_images, embed_texts, load_model
+from pixelkasten.stages.catalog.propose import propose_albums
+from pixelkasten.stages.catalog.refine import refine_clusters
 from pixelkasten.stages.scan import is_image
 
 

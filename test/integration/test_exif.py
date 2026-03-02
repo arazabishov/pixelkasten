@@ -1,18 +1,14 @@
 """
-Integration tests for EXIF reading and reverse geocoding.
+Integration tests for EXIF reading.
 
 Requires exiftool installed (`brew install exiftool`).
-Uses real JPEG fixtures from the Node.js test suite.
+Uses real JPEG fixtures from test/fixtures/media/.
 """
 
 from pathlib import Path
 import pytest
 
-from pixelkasten.core.exif import (
-    check_exiftool,
-    read_exif,
-    reverse_geocode,
-)
+from pixelkasten.core.exiftool import check_exiftool, read_exif
 
 # Test fixtures: real JPEGs with stamped metadata.
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "media"
@@ -96,25 +92,3 @@ class TestReadExif:
         assert len(result) == 4
 
 
-class TestReverseGeocode:
-    def test_resolves_gps_to_location(self, fixture_paths):
-        # First read EXIF to get GPS data.
-        result = read_exif([fixture_paths["datetime_and_gps"]])
-
-        locations = reverse_geocode(result)
-
-        key = str(fixture_paths["datetime_and_gps"])
-        assert key in locations
-
-        loc = locations[key]
-        # Eiffel Tower GPS should resolve to somewhere in Ile-de-France, France.
-        assert loc["country"] == "FR"
-        assert "Ile-de-France" in loc["region"]
-
-    def test_skips_entries_without_gps(self, fixture_paths):
-        result = read_exif([fixture_paths["datetime_no_gps"]])
-
-        locations = reverse_geocode(result)
-
-        # No GPS → no location.
-        assert len(locations) == 0

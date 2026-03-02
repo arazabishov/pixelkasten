@@ -10,14 +10,13 @@ YYYY/yyyymmdd - Album/yyyymmdd-hhmmss.ext (album).
 """
 
 import json
-import os
 import shutil
 from pathlib import Path
 
 import pytest
 
 from pixelkasten.core.exiftool import check_exiftool, read_metadata
-from pixelkasten.pipeline import run_takeout_pipeline
+from pixelkasten.pipeline import run_pipeline
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "media"
 
@@ -188,10 +187,11 @@ class TestTakeoutPipeline:
             },
         )
 
-        manifest = run_takeout_pipeline(
+        manifest = run_pipeline(
             {
                 "source": str(source),
                 "destination": str(dest),
+                "mode": "takeout",
                 "prefer": "album",
                 "fuzzy": True,
                 "skip_dedupe": True,
@@ -323,10 +323,11 @@ class TestTakeoutPipeline:
             },
         )
 
-        manifest = run_takeout_pipeline(
+        manifest = run_pipeline(
             {
                 "source": str(source),
                 "destination": str(dest),
+                "mode": "takeout",
                 "prefer": "album",
                 "fuzzy": True,
             }
@@ -393,10 +394,11 @@ class TestTakeoutPipeline:
             },
         )
 
-        manifest = run_takeout_pipeline(
+        manifest = run_pipeline(
             {
                 "source": str(source),
                 "destination": str(dest),
+                "mode": "takeout",
                 "prefer": "album",
                 "fuzzy": True,
                 "skip_embed": True,
@@ -455,10 +457,11 @@ class TestTakeoutPipeline:
             },
         )
 
-        manifest = run_takeout_pipeline(
+        manifest = run_pipeline(
             {
                 "source": str(source),
                 "destination": str(dest),
+                "mode": "takeout",
                 "prefer": "album",
                 "fuzzy": True,
                 "dry_run": True,
@@ -519,10 +522,11 @@ class TestTakeoutPipeline:
             json.dumps(avi_sidecar)
         )
 
-        manifest = run_takeout_pipeline(
+        manifest = run_pipeline(
             {
                 "source": str(source),
                 "destination": str(dest),
+                "mode": "takeout",
                 "prefer": "album",
                 "fuzzy": True,
                 "skip_dedupe": True,

@@ -7,6 +7,6 @@ dependencies (torch, sklearn, ollama) are deferred-imported so they are
 only loaded when --catalog is used.
 """
 
-from pixelkasten.catalog.pipeline import run_catalog
+from pixelkasten.stages.catalog.pipeline import run_catalog
 
 __all__ = ["run_catalog"]
