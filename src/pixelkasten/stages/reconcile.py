@@ -3,7 +3,7 @@ Metadata reconciliation -- compare disk EXIF with sidecar data.
 
 Ported from packages/core/src/stages/reconcile.js. For each manifest entry,
 reads the disk EXIF via exiftool and compares with sidecar data. Queues
-write_tags for any metadata missing from disk.
+writeTags for any metadata missing from disk.
 """
 
 import os
@@ -19,11 +19,11 @@ BATCH_SIZE = 512
 
 def reconcile(manifest: list[dict], options: dict | None = None) -> None:
     """
-    Compare disk EXIF with sidecar data, queue write_tags for missing metadata.
+    Compare disk EXIF with sidecar data, queue writeTags for missing metadata.
 
     Mutates manifest entries in-place by adding 'metadata' dict with:
         status: "noop" | "processed" | "skipped" | "error"
-        write_tags: list[str] -- exiftool tag=value pairs
+        writeTags: list[str] -- exiftool tag=value pairs
         dates: list[str] -- ISO 8601 timestamps
         reason: str -- (only for skipped/error)
 
@@ -59,7 +59,7 @@ def reconcile(manifest: list[dict], options: dict | None = None) -> None:
                 entry["metadata"] = {
                     "status": "error",
                     "reason": str(e),
-                    "write_tags": [],
+                    "writeTags": [],
                     "dates": [],
                 }
 
@@ -79,7 +79,7 @@ def _resolve(
         return {
             "status": "skipped",
             "reason": f"No metadata handler for {ext}",
-            "write_tags": [],
+            "writeTags": [],
             "dates": [],
         }
 
@@ -92,7 +92,7 @@ def _resolve(
 
     metadata: dict = {
         "status": "noop",
-        "write_tags": [],
+        "writeTags": [],
         "dates": list(disk_data.dates),
     }
 
@@ -109,16 +109,16 @@ def _resolve(
 
         # Queue timestamp for writing if embedding is enabled.
         if not options.get("skip_embed"):
-            metadata["write_tags"].extend(handler.timestamp(ptt["exif"]))
+            metadata["writeTags"].extend(handler.timestamp(ptt["exif"]))
 
         # Make sure that timestamp is stored as the primary date (needed for rename).
         metadata["dates"].insert(0, ptt["iso"])
 
     # Queue geo data for writing if embedding is enabled.
     if not options.get("skip_embed") and not disk_data.geo and sidecar_data.get("geo"):
-        metadata["write_tags"].extend(handler.geo(sidecar_data["geo"]))
+        metadata["writeTags"].extend(handler.geo(sidecar_data["geo"]))
 
-    if metadata["write_tags"]:
+    if metadata["writeTags"]:
         metadata["status"] = "processed"
 
     return metadata
