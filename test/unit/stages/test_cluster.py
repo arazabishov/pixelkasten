@@ -28,9 +28,7 @@ class TestFindRepresentatives:
 
     def test_caps_at_n_per_cluster(self):
         rng = np.random.RandomState(99)
-        embeddings = np.array([
-            rng.randn(64).astype(np.float32) for _ in range(3)
-        ])
+        embeddings = np.array([rng.randn(64).astype(np.float32) for _ in range(3)])
         for i in range(len(embeddings)):
             embeddings[i] /= np.linalg.norm(embeddings[i])
 
@@ -43,9 +41,7 @@ class TestFindRepresentatives:
 
     def test_skips_noise_labels(self):
         rng = np.random.RandomState(7)
-        embeddings = np.array([
-            rng.randn(64).astype(np.float32) for _ in range(5)
-        ])
+        embeddings = np.array([rng.randn(64).astype(np.float32) for _ in range(5)])
         for i in range(len(embeddings)):
             embeddings[i] /= np.linalg.norm(embeddings[i])
 

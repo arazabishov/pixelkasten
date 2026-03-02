@@ -24,8 +24,13 @@ class TestWriteAndReadManifest:
         failed_indices = []
 
         manifest_path = write_manifest(
-            tmp_path, image_paths, embeddings, labels,
-            classifications, representatives, failed_indices,
+            tmp_path,
+            image_paths,
+            embeddings,
+            labels,
+            classifications,
+            representatives,
+            failed_indices,
         )
 
         manifest = read_manifest(manifest_path)
@@ -49,8 +54,13 @@ class TestWriteAndReadManifest:
         failed_indices = [1]
 
         manifest_path = write_manifest(
-            tmp_path, image_paths, embeddings, labels,
-            classifications, representatives, failed_indices,
+            tmp_path,
+            image_paths,
+            embeddings,
+            labels,
+            classifications,
+            representatives,
+            failed_indices,
         )
 
         manifest = read_manifest(manifest_path)
@@ -170,12 +180,17 @@ class TestEnrichManifestExif:
 
         # EXIF added to entry.
         assert result["entries"][0]["exif"]["timestamp"] == "2019-07-15T14:30:00"
-        assert result["entries"][0]["exif"]["location_name"] == "San Francisco, California, US"
+        assert (
+            result["entries"][0]["exif"]["location_name"]
+            == "San Francisco, California, US"
+        )
         assert result["entries"][0]["exif"]["location_region"] == "California, US"
 
         # Cluster summary enriched.
         assert "date_range" in result["clusters"]["0"]
-        assert result["clusters"]["0"]["date_range"]["earliest"] == "2019-07-15T14:30:00"
+        assert (
+            result["clusters"]["0"]["date_range"]["earliest"] == "2019-07-15T14:30:00"
+        )
 
 
 class TestUpdateManifestClusters:
@@ -223,7 +238,11 @@ class TestUpdateManifestClusters:
                 },
             ],
             "clusters": {
-                "0": {"size": 2, "captions": ["Old caption", "Another caption"], "top_tags": []},
+                "0": {
+                    "size": 2,
+                    "captions": ["Old caption", "Another caption"],
+                    "top_tags": [],
+                },
             },
             "embeddings_file": "embeddings.npy",
         }

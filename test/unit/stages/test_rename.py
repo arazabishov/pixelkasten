@@ -178,7 +178,10 @@ class TestRenameDateHandling:
 
     def test_marks_entries_with_invalid_date_as_error(self):
         manifest = [
-            {"mediaPath": "/path/to/image.jpg", "metadata": {"dates": ["not-a-valid-date"]}},
+            {
+                "mediaPath": "/path/to/image.jpg",
+                "metadata": {"dates": ["not-a-valid-date"]},
+            },
         ]
         rename(manifest)
 

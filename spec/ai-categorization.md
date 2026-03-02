@@ -118,7 +118,7 @@ EXIF data provides dimensions that pixel analysis cannot:
 - **Camera model** — distinguishes phone snapshots from DSLR shots.
 - **Lens / focal length** — wide angle suggests landscapes, macro suggests close-ups, telephoto suggests wildlife or sports.
 
-Pixelkasten already has EXIF reading infrastructure in the reconcile stage (`packages/core/src/stages/reconcile.js`) and format handlers (`packages/core/src/handlers/`). This is directly reusable.
+Pixelkasten already has EXIF reading infrastructure in the reconcile stage (`src/pixelkasten/stages/reconcile.py`) and format handlers (`src/pixelkasten/core/handlers.py`). This is directly reusable.
 
 ### Signal Stack (Strongest → Weakest)
 
@@ -139,7 +139,7 @@ The pipeline extends to video with minor adaptations:
 
 2. **Embedding** — Run CLIP on each sampled frame, average the vectors. The composite vector lands in the same embedding space as photos, so videos and photos of the same scene cluster together naturally.
 
-3. **Metadata** — QuickTime/MP4 containers carry timestamps, GPS, camera model — same as EXIF. Already handled by `packages/core/src/handlers/formats/quicktime.js`.
+3. **Metadata** — QuickTime/MP4 containers carry timestamps, GPS, camera model — same as EXIF. Already handled by the QuickTime handler in `src/pixelkasten/core/handlers.py`.
 
 4. **Audio transcription (bonus)** — Whisper (via `mlx-whisper` on Apple Silicon) can transcribe the audio track locally. "Happy birthday to you..." immediately identifies the event type without looking at a single frame. This is optional but powerful for home videos.
 
@@ -173,4 +173,4 @@ This pipeline is experimental. Before investing in consolidation or UI work (see
 - Compare the proposed organization against what you would have done manually.
 - Iterate on label sets, clustering parameters, and captioning prompts.
 
-The Node.js Takeout pipeline stays untouched until this validation passes. See `architecture.md` for the full sequencing.
+The takeout pipeline has been consolidated into the Python project. See `architecture.md` for the full sequencing.

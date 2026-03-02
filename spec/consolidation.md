@@ -1,5 +1,7 @@
 # Spec: Unified PixelKasten Pipeline (Python Rewrite)
 
+**Status: Complete (March 2026).** All phases implemented. Node.js code deleted.
+
 ## Context
 
 PixelKasten currently exists as two separate tools:
@@ -302,7 +304,7 @@ destination/
 
 Album date prefix uses the earliest date among album members. Collision handling: `-1`, `-2`, `-3` suffix before extension.
 
-## Project Structure (Target)
+## Project Structure (Current)
 
 ```
 src/

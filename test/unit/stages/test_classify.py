@@ -8,10 +8,13 @@ class TestClassify:
     def test_returns_labels_above_threshold(self):
         # Image embedding that's similar to label 0 but not label 1.
         image_emb = np.array([[1.0, 0.0, 0.0]], dtype=np.float32)
-        label_emb = np.array([
-            [0.9, 0.1, 0.0],   # Similar to image.
-            [0.0, 0.0, 1.0],   # Orthogonal to image.
-        ], dtype=np.float32)
+        label_emb = np.array(
+            [
+                [0.9, 0.1, 0.0],  # Similar to image.
+                [0.0, 0.0, 1.0],  # Orthogonal to image.
+            ],
+            dtype=np.float32,
+        )
         # Normalize.
         for i in range(len(label_emb)):
             label_emb[i] /= np.linalg.norm(label_emb[i])
@@ -37,16 +40,22 @@ class TestClassify:
         image_emb = np.array([[0.7, 0.7, 0.1]], dtype=np.float32)
         image_emb /= np.linalg.norm(image_emb)
 
-        label_emb = np.array([
-            [1.0, 0.0, 0.0],
-            [0.0, 1.0, 0.0],
-            [0.5, 0.5, 0.0],
-        ], dtype=np.float32)
+        label_emb = np.array(
+            [
+                [1.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0],
+                [0.5, 0.5, 0.0],
+            ],
+            dtype=np.float32,
+        )
         for i in range(len(label_emb)):
             label_emb[i] /= np.linalg.norm(label_emb[i])
 
         results = classify(
-            image_emb, label_emb, ["a", "b", "c"], threshold=0.0,
+            image_emb,
+            label_emb,
+            ["a", "b", "c"],
+            threshold=0.0,
         )
 
         # "c" should score highest (most aligned with image).

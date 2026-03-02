@@ -2,7 +2,7 @@
 
 ## Problem
 
-The current rename stage (`packages/core/src/stages/rename.js`) uses full month names in directory paths (e.g., `03 - March`, `09 - September`). These have variable character widths which look misaligned in:
+The current rename stage (`src/pixelkasten/stages/rename.py`) uses full month names in directory paths (e.g., `03 - March`, `09 - September`). These have variable character widths which look misaligned in:
 
 - macOS Finder (proportional font — even digits have uneven widths)
 - Any GUI file manager using a proportional font
@@ -33,7 +33,7 @@ Since Finder uses proportional fonts for _everything_ including digits, no namin
 - In a monospaced terminal, every directory name renders at the same width: `NN - NNN` (8 characters).
 - In Finder, they're no worse than full names (alignment is broken regardless) but are more compact.
 
-**Implementation:** Change the `Intl.DateTimeFormat` formatter in `rename.js` from `{ month: "long" }` to `{ month: "short" }` and strip any trailing period (some locales add one).
+**Implementation:** Use `strftime("%b")` in `rename.py` for 3-character month abbreviations.
 
 ## Filename Format
 
@@ -116,9 +116,9 @@ This scheme is durable because it contains no subjective formatting choices:
 
 The only scenario that would force a rename is if we later add AI-derived semantic labels to the directory structure (e.g., `2024/03 - Mar/Beach Trip/`). This spec intentionally keeps the date-based scheme as the foundation, with semantic organization handled separately at a higher level if needed.
 
-## AI Pipeline Directory Structure
+## Archive Mode Directory Structure
 
-The AI pipeline (`ai/`) uses a simplified variant without month subdirectories:
+Archive mode uses a simplified variant without month subdirectories:
 
 ```
 destination/
@@ -138,5 +138,5 @@ destination/
 Key differences from the Takeout pipeline scheme:
 
 - **No month directories** — albums and loose files live directly under the year. The `YYYYMMDD` prefix on album names provides chronological sorting.
-- **Album names from LLM** — the AI pipeline uses a local LLM to propose descriptive event names based on VLM captions, EXIF dates, and reverse-geocoded locations.
-- **Loose files preserve original filenames** — no renaming to `yyyymmdd-hhmmss` format (that logic lives in the Node.js `rename` stage and will be shared when the pipelines are consolidated).
+- **Album names from LLM** — archive mode uses a local LLM to propose descriptive event names based on VLM captions, EXIF dates, and reverse-geocoded locations.
+- **Loose files preserve original filenames** — no renaming to `yyyymmdd-hhmmss` format. This is handled by the unified rename stage.

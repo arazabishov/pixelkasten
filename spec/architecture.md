@@ -1,5 +1,7 @@
 # Architecture & Integration
 
+**Note:** Phase 2 (Python consolidation) is complete. The Node.js packages (`packages/core/`, `packages/cli/`) have been deleted. The project is now Python-only at `src/pixelkasten/`.
+
 ## Problem
 
 Pixelkasten is a Node.js monorepo with two packages (`core` and `cli`) that handles Google Photos Takeout exports. The AI categorization pipeline described in `ai-categorization.md` requires Python for ML inference (CLIP, VLMs, clustering). We need to decide:
@@ -28,31 +30,19 @@ The AI pipeline has been validated on real photo libraries and produces usable o
 
 ```
 pixelkasten/
-  packages/
-    core/             ← existing Node.js pipeline (untouched)
-    cli/              ← existing Node.js CLI (untouched)
-  ai/
-    pyproject.toml    ← project config, dependencies, pytest config
-    src/
-      pixelkasten_ai/
-        cli.py        ← Typer CLI with 6 subcommands
-        scan.py       ← image discovery
-        embed.py      ← CLIP embeddings + batched inference
-        cluster.py    ← HDBSCAN clustering + representative selection
-        classify.py   ← zero-shot classification (may be removed)
-        exif.py       ← exiftool subprocess + reverse geocoding
-        refine.py     ← temporal split/merge + location-based absorption
-        caption.py    ← VLM captioning via Ollama
-        organize.py   ← LLM-driven album naming + organization plan
-        manifest.py   ← manifest I/O + enrichment functions
-    test/
-      unit/           ← 96 pure-logic tests
-      integration/    ← 16 tests (exiftool + pipeline data contracts)
-      fixtures/media/ ← real JPEGs with stamped metadata
-    README.md
+  src/
+    pixelkasten/            ← unified Python project (takeout + AI pipeline)
+      cli.py                ← Typer CLI
+      core/                 ← shared utilities (exiftool, handlers, datetime)
+      stages/               ← all pipeline stages (scan, link, dedupe, rename, etc.)
+    pixelkasten_cli/        ← CLI entry point
+  test/
+    unit/                   ← unit tests
+    integration/            ← integration tests (exiftool + pipeline data contracts)
+    fixtures/media/         ← real JPEGs with stamped metadata
 ```
 
-The `ai/` directory is a standalone Python project. Not an npm package, no npm workspace entry. It communicates with the rest of pixelkasten only through a JSON manifest file.
+The project is a single Python package. See `spec/consolidation.md` for the full project structure.
 
 ### Manifest as Integration Boundary
 

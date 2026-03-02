@@ -7,7 +7,7 @@ on:
     branches: [trunk]
 
 jobs:
-  test-python:
+  test:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
@@ -32,7 +32,7 @@ jobs:
       - name: Integration tests
         run: uv run pytest test/integration/ -v
 
-  lint-python:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

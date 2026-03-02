@@ -24,7 +24,11 @@ from pixelkasten.core.manifest import (
     enrich_manifest_exif,
     update_manifest_clusters,
 )
-from pixelkasten.stages.cluster import cluster_embeddings, find_representatives, cluster_summary
+from pixelkasten.stages.cluster import (
+    cluster_embeddings,
+    find_representatives,
+    cluster_summary,
+)
 from pixelkasten.stages.classify import classify, build_label_list
 from pixelkasten.core.exif import read_exif_for_all, reverse_geocode
 from pixelkasten.stages.refine import refine_clusters
@@ -78,8 +82,13 @@ class TestScanToManifest:
         failed_indices = []
 
         manifest_path = write_manifest(
-            output_dir, image_files, embeddings, labels,
-            classifications, representatives, failed_indices,
+            output_dir,
+            image_files,
+            embeddings,
+            labels,
+            classifications,
+            representatives,
+            failed_indices,
         )
 
         manifest = read_manifest(manifest_path)
@@ -117,8 +126,13 @@ class TestEnrichManifestStructure:
         representatives = {0: [0]}
 
         manifest_path = write_manifest(
-            output_dir, image_files, embeddings, labels,
-            classifications, representatives, [],
+            output_dir,
+            image_files,
+            embeddings,
+            labels,
+            classifications,
+            representatives,
+            [],
         )
         np.save(output_dir / "embeddings.npy", embeddings)
         return manifest_path
@@ -191,8 +205,13 @@ class TestRefineManifestStructure:
         representatives = {0: [0]}
 
         manifest_path = write_manifest(
-            output_dir, image_files, embeddings, labels,
-            classifications, representatives, [],
+            output_dir,
+            image_files,
+            embeddings,
+            labels,
+            classifications,
+            representatives,
+            [],
         )
         np.save(output_dir / "embeddings.npy", embeddings)
 
@@ -203,7 +222,9 @@ class TestRefineManifestStructure:
         return manifest_path, embeddings
 
     def test_refine_produces_valid_labels(self, test_images, output_dir):
-        manifest_path, embeddings = self._create_enriched_manifest(test_images, output_dir)
+        manifest_path, embeddings = self._create_enriched_manifest(
+            test_images, output_dir
+        )
         manifest = read_manifest(manifest_path)
 
         new_labels, stats = refine_clusters(manifest, embeddings)
@@ -223,7 +244,9 @@ class TestRefineManifestStructure:
         assert "absorbed_by_similarity" in stats
 
     def test_update_manifest_preserves_exif_after_refine(self, test_images, output_dir):
-        manifest_path, embeddings = self._create_enriched_manifest(test_images, output_dir)
+        manifest_path, embeddings = self._create_enriched_manifest(
+            test_images, output_dir
+        )
         manifest = read_manifest(manifest_path)
 
         new_labels, _ = refine_clusters(manifest, embeddings)
@@ -246,7 +269,9 @@ class TestRefineManifestStructure:
         rebuild the clusters dict from scratch, destroying date_range and
         locations. This test verifies the fix.
         """
-        manifest_path, embeddings = self._create_enriched_manifest(test_images, output_dir)
+        manifest_path, embeddings = self._create_enriched_manifest(
+            test_images, output_dir
+        )
         manifest = read_manifest(manifest_path)
 
         # Simulate caption step adding captions.

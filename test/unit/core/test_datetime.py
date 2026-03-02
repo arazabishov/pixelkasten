@@ -7,7 +7,11 @@ and parse_iso_date (5 tests).
 
 import pytest
 
-from pixelkasten.core.datetime import normalize_disk_date, parse_iso_date, parse_photo_taken_time
+from pixelkasten.core.datetime import (
+    normalize_disk_date,
+    parse_iso_date,
+    parse_photo_taken_time,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -98,7 +102,10 @@ class TestNormalizeDiskDate:
         assert normalize_disk_date("2023:05:20 14:30:00.123") == "2023-05-20T14:30:00"
 
     def test_strips_subseconds_and_timezone(self):
-        assert normalize_disk_date("2024:09:02 20:14:59.925+02:00") == "2024-09-02T20:14:59"
+        assert (
+            normalize_disk_date("2024:09:02 20:14:59.925+02:00")
+            == "2024-09-02T20:14:59"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -164,11 +171,15 @@ class TestParsePhotoTakenTime:
     # --- Error handling and type flexibility ---
 
     def test_raises_for_invalid_string(self):
-        with pytest.raises(ValueError, match="Failed to parse photoTakenTime timestamp: invalid"):
+        with pytest.raises(
+            ValueError, match="Failed to parse photoTakenTime timestamp: invalid"
+        ):
             parse_photo_taken_time("invalid")
 
     def test_raises_for_empty_string(self):
-        with pytest.raises(ValueError, match="Failed to parse photoTakenTime timestamp:"):
+        with pytest.raises(
+            ValueError, match="Failed to parse photoTakenTime timestamp:"
+        ):
             parse_photo_taken_time("")
 
     def test_accepts_numeric_int(self):
