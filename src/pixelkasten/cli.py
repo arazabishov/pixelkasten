@@ -144,8 +144,7 @@ def main(
     if workspace:
         options["workspace"] = str(workspace)
 
-    mode_label = "takeout" if takeout else "archive"
-    console.print(f"\n[bold]Processing ({mode_label} mode) from {source}...[/bold]")
+    console.print(f"\n[bold]Processing photos from {source}...[/bold]")
     if catalog:
         console.print("  [cyan]AI album discovery enabled[/cyan]")
     console.print()
