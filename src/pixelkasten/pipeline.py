@@ -95,6 +95,8 @@ def run_pipeline(
         _call_hook(hooks, "on_apply", manifest)
         report(manifest, options)
 
+    _call_hook(hooks, "on_errors", manifest)
+
     return manifest
 
 

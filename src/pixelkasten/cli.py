@@ -175,12 +175,7 @@ def main(
             f"[yellow]Dry run — {len(manifest)} files processed, no files copied.[/yellow]"
         )
     else:
-        n_errors = sum(
-            1 for e in manifest if e.get("apply", {}).get("status") == "error"
-        )
         console.print("[green bold]Done![/green bold]")
-        if n_errors > 0:
-            console.print(f"  [red]Errors: {n_errors}[/red]")
 
 
 def _build_pipeline_ui(console):
@@ -189,6 +184,7 @@ def _build_pipeline_ui(console):
         build_progress_factory,
         render_apply_table,
         render_dedupe_table,
+        render_error_table,
         render_link_table,
         render_reconcile_table,
         render_rename_table,
@@ -204,6 +200,7 @@ def _build_pipeline_ui(console):
         "on_dedupe": lambda manifest: render_dedupe_table(console, manifest),
         "on_rename": lambda manifest: render_rename_table(console, manifest),
         "on_apply": lambda manifest: render_apply_table(console, manifest),
+        "on_errors": lambda manifest: render_error_table(console, manifest),
     }
 
     return progress, hooks
@@ -1097,9 +1094,4 @@ def takeout(
             f"[yellow]Dry run — {len(manifest)} files processed, no files copied.[/yellow]"
         )
     else:
-        n_errors = sum(
-            1 for e in manifest if e.get("apply", {}).get("status") == "error"
-        )
         console.print("[green bold]Done![/green bold]")
-        if n_errors > 0:
-            console.print(f"  [red]Errors: {n_errors}[/red]")
