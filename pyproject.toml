@@ -1,7 +1,7 @@
 [project]
-name = "pixelkasten-ai"
+name = "pixelkasten"
 version = "0.1.0"
-description = "AI-powered photo categorization using CLIP embeddings and clustering"
+description = "Photo library organizer — Google Takeout processing and AI-powered categorization"
 requires-python = ">=3.12"
 dependencies = [
     # CLIP model loading and inference. This is the canonical open-source CLIP
@@ -43,6 +43,6 @@ testpaths = ["test"]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-# Register the CLI command so `uv run pixelkasten-ai` works.
+# Register the CLI command so `uv run pixelkasten` works.
 [project.scripts]
-pixelkasten-ai = "pixelkasten_ai.cli:app"
+pixelkasten = "pixelkasten_cli.main:app"

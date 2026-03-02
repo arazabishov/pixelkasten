@@ -2,10 +2,10 @@
 CLI entry point — orchestrates the AI pipeline phases.
 
 Usage:
-    uv run pixelkasten-ai embed -s ~/photos -o ./output
-    uv run pixelkasten-ai caption -m ./output/manifest.json --model llava
-    uv run pixelkasten-ai enrich -m ./output/manifest.json
-    uv run pixelkasten-ai organize -m ./output/manifest.json
+    uv run pixelkasten embed -s ~/photos -o ./output
+    uv run pixelkasten caption -m ./output/manifest.json --model llava
+    uv run pixelkasten enrich -m ./output/manifest.json
+    uv run pixelkasten organize -m ./output/manifest.json
 
 Phase 1  (embed):    scan → embed → cluster → classify → write manifest
 Phase 2a (enrich):   read manifest → EXIF from all images → enrich manifest
@@ -29,7 +29,7 @@ from rich.table import Table
 from rich.tree import Tree
 
 app = typer.Typer(
-    name="pixelkasten-ai",
+    name="pixelkasten",
     help="AI-powered photo categorization using CLIP embeddings and VLM captioning.",
     add_completion=False,
 )
@@ -78,15 +78,15 @@ def embed(
     """
     Run the Phase 1 pipeline: scan, embed, cluster, classify, write manifest.
     """
-    from pixelkasten_ai.scan import scan, is_image
-    from pixelkasten_ai.embed import load_model, embed_images, embed_texts
-    from pixelkasten_ai.cluster import (
+    from pixelkasten.scan import scan, is_image
+    from pixelkasten.embed import load_model, embed_images, embed_texts
+    from pixelkasten.cluster import (
         cluster_embeddings,
         find_representatives,
         cluster_summary,
     )
-    from pixelkasten_ai.classify import classify, build_label_list, DEFAULT_LABEL_SETS
-    from pixelkasten_ai.manifest import write_manifest
+    from pixelkasten.classify import classify, build_label_list, DEFAULT_LABEL_SETS
+    from pixelkasten.manifest import write_manifest
 
     # --- Step 1: Scan for images ---
     console.print("\n[bold]Step 1/5:[/bold] Scanning for images...")
@@ -229,8 +229,8 @@ def caption(
     Reads the manifest, captions representative images, and writes
     enriched results (captions + cluster summaries) back to the manifest.
     """
-    from pixelkasten_ai.manifest import read_manifest, enrich_manifest
-    from pixelkasten_ai.caption import (
+    from pixelkasten.manifest import read_manifest, enrich_manifest
+    from pixelkasten.caption import (
         check_ollama,
         caption_representatives,
         DEFAULT_PROMPT,
@@ -332,8 +332,8 @@ def enrich(
 
     Requires exiftool installed (brew install exiftool).
     """
-    from pixelkasten_ai.exif import check_exiftool, read_exif_for_all
-    from pixelkasten_ai.manifest import read_manifest, enrich_manifest_exif
+    from pixelkasten.exif import check_exiftool, read_exif_for_all
+    from pixelkasten.manifest import read_manifest, enrich_manifest_exif
 
     # --- Step 1: Check exiftool ---
     console.print("\n[bold]Step 1/4:[/bold] Checking exiftool...")
@@ -377,7 +377,7 @@ def enrich(
     console.print(f"  With GPS: {n_with_gps} / {len(exif_data)}")
 
     # --- Step 3: Reverse geocode GPS coordinates ---
-    from pixelkasten_ai.exif import reverse_geocode
+    from pixelkasten.exif import reverse_geocode
 
     location_data = {}
     if n_with_gps > 0:
@@ -461,13 +461,13 @@ def refine(
 
     Requires the enrich step to have been run first (EXIF data in manifest).
     """
-    from pixelkasten_ai.manifest import (
+    from pixelkasten.manifest import (
         read_manifest,
         load_embeddings,
         update_manifest_clusters,
     )
-    from pixelkasten_ai.cluster import find_representatives, cluster_summary
-    from pixelkasten_ai.refine import refine_clusters
+    from pixelkasten.cluster import find_representatives, cluster_summary
+    from pixelkasten.refine import refine_clusters
 
     # --- Step 1: Load data ---
     console.print("\n[bold]Step 1/3:[/bold] Loading manifest and embeddings...")
@@ -586,9 +586,9 @@ def organize(
 
     Requires Ollama running locally with a text model pulled.
     """
-    from pixelkasten_ai.caption import check_ollama
-    from pixelkasten_ai.manifest import read_manifest
-    from pixelkasten_ai.organize import (
+    from pixelkasten.caption import check_ollama
+    from pixelkasten.manifest import read_manifest
+    from pixelkasten.organize import (
         propose_organization,
         build_organization_plan,
         write_organization_plan,
@@ -674,7 +674,7 @@ def organize(
 
     noise_exif = {}
     if noise_entries:
-        from pixelkasten_ai.exif import read_exif
+        from pixelkasten.exif import read_exif
 
         noise_paths = [Path(e["path"]) for e in noise_entries]
         console.print(
@@ -752,7 +752,7 @@ def apply(
     Originals are not modified — this is a copy, not a move.
     """
     import json as json_mod
-    from pixelkasten_ai.organize import apply_organization_plan
+    from pixelkasten.organize import apply_organization_plan
 
     # Read plan to get total count.
     with open(plan_path) as f:
