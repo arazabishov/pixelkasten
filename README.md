@@ -141,13 +141,15 @@ This runs CLIP embedding, HDBSCAN clustering, VLM captioning, and LLM-driven alb
 destination/
   2024/
     20240301-133245.jpg                        # loose file
-    20240301-133245-1.jpg                      # collision
+    20240301-133245-1.jpg                      # collision (-1, -2, ...)
     20240715 - Beach Vacation/                 # album
       20240715-143000.jpg
       20240716-091200.jpg
   Unsorted/                                    # no EXIF timestamp
     IMG-20161115-WA0000.jpg
 ```
+
+**Why this format?** The compact `yyyymmdd-hhmmss` avoids separator ambiguity — the single dash unambiguously splits 8 date digits from 6 time digits. No month directories: the `YYYYMMDD` prefix on album names provides chronological sorting, and lexicographic sort equals chronological sort at every level. The scheme contains no subjective formatting choices, making it durable across OS and file manager changes.
 
 ### Workspace caching
 
