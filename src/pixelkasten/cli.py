@@ -30,10 +30,209 @@ from rich.tree import Tree
 
 app = typer.Typer(
     name="pixelkasten",
-    help="AI-powered photo categorization using CLIP embeddings and VLM captioning.",
+    help="Photo library organizer — Google Takeout processing and AI-powered categorization.",
     add_completion=False,
+    invoke_without_command=True,
 )
 console = Console()
+
+
+@app.callback(invoke_without_command=True)
+def main(
+    ctx: typer.Context,
+    source: Path = typer.Option(
+        None,
+        "--source",
+        "-s",
+        help="Source directory containing photos.",
+        exists=True,
+        file_okay=False,
+        resolve_path=True,
+    ),
+    destination: Path = typer.Option(
+        None,
+        "--destination",
+        "-d",
+        help="Destination directory for organized output.",
+        resolve_path=True,
+    ),
+    takeout: bool = typer.Option(
+        True,
+        "--takeout/--no-takeout",
+        help="Takeout mode (default) or archive mode.",
+    ),
+    catalog: bool = typer.Option(
+        False,
+        "--catalog",
+        help="Enable AI-powered album discovery.",
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Preview plan without copying files.",
+    ),
+    skip_dedupe: bool = typer.Option(
+        False,
+        "--skip-dedupe",
+        help="Skip SHA-256 deduplication.",
+    ),
+    skip_embed: bool = typer.Option(
+        False,
+        "--skip-embed",
+        help="Skip writing sidecar metadata into files.",
+    ),
+    skip_caption: bool = typer.Option(
+        False,
+        "--skip-caption",
+        help="Skip VLM captioning (catalog only).",
+    ),
+    skip_refine: bool = typer.Option(
+        False,
+        "--skip-refine",
+        help="Skip temporal cluster refinement (catalog only).",
+    ),
+    workspace: Path = typer.Option(
+        None,
+        "--workspace",
+        "-w",
+        help="Workspace directory for caching init data and embeddings.",
+        resolve_path=True,
+    ),
+    rescan: bool = typer.Option(
+        False,
+        "--rescan",
+        help="Invalidate workspace cache, re-scan source.",
+    ),
+    prefer: str = typer.Option(
+        "album",
+        "--prefer",
+        help="When deduplicating, prefer 'album' or 'loose' copies.",
+    ),
+):
+    """
+    Organize a photo library.
+
+    By default, processes a Google Takeout export (--takeout). Use --no-takeout
+    for plain photo archives. Add --catalog for AI-powered album discovery.
+    """
+    # If a subcommand was invoked, let it handle things
+    if ctx.invoked_subcommand is not None:
+        return
+
+    # If no source provided, show help
+    if source is None:
+        console.print(ctx.get_help())
+        return
+
+    if destination is None and not dry_run:
+        console.print("[red]--destination is required (unless --dry-run is set)[/red]")
+        raise typer.Exit(code=1)
+
+    from pixelkasten.pipeline import run_pipeline
+
+    # Check exiftool if embedding is needed
+    if not skip_embed and takeout:
+        from pixelkasten.core.exiftool import check_exiftool
+
+        try:
+            check_exiftool()
+        except RuntimeError as e:
+            console.print(f"[red]{e}[/red]")
+            raise typer.Exit(code=1)
+
+    options = {
+        "source": str(source),
+        "destination": str(destination) if destination else "",
+        "mode": "takeout" if takeout else "archive",
+        "catalog": catalog,
+        "dry_run": dry_run,
+        "skip_dedupe": skip_dedupe,
+        "skip_embed": skip_embed,
+        "skip_caption": skip_caption,
+        "skip_refine": skip_refine,
+        "prefer": prefer,
+        "fuzzy": True,
+        "fuzzy_threshold": 40,
+        "rescan": rescan,
+    }
+
+    if workspace:
+        options["workspace"] = str(workspace)
+
+    mode_label = "takeout" if takeout else "archive"
+    console.print(f"\n[bold]Processing ({mode_label} mode) from {source}...[/bold]")
+    if catalog:
+        console.print("  [cyan]AI album discovery enabled[/cyan]")
+
+    manifest = run_pipeline(options)
+
+    # Summary
+    n_total = len(manifest)
+    if dry_run:
+        console.print(
+            f"\n[yellow]Dry run — {n_total} files processed, no files copied.[/yellow]"
+        )
+    else:
+        n_embedded = sum(
+            1 for e in manifest if e.get("apply", {}).get("status") == "embedded"
+        )
+        n_copied = sum(
+            1 for e in manifest if e.get("apply", {}).get("status") == "copied"
+        )
+        n_errors = sum(
+            1 for e in manifest if e.get("apply", {}).get("status") == "error"
+        )
+        n_deleted = sum(
+            1 for e in manifest if e.get("dedupe", {}).get("status") == "delete"
+        )
+
+        console.print("\n[green bold]Done![/green bold]")
+        console.print(f"  Total files: {n_total}")
+        if not skip_dedupe:
+            console.print(f"  Deduplicated: {n_deleted}")
+        console.print(f"  Embedded metadata: {n_embedded}")
+        console.print(f"  Copied (no changes): {n_copied}")
+        if n_errors > 0:
+            console.print(f"  [red]Errors: {n_errors}[/red]")
+
+
+@app.command()
+def status(
+    workspace: Path = typer.Option(
+        ...,
+        "--workspace",
+        "-w",
+        help="Path to a workspace directory.",
+        exists=True,
+        file_okay=False,
+        resolve_path=True,
+    ),
+):
+    """Inspect a workspace manifest."""
+    import json as json_mod
+
+    manifest_path = workspace / "manifest.json"
+    if not manifest_path.exists():
+        console.print(f"[red]No manifest found in {workspace}[/red]")
+        raise typer.Exit(code=1)
+
+    with open(manifest_path) as f:
+        manifest = json_mod.load(f)
+
+    n_total = len(manifest)
+    n_with_json = sum(1 for e in manifest if e.get("json"))
+    n_with_dates = sum(1 for e in manifest if e.get("metadata", {}).get("dates"))
+
+    console.print(f"\n[bold]Workspace: {workspace}[/bold]")
+    console.print(f"  Total entries: {n_total}")
+    console.print(f"  With sidecar match: {n_with_json}")
+    console.print(f"  With timestamps: {n_with_dates}")
+
+    embeddings_path = workspace / "embeddings.npy"
+    if embeddings_path.exists():
+        console.print("  Embeddings cached: yes")
+    else:
+        console.print("  Embeddings cached: no")
 
 
 @app.command()
