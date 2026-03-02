@@ -197,7 +197,7 @@ class TestParseIsoDate:
     def test_parses_standard_iso_string(self):
         result = parse_iso_date("2024-03-15T14:30:45")
         assert result == {
-            "year": "2024",
+            "year": 2024,
             "month": 3,
             "day": 15,
             "hour": 14,
@@ -205,10 +205,10 @@ class TestParseIsoDate:
             "second": 45,
         }
 
-    def test_returns_year_as_string(self):
+    def test_returns_year_as_int(self):
         result = parse_iso_date("2024-01-01T00:00:00")
-        assert isinstance(result["year"], str)
-        assert result["year"] == "2024"
+        assert isinstance(result["year"], int)
+        assert result["year"] == 2024
 
     def test_returns_none_for_none(self):
         assert parse_iso_date(None) is None

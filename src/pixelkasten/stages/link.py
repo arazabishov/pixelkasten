@@ -178,8 +178,7 @@ def parse_sidecar(file_path: str) -> SidecarParsed:
     base = os.path.basename(file_path)
 
     # Strip .json extension.
-    name = os.path.splitext(base)[1]  # This gets ".json"
-    name = base[: len(base) - len(os.path.splitext(base)[1])]  # Strip .json
+    name = base[: len(base) - len(os.path.splitext(base)[1])]
 
     # Strip duplicate marker (N) from the end.
     dup_match = _DUPLICATE_PATTERN.search(name)

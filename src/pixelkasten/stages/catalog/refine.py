@@ -342,10 +342,7 @@ def _absorb_noise_by_similarity(
         indices = np.where(mask)[0]
         cluster_vecs = embeddings[indices]
 
-        centroid = cluster_vecs.mean(axis=0)
-        norm = np.linalg.norm(centroid)
-        if norm > 0:
-            centroid = centroid / norm
+        centroid = _normalized_centroid(cluster_vecs)
 
         dts = []
         for idx in indices:
@@ -525,10 +522,7 @@ def _merge_similar_clusters(
         cluster_vecs = embeddings[indices]
 
         # Compute L2-normalized centroid.
-        centroid = cluster_vecs.mean(axis=0)
-        norm = np.linalg.norm(centroid)
-        if norm > 0:
-            centroid = centroid / norm
+        centroid = _normalized_centroid(cluster_vecs)
 
         # Collect timestamps for this cluster.
         dts = []
@@ -591,11 +585,7 @@ def _merge_similar_clusters(
 
                 # Recompute centroid for the merged cluster.
                 mask = new_labels == id_a
-                merged_vecs = embeddings[mask]
-                new_centroid = merged_vecs.mean(axis=0)
-                norm = np.linalg.norm(new_centroid)
-                if norm > 0:
-                    new_centroid = new_centroid / norm
+                new_centroid = _normalized_centroid(embeddings[mask])
 
                 # Update cluster info.
                 cluster_info[id_a] = {
@@ -641,6 +631,13 @@ def _temporally_close(info_a: dict, info_b: dict, threshold_seconds: float) -> b
         gap = (info_a["min_time"] - info_b["max_time"]).total_seconds()
 
     return gap <= threshold_seconds
+
+
+def _normalized_centroid(vecs):
+    """Compute the L2-normalized centroid of a set of vectors."""
+    centroid = vecs.mean(axis=0)
+    norm = np.linalg.norm(centroid)
+    return centroid / norm if norm > 0 else centroid
 
 
 def _safe_min(a, b):

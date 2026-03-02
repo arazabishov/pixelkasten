@@ -45,4 +45,4 @@ build-backend = "hatchling.build"
 
 # Register the CLI command so `uv run pixelkasten` works.
 [project.scripts]
-pixelkasten = "pixelkasten_cli.main:app"
+pixelkasten = "pixelkasten.cli:app"
