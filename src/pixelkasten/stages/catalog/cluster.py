@@ -68,6 +68,7 @@ def cluster_embeddings(
         min_cluster_size=min_cluster_size,
         min_samples=min_samples,
         metric="cosine",
+        copy=True,
     )
 
     labels = clusterer.fit_predict(embeddings)
