@@ -7,13 +7,8 @@ This unified scan is used by both takeout and archive modes.
 """
 
 import os
-from pathlib import Path
 
-from pixelkasten.core.handlers import all_known_media_extensions
-
-# Extensions we can generate CLIP embeddings for.
-IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".heic", ".png"}
-VIDEO_EXTENSIONS = {".mp4", ".mov"}
+from pixelkasten.core.handlers import ALL_KNOWN_MEDIA_EXTENSIONS
 
 
 def scan(source_path: str) -> dict:
@@ -50,7 +45,7 @@ def scan(source_path: str) -> dict:
                 files_metadata_albums.append(full_path)
             elif ext == ".json":
                 files_metadata.append(full_path)
-            elif ext in all_known_media_extensions:
+            elif ext in ALL_KNOWN_MEDIA_EXTENSIONS:
                 files_media.append(full_path)
             else:
                 files_other_ignored.append(full_path)
@@ -71,11 +66,3 @@ def scan(source_path: str) -> dict:
     }
 
 
-def is_image(path: Path) -> bool:
-    """Check if a path is a supported image (not video) file."""
-    return path.suffix.lower() in IMAGE_EXTENSIONS
-
-
-def is_video(path: Path) -> bool:
-    """Check if a path is a supported video file."""
-    return path.suffix.lower() in VIDEO_EXTENSIONS

@@ -8,15 +8,13 @@ functions are pure and fast. Test expectations use normalized ISO strings.
 import pytest
 
 from pixelkasten.core.handlers import (
-    ExifHandler,
-    QuickTimeHandler,
-    all_known_media_extensions,
+    ALL_KNOWN_MEDIA_EXTENSIONS,
+    SUPPORTED_EXTENSIONS,
+    UNSUPPORTED_MEDIA_EXTENSIONS,
     exif_handler,
     handlers,
     parse_composite_geo,
     quicktime_handler,
-    supported_extensions,
-    unsupported_media_extensions,
 )
 
 
@@ -372,14 +370,14 @@ class TestHandlerRegistry:
         assert handlers[".mp"] is exif_handler
 
     def test_supported_extensions_includes_all_handler_keys(self):
-        assert supported_extensions == set(handlers.keys())
+        assert SUPPORTED_EXTENSIONS == frozenset(handlers.keys())
 
     def test_unsupported_extensions_are_not_in_handler_map(self):
-        for ext in unsupported_media_extensions:
+        for ext in UNSUPPORTED_MEDIA_EXTENSIONS:
             assert ext not in handlers
 
     def test_all_known_is_union_of_supported_and_unsupported(self):
         assert (
-            all_known_media_extensions
-            == supported_extensions | unsupported_media_extensions
+            ALL_KNOWN_MEDIA_EXTENSIONS
+            == SUPPORTED_EXTENSIONS | UNSUPPORTED_MEDIA_EXTENSIONS
         )
