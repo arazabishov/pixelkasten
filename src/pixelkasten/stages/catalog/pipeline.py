@@ -158,7 +158,10 @@ def run_catalog(
                     entry["caption"] = cap
 
     # Propose albums (requires Ollama)
-    propose_albums(manifest_dict, options)
+    with _progress_ctx(progress, "Proposing albums", 1) as on_progress:
+        propose_albums(manifest_dict, options)
+        if on_progress:
+            on_progress(1)
 
     return manifest
 

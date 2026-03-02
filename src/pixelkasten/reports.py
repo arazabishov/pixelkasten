@@ -22,11 +22,14 @@ from rich.table import Column, Table
 
 from pixelkasten.core.manifest import can_keep
 
-# All summary tables use this minimum width for visual consistency.
-TABLE_MIN_WIDTH = 44
+# Shared width for tables and progress bars so they align visually.
+UI_WIDTH = 58
 
 # Progress bar labels are padded to this width so bars align vertically.
 _PROGRESS_LABEL_WIDTH = 20
+
+# Bar fills the remaining space: UI_WIDTH - spinner(2) - label(20) - pct(5) - gaps(3).
+_BAR_WIDTH = UI_WIDTH - 30
 
 
 def build_progress_factory(console: Console) -> Callable:
@@ -45,9 +48,10 @@ def build_progress_factory(console: Console) -> Callable:
                 "[progress.description]{task.description}",
                 table_column=Column(min_width=_PROGRESS_LABEL_WIDTH),
             ),
-            BarColumn(),
+            BarColumn(bar_width=_BAR_WIDTH),
             TaskProgressColumn(),
             console=console,
+            expand=False,
         ) as progress:
             task_id = progress.add_task(label, total=total)
 
@@ -70,7 +74,7 @@ def _make_table(title: str, header_left: str = "Category") -> Table:
         show_header=True,
         show_edge=False,
         pad_edge=False,
-        min_width=TABLE_MIN_WIDTH,
+        min_width=UI_WIDTH,
         title=f"[bold]{title}[/bold]",
         title_style="",
         title_justify="left",
@@ -254,7 +258,7 @@ def render_error_table(console: Console, manifest: list[dict]) -> None:
         show_header=True,
         show_edge=False,
         pad_edge=False,
-        min_width=TABLE_MIN_WIDTH,
+        min_width=UI_WIDTH,
         title="[bold]Errors[/bold]",
         title_style="",
         title_justify="left",

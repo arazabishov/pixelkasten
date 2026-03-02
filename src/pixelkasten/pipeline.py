@@ -80,8 +80,16 @@ def run_pipeline(
                     reconcile(manifest, options, on_progress=on_progress)
                 _call_hook(hooks, "on_reconcile", manifest)
         else:
-            # Archive: build manifest from media files, read EXIF
-            manifest = _build_archive_manifest(raw_collections, hooks)
+            # Archive: build manifest entries, then reconcile EXIF (no sidecars)
+            manifest = [
+                {"mediaPath": p, "source": {"type": "loose"}}
+                for p in raw_collections["files_media"]
+            ]
+            with _progress_ctx(
+                progress, "Reading metadata", len(manifest)
+            ) as on_progress:
+                reconcile(manifest, options, on_progress=on_progress)
+            _call_hook(hooks, "on_reconcile", manifest)
 
         # Save to workspace cache
         if workspace:
@@ -114,57 +122,6 @@ def run_pipeline(
 
     _call_hook(hooks, "on_errors", manifest)
 
-    return manifest
-
-
-# ---------------------------------------------------------------------------
-# Archive manifest builder
-# ---------------------------------------------------------------------------
-
-
-def _build_archive_manifest(
-    raw_collections: dict,
-    hooks: dict,
-) -> list[dict]:
-    """
-    Build a manifest from scan results without sidecar processing.
-
-    Reads EXIF directly from media files and populates metadata.dates.
-    No sidecar matching or metadata embedding.
-    """
-    from pixelkasten.core.exiftool import read_exif
-
-    media_paths = raw_collections["files_media"]
-
-    manifest: list[dict] = []
-    for path in media_paths:
-        manifest.append(
-            {
-                "mediaPath": path,
-                "source": {"type": "loose"},
-            }
-        )
-
-    if manifest:
-        exif_data = read_exif([Path(e["mediaPath"]) for e in manifest])
-
-        for entry in manifest:
-            exif = exif_data.get(entry["mediaPath"], {})
-            dates = []
-            if exif.get("timestamp"):
-                dates.append(exif["timestamp"])
-            entry["metadata"] = {
-                "status": "noop",
-                "writeTags": [],
-                "dates": dates,
-            }
-            if exif.get("gps"):
-                entry["exif"] = {"gps": exif["gps"]}
-            if exif.get("timestamp"):
-                entry["exif"] = entry.get("exif", {})
-                entry["exif"]["timestamp"] = exif["timestamp"]
-
-    _call_hook(hooks, "on_reconcile", manifest)
     return manifest
 
 
