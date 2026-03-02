@@ -21,10 +21,11 @@ def sample_manifest():
         "failed": 1,
         "entries": [
             {
-                "path": "/photos/img_001.jpg",
+                "mediaPath": "/photos/img_001.jpg",
                 "status": "ok",
                 "cluster": 0,
                 "tags": [{"name": "scene:beach", "score": 0.31}],
+                "caption": "A beach scene",
                 "is_representative": True,
                 "exif": {
                     "timestamp": "2019-07-15T14:30:00",
@@ -35,7 +36,7 @@ def sample_manifest():
                 },
             },
             {
-                "path": "/photos/img_002.jpg",
+                "mediaPath": "/photos/img_002.jpg",
                 "status": "ok",
                 "cluster": 0,
                 "tags": [{"name": "scene:beach", "score": 0.28}],
@@ -49,7 +50,7 @@ def sample_manifest():
                 },
             },
             {
-                "path": "/photos/img_003.jpg",
+                "mediaPath": "/photos/img_003.jpg",
                 "status": "ok",
                 "cluster": 0,
                 "tags": [{"name": "scene:city street", "score": 0.25}],
@@ -63,7 +64,7 @@ def sample_manifest():
                 },
             },
             {
-                "path": "/photos/img_004.jpg",
+                "mediaPath": "/photos/img_004.jpg",
                 "status": "ok",
                 "cluster": 0,
                 "tags": [],
@@ -77,7 +78,7 @@ def sample_manifest():
                 },
             },
             {
-                "path": "/photos/img_005.jpg",
+                "mediaPath": "/photos/img_005.jpg",
                 "status": "ok",
                 "cluster": 0,
                 "tags": [],
@@ -91,10 +92,11 @@ def sample_manifest():
                 },
             },
             {
-                "path": "/photos/img_006.jpg",
+                "mediaPath": "/photos/img_006.jpg",
                 "status": "ok",
                 "cluster": 1,
                 "tags": [{"name": "event:dinner gathering", "score": 0.22}],
+                "caption": "A dinner gathering",
                 "is_representative": True,
                 "exif": {
                     "timestamp": "2019-08-20T19:00:00",
@@ -103,7 +105,7 @@ def sample_manifest():
                 },
             },
             {
-                "path": "/photos/img_007.jpg",
+                "mediaPath": "/photos/img_007.jpg",
                 "status": "ok",
                 "cluster": 1,
                 "tags": [{"name": "event:dinner gathering", "score": 0.20}],
@@ -115,7 +117,7 @@ def sample_manifest():
                 },
             },
             {
-                "path": "/photos/img_008.jpg",
+                "mediaPath": "/photos/img_008.jpg",
                 "status": "ok",
                 "cluster": 1,
                 "tags": [],
@@ -127,7 +129,7 @@ def sample_manifest():
                 },
             },
             {
-                "path": "/photos/img_009.jpg",
+                "mediaPath": "/photos/img_009.jpg",
                 "status": "ok",
                 "cluster": -1,
                 "tags": [],
@@ -139,7 +141,7 @@ def sample_manifest():
                 },
             },
             {
-                "path": "/photos/img_010.jpg",
+                "mediaPath": "/photos/img_010.jpg",
                 "status": "failed",
                 "cluster": None,
                 "tags": [],
@@ -147,26 +149,8 @@ def sample_manifest():
             },
         ],
         "clusters": {
-            "0": {
-                "size": 5,
-                "captions": ["A beach scene"],
-                "top_tags": ["scene:beach", "scene:city street"],
-                "date_range": {
-                    "earliest": "2019-07-15T14:30:00",
-                    "latest": "2019-07-17T11:00:00",
-                },
-                "locations": [{"latitude": 37.80, "longitude": -122.41}],
-                "cameras": ["iPhone 11"],
-            },
-            "1": {
-                "size": 3,
-                "captions": ["A dinner gathering"],
-                "top_tags": ["event:dinner gathering"],
-                "date_range": {
-                    "earliest": "2019-08-20T19:00:00",
-                    "latest": "2019-08-20T21:00:00",
-                },
-            },
+            "0": {"size": 5},
+            "1": {"size": 3},
         },
     }
 

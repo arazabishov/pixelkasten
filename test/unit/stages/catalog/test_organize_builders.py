@@ -19,26 +19,23 @@ from pixelkasten.stages.catalog.organize import (
 
 class TestParseLlmResponse:
     def test_clean_json_string(self):
-        raw = '{"0": "2019/20190715 - Beach Vacation", "1": "2019/20190820 - Dinner"}'
+        raw = '{"0": "Beach Vacation", "1": "Dinner Party"}'
         result = _parse_llm_response(raw)
-        assert result == {
-            "0": "2019/20190715 - Beach Vacation",
-            "1": "2019/20190820 - Dinner",
-        }
+        assert result == {"0": "Beach Vacation", "1": "Dinner Party"}
 
     def test_json_wrapped_in_markdown_fences(self):
-        raw = '```json\n{"0": "2019/20190715 - Beach Vacation"}\n```'
+        raw = '```json\n{"0": "Beach Vacation"}\n```'
         result = _parse_llm_response(raw)
-        assert result == {"0": "2019/20190715 - Beach Vacation"}
+        assert result == {"0": "Beach Vacation"}
 
     def test_json_with_surrounding_explanation_text(self):
         raw = (
-            "Here is the proposed directory structure:\n"
-            '{"5": "2023/20231225 - Christmas Dinner"}\n'
+            "Here is the proposed structure:\n"
+            '{"5": "Christmas Dinner"}\n'
             "I hope this helps!"
         )
         result = _parse_llm_response(raw)
-        assert result == {"5": "2023/20231225 - Christmas Dinner"}
+        assert result == {"5": "Christmas Dinner"}
 
     def test_completely_invalid_text_raises_value_error(self):
         raw = "Sorry, I cannot process this request."
@@ -56,13 +53,13 @@ class TestBuildClusterSummaryText:
         """The summary text must contain captions, tags, and date range for each cluster."""
         text = build_cluster_summary_text(sample_manifest)
 
-        # Cluster 0 caption.
+        # Cluster 0 caption (from entry-level caption field).
         assert "A beach scene" in text
 
-        # Cluster 0 tags.
+        # Cluster 0 tags (aggregated from entry-level tags).
         assert "scene:beach" in text
 
-        # Cluster 0 date range.
+        # Cluster 0 date range (computed from entry timestamps).
         assert "2019-07-15T14:30:00" in text
         assert "2019-07-17T11:00:00" in text
 
@@ -73,10 +70,16 @@ class TestBuildClusterSummaryText:
         assert "2019-08-20T19:00:00" in text
         assert "2019-08-20T21:00:00" in text
 
-    def test_output_includes_noise_count(self, sample_manifest):
-        """The summary must report unclustered (noise) images and their count."""
+    def test_output_includes_location_info(self, sample_manifest):
+        """The summary text must include location data from entries."""
         text = build_cluster_summary_text(sample_manifest)
 
-        # One noise entry in sample_manifest (img_009, cluster -1, status ok).
-        assert "Unclustered images (1 images)" in text
-        assert "Unsorted" in text
+        # Cluster 0 has entries with location_name including San Francisco.
+        assert "San Francisco" in text
+        assert "California" in text
+
+    def test_no_noise_section(self, sample_manifest):
+        """Noise images should not appear in the cluster summary."""
+        text = build_cluster_summary_text(sample_manifest)
+        assert "Unclustered" not in text
+        assert "Unsorted" not in text

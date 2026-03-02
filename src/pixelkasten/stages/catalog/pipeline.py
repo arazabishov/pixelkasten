@@ -8,6 +8,7 @@ cannot process (e.g., videos) pass through unchanged — they stay in the
 manifest but don't get cluster labels, captions, or album assignments.
 """
 
+from contextlib import contextmanager
 from pathlib import Path
 
 from pixelkasten.stages.catalog.caption import caption_representatives
@@ -22,7 +23,7 @@ from pixelkasten.stages.catalog.cluster import (
     find_representatives,
 )
 from pixelkasten.stages.catalog.embed import embed_images, embed_texts, load_model
-from pixelkasten.stages.catalog.propose import propose_albums
+from pixelkasten.stages.catalog.organize import propose_albums
 from pixelkasten.stages.catalog.refine import refine_clusters
 from pixelkasten.core.handlers import is_image
 
@@ -31,6 +32,7 @@ def run_catalog(
     manifest: list[dict],
     options: dict,
     workspace: Path | None = None,
+    progress=None,
 ) -> list[dict]:
     """
     Run AI catalog stages: embed → cluster → classify → refine → caption → propose.
@@ -50,6 +52,8 @@ def run_catalog(
             caption_model (str): Ollama vision model (default "llava")
             rescan (bool): ignore cached embeddings
         workspace: Optional workspace directory for embedding cache.
+        progress: Optional progress factory (label, total) -> context manager
+            yielding an on_progress(completed) callback.
 
     Returns:
         The manifest (same list, mutated in-place).
@@ -61,22 +65,27 @@ def run_catalog(
     if not image_paths:
         return manifest
 
+    # Load CLIP model once — used for both embedding and classification.
+    model_name = options.get("clip_model", "ViT-L-14")
+    model, preprocess, tokenizer, device = load_model(model_name=model_name)
+
     # Try loading cached embeddings
     embeddings = None
     if workspace and not options.get("rescan"):
         embeddings = _load_workspace_embeddings(workspace)
 
     if embeddings is None:
-        model_name = options.get("clip_model", "ViT-L-14")
-        model, preprocess, tokenizer, device = load_model(model_name=model_name)
-
-        embeddings, failed_indices = embed_images(
-            model,
-            preprocess,
-            image_paths,
-            device,
-            batch_size=options.get("batch_size", 32),
-        )
+        with _progress_ctx(
+            progress, "Embedding images", len(image_paths)
+        ) as on_progress:
+            embeddings, failed_indices = embed_images(
+                model,
+                preprocess,
+                image_paths,
+                device,
+                batch_size=options.get("batch_size", 32),
+                on_progress=on_progress,
+            )
 
         if workspace:
             _save_workspace_embeddings(workspace, embeddings)
@@ -90,14 +99,13 @@ def run_catalog(
 
     # Classify
     threshold = options.get("threshold", 0.15)
-    model_name = options.get("clip_model", "ViT-L-14")
-    model, preprocess, tokenizer, device = load_model(model_name=model_name)
-
     prefixed_names, raw_labels = build_label_list(DEFAULT_LABEL_SETS)
     label_embeddings = embed_texts(model, tokenizer, raw_labels, device)
-    classify(embeddings, label_embeddings, prefixed_names, threshold=threshold)
+    all_tags = classify(
+        embeddings, label_embeddings, prefixed_names, threshold=threshold
+    )
 
-    # Write cluster info onto manifest entries
+    # Write cluster info + tags onto manifest entries
     ok_indices = [i for i in range(len(image_paths)) if i not in failed_indices]
     reps_flat = {r for reps in representatives.values() for r in reps}
     for i, entry in enumerate(image_entries):
@@ -105,6 +113,10 @@ def run_catalog(
             entry["cluster"] = int(labels[ok_indices[i]])
             entry["status"] = "ok"
             entry["is_representative"] = ok_indices[i] in reps_flat
+            entry["tags"] = [
+                {"name": name, "score": round(score, 3)}
+                for name, score in all_tags[ok_indices[i]]
+            ]
         else:
             entry["status"] = "failed"
 
@@ -128,11 +140,18 @@ def run_catalog(
     # Caption (optional)
     if not options.get("skip_caption"):
         caption_model = options.get("caption_model", "llava")
-        captions = caption_representatives(
-            manifest_dict,
-            caption_model,
-            "Describe this photo briefly.",
+        n_reps = sum(
+            1
+            for e in manifest
+            if e.get("is_representative") and e.get("status") == "ok"
         )
+        with _progress_ctx(progress, "Captioning images", n_reps) as on_progress:
+            captions = caption_representatives(
+                manifest_dict,
+                caption_model,
+                "Describe this photo briefly.",
+                on_progress=on_progress,
+            )
         for path, cap in captions.items():
             for entry in manifest:
                 if entry["mediaPath"] == path:
@@ -166,3 +185,16 @@ def _save_workspace_embeddings(workspace: Path, embeddings) -> None:
     workspace.mkdir(parents=True, exist_ok=True)
     embeddings_path = workspace / "embeddings.npy"
     np.save(str(embeddings_path), embeddings)
+
+
+def _progress_ctx(factory, label: str, total: int):
+    """Create a progress context from a factory, or a noop if factory is None."""
+    if factory:
+        return factory(label, total)
+    return _noop_ctx()
+
+
+@contextmanager
+def _noop_ctx():
+    """Context manager that yields None."""
+    yield None
