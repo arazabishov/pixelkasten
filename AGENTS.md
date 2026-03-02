@@ -91,11 +91,16 @@ The catalog stages (in brackets) only run when `--catalog` is specified. The ren
 
 ## Key Architecture Decisions
 
-- **No month directories**: `YYYY/yyyymmdd-hhmmss.ext` (loose), `YYYY/yyyymmdd - Album/yyyymmdd-hhmmss.ext` (album)
+- **Python-only**: single runtime for AI + file processing. Direct ML integration, no process boundary. `typer` + `rich` for CLI, `pathlib` for path construction, FastAPI-ready for future web UI.
+- **No month directories**: `YYYY/yyyymmdd-hhmmss.ext` (loose), `YYYY/yyyymmdd - Album/yyyymmdd-hhmmss.ext` (album). Lexicographic sort = chronological sort at every level.
 - **Timezone**: strip offsets early (wall-clock time in filenames)
-- **Manifest-driven**: single in-memory dict structure enriched by each stage
+- **Manifest-driven**: single in-memory dict enriched by each stage. Side effects (file copy, metadata write) deferred to the apply stage.
+- **Core/CLI separation**: `pixelkasten.core` + `pixelkasten.stages` are importable libraries with no UI deps. CLI is a thin consumer. Critical for future web/desktop UI.
+- **Hooks pattern**: stage-level callbacks so different consumers (CLI, web UI, desktop app) can provide their own reporting.
 - **Handler protocol**: EXIF + QuickTime handlers with `read_tags`, `parse()`, `timestamp()`, `geo()`
 - **GPS validation**: sidecar rejects either-zero (Google placeholder); disk EXIF rejects only both-zero
+- **All-local AI**: `--catalog` runs CLIP + HDBSCAN + Ollama locally. No cloud API calls. Signal stack: EXIF (when/where) > CLIP embeddings (looks like) > VLM captions (what's happening).
+- **Cluster refinement**: HDBSCAN groups by appearance; EXIF fixes it via eject (no metadata), split (48h gaps), merge (similar + temporally close), absorb (by location or visual similarity). Region-level matching, home location inference, outlier filtering (< 10%).
 
 ## Guiding Principles
 
