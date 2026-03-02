@@ -31,7 +31,12 @@ uv run pytest -v
 # Run Python pipeline unit tests only
 uv run pytest test/unit/ -v
 
-# Run the full pipeline
+# Run the takeout pipeline
+uv run pixelkasten takeout -s <takeout-dir> -d <destination>
+uv run pixelkasten takeout -s <takeout-dir> -d <destination> --dry-run
+uv run pixelkasten takeout -s <takeout-dir> -d <destination> --skip-embed
+
+# Run the AI catalog pipeline
 uv run pixelkasten embed -s <source> -o <output>
 uv run pixelkasten enrich -m <output>/manifest.json
 uv run pixelkasten refine -m <output>/manifest.json

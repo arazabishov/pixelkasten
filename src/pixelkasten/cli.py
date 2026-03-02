@@ -792,3 +792,118 @@ def apply(
         )
     if stats["failed"] > 0:
         console.print(f"  [red]Failed: {stats['failed']}[/red]")
+
+
+@app.command()
+def takeout(
+    source: Path = typer.Option(
+        ...,
+        "--source",
+        "-s",
+        help="Directory containing a Google Photos Takeout export.",
+        exists=True,
+        file_okay=False,
+        resolve_path=True,
+    ),
+    destination: Path = typer.Option(
+        ...,
+        "--destination",
+        "-d",
+        help="Directory to copy organized files into.",
+        resolve_path=True,
+    ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Preview without copying files.",
+    ),
+    prefer: str = typer.Option(
+        "album",
+        "--prefer",
+        help="When deduplicating, prefer 'album' or 'loose' copies.",
+    ),
+    skip_dedupe: bool = typer.Option(
+        False,
+        "--skip-dedupe",
+        help="Skip SHA-256 deduplication.",
+    ),
+    skip_embed: bool = typer.Option(
+        False,
+        "--skip-embed",
+        help="Skip writing sidecar metadata into files.",
+    ),
+    skip_rename: bool = typer.Option(
+        False,
+        "--skip-rename",
+        help="Skip renaming files by timestamp.",
+    ),
+    no_fuzzy: bool = typer.Option(
+        False,
+        "--no-fuzzy",
+        help="Disable fuzzy matching for sidecar linking.",
+    ),
+):
+    """
+    Process a Google Photos Takeout export.
+
+    Scans the source directory, matches media to JSON sidecars, deduplicates,
+    embeds metadata, renames by timestamp, and copies to destination.
+    """
+    from pixelkasten.core.exiftool import check_exiftool
+    from pixelkasten.pipeline import run_takeout_pipeline
+
+    # Check exiftool is available
+    if not skip_embed:
+        try:
+            check_exiftool()
+        except RuntimeError as e:
+            console.print(f"[red]{e}[/red]")
+            raise typer.Exit(code=1)
+
+    options = {
+        "source": str(source),
+        "destination": str(destination),
+        "dry_run": dry_run,
+        "prefer": prefer,
+        "skip_dedupe": skip_dedupe,
+        "skip_embed": skip_embed,
+        "skip_rename": skip_rename,
+        "fuzzy": not no_fuzzy,
+        "fuzzy_threshold": 40,
+    }
+
+    console.print(f"\n[bold]Processing Takeout export from {source}...[/bold]")
+
+    manifest = run_takeout_pipeline(options)
+
+    # Summary
+    n_total = len(manifest)
+    n_matched = sum(1 for e in manifest if e.get("json"))
+    n_unmatched = n_total - n_matched
+
+    if dry_run:
+        console.print("\n[yellow]Dry run — no files were copied.[/yellow]")
+    else:
+        n_embedded = sum(
+            1 for e in manifest if e.get("apply", {}).get("status") == "embedded"
+        )
+        n_copied = sum(
+            1 for e in manifest if e.get("apply", {}).get("status") == "copied"
+        )
+        n_errors = sum(
+            1 for e in manifest if e.get("apply", {}).get("status") == "error"
+        )
+        n_deleted = sum(
+            1 for e in manifest if e.get("dedupe", {}).get("status") == "delete"
+        )
+
+        console.print("\n[green bold]Done![/green bold]")
+        console.print(f"  Total files: {n_total}")
+        console.print(f"  Matched to sidecar: {n_matched}")
+        console.print(f"  Unmatched: {n_unmatched}")
+        if not skip_dedupe:
+            console.print(f"  Deduplicated: {n_deleted}")
+        console.print(f"  Embedded metadata: {n_embedded}")
+        console.print(f"  Copied (no changes): {n_copied}")
+        if n_errors > 0:
+            console.print(f"  [red]Errors: {n_errors}[/red]")
