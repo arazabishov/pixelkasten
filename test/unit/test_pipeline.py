@@ -8,8 +8,6 @@ All I/O-bound stages are mocked.
 import json
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 PATCH_PREFIX = "pixelkasten.pipeline"
 
 
@@ -207,19 +205,6 @@ class TestTakeoutMode:
         hooks["on_reconcile"].assert_called_once()
         hooks["on_rename"].assert_called_once()
         hooks["on_apply"].assert_called_once()
-
-
-class TestRunTakeoutPipelineConvenience:
-    @patch(f"{PATCH_PREFIX}.run_pipeline")
-    def test_sets_mode_to_takeout(self, mock_run):
-        mock_run.return_value = []
-
-        from pixelkasten.pipeline import run_takeout_pipeline
-
-        run_takeout_pipeline({"source": "/src", "destination": "/dest"})
-
-        call_options = mock_run.call_args[0][0]
-        assert call_options["mode"] == "takeout"
 
 
 class TestWorkspaceCaching:

@@ -2,7 +2,7 @@
 
 import pytest
 
-from pixelkasten.core.exif import (
+from pixelkasten.core.exiftool import (
     _normalize_timestamp,
     _parse_exiftool_entry,
     _safe_float,

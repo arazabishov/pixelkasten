@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from datetime import datetime
 
-from pixelkasten.catalog.refine import (
+from pixelkasten.stages.catalog.refine import (
     _parse_timestamp,
     _eject_metadataless,
     _split_by_temporal_gaps,

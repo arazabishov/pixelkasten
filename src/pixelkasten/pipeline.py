@@ -95,7 +95,7 @@ def run_pipeline(
         _call_hook(hooks, "on_dedupe", manifest)
 
     if options.get("catalog"):
-        from pixelkasten.catalog import run_catalog
+        from pixelkasten.stages.catalog import run_catalog
 
         manifest = run_catalog(manifest, options, workspace=workspace)
 
@@ -115,15 +115,6 @@ def run_pipeline(
     return manifest
 
 
-def run_takeout_pipeline(
-    options: dict,
-    hooks: dict | None = None,
-) -> list[dict]:
-    """Convenience: run pipeline in takeout mode."""
-    options = {**options, "mode": "takeout"}
-    return run_pipeline(options, hooks)
-
-
 # ---------------------------------------------------------------------------
 # Archive manifest builder
 # ---------------------------------------------------------------------------
@@ -139,7 +130,7 @@ def _build_archive_manifest(
     Reads EXIF directly from media files and populates metadata.dates.
     No sidecar matching or metadata embedding.
     """
-    from pixelkasten.core.exif import read_exif
+    from pixelkasten.core.exiftool import read_exif
 
     media_paths = raw_collections["files_media"]
 

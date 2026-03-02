@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from pixelkasten.catalog.classify import classify, build_label_list
+from pixelkasten.stages.catalog.classify import classify, build_label_list
 
 
 class TestClassify:
