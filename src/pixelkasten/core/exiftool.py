@@ -7,6 +7,7 @@ interface; higher-level parsing lives in exif.py and handlers.py.
 """
 
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -86,7 +87,9 @@ def read_metadata(
         return {}
 
     entries = json.loads(result.stdout)
-    return {entry.get("SourceFile", ""): entry for entry in entries}
+    # Normalize SourceFile paths: exiftool uses forward slashes on Windows,
+    # but callers use os.path (backslashes). os.path.normpath ensures consistency.
+    return {os.path.normpath(entry.get("SourceFile", "")): entry for entry in entries}
 
 
 def write_metadata(file_path: str | Path, tags: list[str]) -> None:
