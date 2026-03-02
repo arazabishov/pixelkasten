@@ -78,15 +78,19 @@ def embed(
     """
     Run the Phase 1 pipeline: scan, embed, cluster, classify, write manifest.
     """
-    from pixelkasten.scan import scan, is_image
-    from pixelkasten.embed import load_model, embed_images, embed_texts
-    from pixelkasten.cluster import (
+    from pixelkasten.stages.scan import scan, is_image
+    from pixelkasten.stages.embed import load_model, embed_images, embed_texts
+    from pixelkasten.stages.cluster import (
         cluster_embeddings,
         find_representatives,
         cluster_summary,
     )
-    from pixelkasten.classify import classify, build_label_list, DEFAULT_LABEL_SETS
-    from pixelkasten.manifest import write_manifest
+    from pixelkasten.stages.classify import (
+        classify,
+        build_label_list,
+        DEFAULT_LABEL_SETS,
+    )
+    from pixelkasten.core.manifest import write_manifest
 
     # --- Step 1: Scan for images ---
     console.print("\n[bold]Step 1/5:[/bold] Scanning for images...")
@@ -229,8 +233,8 @@ def caption(
     Reads the manifest, captions representative images, and writes
     enriched results (captions + cluster summaries) back to the manifest.
     """
-    from pixelkasten.manifest import read_manifest, enrich_manifest
-    from pixelkasten.caption import (
+    from pixelkasten.core.manifest import read_manifest, enrich_manifest
+    from pixelkasten.stages.caption import (
         check_ollama,
         caption_representatives,
         DEFAULT_PROMPT,
@@ -332,8 +336,8 @@ def enrich(
 
     Requires exiftool installed (brew install exiftool).
     """
-    from pixelkasten.exif import check_exiftool, read_exif_for_all
-    from pixelkasten.manifest import read_manifest, enrich_manifest_exif
+    from pixelkasten.core.exif import check_exiftool, read_exif_for_all
+    from pixelkasten.core.manifest import read_manifest, enrich_manifest_exif
 
     # --- Step 1: Check exiftool ---
     console.print("\n[bold]Step 1/4:[/bold] Checking exiftool...")
@@ -377,7 +381,7 @@ def enrich(
     console.print(f"  With GPS: {n_with_gps} / {len(exif_data)}")
 
     # --- Step 3: Reverse geocode GPS coordinates ---
-    from pixelkasten.exif import reverse_geocode
+    from pixelkasten.core.exif import reverse_geocode
 
     location_data = {}
     if n_with_gps > 0:
@@ -461,13 +465,13 @@ def refine(
 
     Requires the enrich step to have been run first (EXIF data in manifest).
     """
-    from pixelkasten.manifest import (
+    from pixelkasten.core.manifest import (
         read_manifest,
         load_embeddings,
         update_manifest_clusters,
     )
-    from pixelkasten.cluster import find_representatives, cluster_summary
-    from pixelkasten.refine import refine_clusters
+    from pixelkasten.stages.cluster import find_representatives, cluster_summary
+    from pixelkasten.stages.refine import refine_clusters
 
     # --- Step 1: Load data ---
     console.print("\n[bold]Step 1/3:[/bold] Loading manifest and embeddings...")
@@ -586,9 +590,9 @@ def organize(
 
     Requires Ollama running locally with a text model pulled.
     """
-    from pixelkasten.caption import check_ollama
-    from pixelkasten.manifest import read_manifest
-    from pixelkasten.organize import (
+    from pixelkasten.stages.caption import check_ollama
+    from pixelkasten.core.manifest import read_manifest
+    from pixelkasten.stages.organize import (
         propose_organization,
         build_organization_plan,
         write_organization_plan,
@@ -674,7 +678,7 @@ def organize(
 
     noise_exif = {}
     if noise_entries:
-        from pixelkasten.exif import read_exif
+        from pixelkasten.core.exif import read_exif
 
         noise_paths = [Path(e["path"]) for e in noise_entries]
         console.print(
@@ -752,7 +756,7 @@ def apply(
     Originals are not modified — this is a copy, not a move.
     """
     import json as json_mod
-    from pixelkasten.organize import apply_organization_plan
+    from pixelkasten.stages.organize import apply_organization_plan
 
     # Read plan to get total count.
     with open(plan_path) as f:

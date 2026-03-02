@@ -8,7 +8,7 @@ import json
 
 import pytest
 
-from pixelkasten.sidecar import get_geo_data, has_geo_data, read_sidecar
+from pixelkasten.core.sidecar import get_geo_data, has_geo_data, read_sidecar
 
 
 def _write_sidecar(tmp_path, data):

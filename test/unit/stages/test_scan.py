@@ -1,7 +1,7 @@
 from pathlib import Path
 import pytest
 
-from pixelkasten.scan import scan, is_image, is_video
+from pixelkasten.stages.scan import scan, is_image, is_video
 
 
 class TestIsImage:

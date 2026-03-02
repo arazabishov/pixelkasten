@@ -14,7 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Protocol
 
-from pixelkasten.datetime import normalize_disk_date
+from pixelkasten.core.datetime import normalize_disk_date
 
 
 @dataclass

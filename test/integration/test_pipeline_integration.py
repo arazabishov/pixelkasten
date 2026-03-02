@@ -16,18 +16,18 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from pixelkasten.scan import scan, is_image
-from pixelkasten.manifest import (
+from pixelkasten.stages.scan import scan, is_image
+from pixelkasten.core.manifest import (
     write_manifest,
     read_manifest,
     enrich_manifest,
     enrich_manifest_exif,
     update_manifest_clusters,
 )
-from pixelkasten.cluster import cluster_embeddings, find_representatives, cluster_summary
-from pixelkasten.classify import classify, build_label_list
-from pixelkasten.exif import read_exif_for_all, reverse_geocode
-from pixelkasten.refine import refine_clusters
+from pixelkasten.stages.cluster import cluster_embeddings, find_representatives, cluster_summary
+from pixelkasten.stages.classify import classify, build_label_list
+from pixelkasten.core.exif import read_exif_for_all, reverse_geocode
+from pixelkasten.stages.refine import refine_clusters
 
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "media"
