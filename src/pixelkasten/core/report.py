@@ -28,12 +28,13 @@ def report(manifest: list[dict], options: dict | None = None) -> str:
         writer.writerow(["media", "metadata", "confidence", "status", "reason"])
 
         for entry in manifest:
-            media = os.path.relpath(entry["mediaPath"], source)
+            # Use forward slashes in CSV output (portable, matches Node.js behavior)
+            media = os.path.relpath(entry["mediaPath"], source).replace("\\", "/")
 
             metadata = ""
             json_info = entry.get("json")
             if json_info and json_info.get("path"):
-                metadata = os.path.relpath(json_info["path"], source)
+                metadata = os.path.relpath(json_info["path"], source).replace("\\", "/")
 
             confidence = ""
             if json_info and json_info.get("confidence") is not None:

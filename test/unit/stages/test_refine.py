@@ -23,6 +23,7 @@ from pixelkasten.stages.refine import (
 # _parse_timestamp
 # ---------------------------------------------------------------------------
 
+
 class TestParseTimestamp:
     def test_iso_format_returns_datetime(self):
         result = _parse_timestamp("2019-07-15T14:30:00")
@@ -46,6 +47,7 @@ class TestParseTimestamp:
 # ---------------------------------------------------------------------------
 # _eject_metadataless
 # ---------------------------------------------------------------------------
+
 
 class TestEjectMetadataless:
     def test_ejects_no_exif_images_from_clusters(self):
@@ -83,6 +85,7 @@ class TestEjectMetadataless:
 # _split_by_temporal_gaps
 # ---------------------------------------------------------------------------
 
+
 class TestSplitByTemporalGaps:
     def test_splits_cluster_at_48h_gap(self):
         # Two images on day 1, two images on day 5 (gap > 48h).
@@ -94,7 +97,9 @@ class TestSplitByTemporalGaps:
             3: "2019-07-20T14:00:00",
         }
 
-        new_labels, split_count = _split_by_temporal_gaps(labels, timestamps, gap_hours=48.0)
+        new_labels, split_count = _split_by_temporal_gaps(
+            labels, timestamps, gap_hours=48.0
+        )
 
         # First two images stay in original cluster, last two get a new cluster.
         assert new_labels[0] == new_labels[1]
@@ -111,7 +116,9 @@ class TestSplitByTemporalGaps:
             2: "2019-07-16T08:00:00",
         }
 
-        new_labels, split_count = _split_by_temporal_gaps(labels, timestamps, gap_hours=48.0)
+        new_labels, split_count = _split_by_temporal_gaps(
+            labels, timestamps, gap_hours=48.0
+        )
 
         # All stay in same cluster.
         assert len(set(new_labels)) == 1
@@ -121,7 +128,9 @@ class TestSplitByTemporalGaps:
         labels = np.array([0, 0])
         timestamps = {}  # No timestamps at all.
 
-        new_labels, split_count = _split_by_temporal_gaps(labels, timestamps, gap_hours=48.0)
+        new_labels, split_count = _split_by_temporal_gaps(
+            labels, timestamps, gap_hours=48.0
+        )
 
         # Nothing to split without timestamps.
         assert list(new_labels) == [0, 0]
@@ -139,7 +148,9 @@ class TestSplitByTemporalGaps:
             5: "2019-07-20T12:00:00",
         }
 
-        new_labels, split_count = _split_by_temporal_gaps(labels, timestamps, gap_hours=48.0)
+        new_labels, split_count = _split_by_temporal_gaps(
+            labels, timestamps, gap_hours=48.0
+        )
 
         # Should produce 3 distinct clusters (2 splits).
         assert len(set(new_labels)) == 3
@@ -149,6 +160,7 @@ class TestSplitByTemporalGaps:
 # ---------------------------------------------------------------------------
 # _merge_similar_clusters
 # ---------------------------------------------------------------------------
+
 
 def _make_normalized_vec(base, dim=64):
     """Helper: create a normalized vector close to the base."""
@@ -164,12 +176,15 @@ class TestMergeSimilarClusters:
         base /= np.linalg.norm(base)
 
         # Two clusters, both from same day, very similar embeddings.
-        embeddings = np.array([
-            base + rng.randn(64) * 0.01,
-            base + rng.randn(64) * 0.01,
-            base + rng.randn(64) * 0.01,
-            base + rng.randn(64) * 0.01,
-        ], dtype=np.float32)
+        embeddings = np.array(
+            [
+                base + rng.randn(64) * 0.01,
+                base + rng.randn(64) * 0.01,
+                base + rng.randn(64) * 0.01,
+                base + rng.randn(64) * 0.01,
+            ],
+            dtype=np.float32,
+        )
         for i in range(len(embeddings)):
             embeddings[i] /= np.linalg.norm(embeddings[i])
 
@@ -182,7 +197,9 @@ class TestMergeSimilarClusters:
         }
 
         new_labels, merge_count = _merge_similar_clusters(
-            labels, embeddings, timestamps,
+            labels,
+            embeddings,
+            timestamps,
             similarity_threshold=0.5,
             time_threshold_hours=168.0,
         )
@@ -196,10 +213,13 @@ class TestMergeSimilarClusters:
         base = rng.randn(64).astype(np.float32)
         base /= np.linalg.norm(base)
 
-        embeddings = np.array([
-            base + rng.randn(64) * 0.01,
-            base + rng.randn(64) * 0.01,
-        ], dtype=np.float32)
+        embeddings = np.array(
+            [
+                base + rng.randn(64) * 0.01,
+                base + rng.randn(64) * 0.01,
+            ],
+            dtype=np.float32,
+        )
         for i in range(len(embeddings)):
             embeddings[i] /= np.linalg.norm(embeddings[i])
 
@@ -211,7 +231,9 @@ class TestMergeSimilarClusters:
         }
 
         new_labels, merge_count = _merge_similar_clusters(
-            labels, embeddings, timestamps,
+            labels,
+            embeddings,
+            timestamps,
             similarity_threshold=0.5,
             time_threshold_hours=168.0,
         )
@@ -245,7 +267,9 @@ class TestMergeSimilarClusters:
         locations = {0: "California, US", 1: "California, US"}
 
         new_labels, merge_count = _merge_similar_clusters(
-            labels, embeddings, timestamps,
+            labels,
+            embeddings,
+            timestamps,
             similarity_threshold=0.8,  # High threshold — would NOT merge normally.
             time_threshold_hours=168.0,
             locations=locations,
@@ -262,11 +286,14 @@ class TestMergeSimilarClusters:
         base /= np.linalg.norm(base)
 
         # Three clusters, all similar, all same day.
-        embeddings = np.array([
-            base + rng.randn(64) * 0.01,
-            base + rng.randn(64) * 0.01,
-            base + rng.randn(64) * 0.01,
-        ], dtype=np.float32)
+        embeddings = np.array(
+            [
+                base + rng.randn(64) * 0.01,
+                base + rng.randn(64) * 0.01,
+                base + rng.randn(64) * 0.01,
+            ],
+            dtype=np.float32,
+        )
         for i in range(len(embeddings)):
             embeddings[i] /= np.linalg.norm(embeddings[i])
 
@@ -278,7 +305,9 @@ class TestMergeSimilarClusters:
         }
 
         new_labels, merge_count = _merge_similar_clusters(
-            labels, embeddings, timestamps,
+            labels,
+            embeddings,
+            timestamps,
             similarity_threshold=0.5,
             time_threshold_hours=168.0,
         )
@@ -291,6 +320,7 @@ class TestMergeSimilarClusters:
 # ---------------------------------------------------------------------------
 # _infer_home_location
 # ---------------------------------------------------------------------------
+
 
 class TestInferHomeLocation:
     def test_returns_most_frequent_region(self):
@@ -316,6 +346,7 @@ class TestInferHomeLocation:
 # _absorb_noise_by_location
 # ---------------------------------------------------------------------------
 
+
 class TestAbsorbNoiseByLocation:
     def test_absorbs_travel_noise_into_matching_cluster(self):
         labels = np.array([0, 0, -1])
@@ -331,7 +362,10 @@ class TestAbsorbNoiseByLocation:
         }
 
         new_labels, count = _absorb_noise_by_location(
-            labels, timestamps, locations, home_location="California, US",
+            labels,
+            timestamps,
+            locations,
+            home_location="California, US",
         )
 
         # Noise image should be absorbed into cluster 0.
@@ -352,7 +386,10 @@ class TestAbsorbNoiseByLocation:
         }
 
         new_labels, count = _absorb_noise_by_location(
-            labels, timestamps, locations, home_location="California, US",
+            labels,
+            timestamps,
+            locations,
+            home_location="California, US",
         )
 
         # Home location should be skipped — image stays as noise.
@@ -374,7 +411,10 @@ class TestAbsorbNoiseByLocation:
         }
 
         new_labels, count = _absorb_noise_by_location(
-            labels, timestamps, locations, home_location=None,
+            labels,
+            timestamps,
+            locations,
+            home_location=None,
         )
 
         # Multiple candidates — should not absorb.
@@ -385,6 +425,7 @@ class TestAbsorbNoiseByLocation:
 # ---------------------------------------------------------------------------
 # _absorb_noise_by_similarity
 # ---------------------------------------------------------------------------
+
 
 class TestAbsorbNoiseBySimilarity:
     def test_absorbs_gps_less_noise_with_matching_time_and_high_similarity(self):
@@ -407,7 +448,10 @@ class TestAbsorbNoiseBySimilarity:
         locations = {0: "Oslo, Norway"}  # Noise image has no location.
 
         new_labels, count = _absorb_noise_by_similarity(
-            labels, embeddings, timestamps, locations,
+            labels,
+            embeddings,
+            timestamps,
+            locations,
             similarity_threshold=0.5,
         )
 
@@ -427,7 +471,10 @@ class TestAbsorbNoiseBySimilarity:
         locations = {0: "Oslo, Norway", 1: "Oslo, Norway"}
 
         new_labels, count = _absorb_noise_by_similarity(
-            labels, embeddings, timestamps, locations,
+            labels,
+            embeddings,
+            timestamps,
+            locations,
             similarity_threshold=0.5,
         )
 
@@ -450,7 +497,10 @@ class TestAbsorbNoiseBySimilarity:
         locations = {0: "Oslo, Norway"}  # Noise image has no location.
 
         new_labels, count = _absorb_noise_by_similarity(
-            labels, embeddings, timestamps, locations,
+            labels,
+            embeddings,
+            timestamps,
+            locations,
             similarity_threshold=0.9,  # Very high threshold.
         )
 
@@ -462,6 +512,7 @@ class TestAbsorbNoiseBySimilarity:
 # ---------------------------------------------------------------------------
 # _renumber_labels
 # ---------------------------------------------------------------------------
+
 
 class TestRenumberLabels:
     def test_produces_contiguous_ids(self):
@@ -488,6 +539,7 @@ class TestRenumberLabels:
 # ---------------------------------------------------------------------------
 # _temporally_close
 # ---------------------------------------------------------------------------
+
 
 class TestTemporallyClose:
     def test_overlapping_ranges(self):
@@ -518,6 +570,7 @@ class TestTemporallyClose:
 # ---------------------------------------------------------------------------
 # _safe_min / _safe_max
 # ---------------------------------------------------------------------------
+
 
 class TestSafeMinMax:
     def test_safe_min_both_values(self):

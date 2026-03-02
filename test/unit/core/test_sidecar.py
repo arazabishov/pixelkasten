@@ -31,10 +31,16 @@ class TestReadSidecar:
         assert read_sidecar("") is None
 
     def test_extracts_timestamp_from_photo_taken_time(self, tmp_path):
-        path = _write_sidecar(tmp_path, {
-            "photoTakenTime": {"timestamp": "1719935787", "formatted": "Jul 2, 2024"},
-            "geoData": {"latitude": 0.0, "longitude": 0.0, "altitude": 0.0},
-        })
+        path = _write_sidecar(
+            tmp_path,
+            {
+                "photoTakenTime": {
+                    "timestamp": "1719935787",
+                    "formatted": "Jul 2, 2024",
+                },
+                "geoData": {"latitude": 0.0, "longitude": 0.0, "altitude": 0.0},
+            },
+        )
 
         result = read_sidecar(path)
 
@@ -42,32 +48,38 @@ class TestReadSidecar:
         assert result["timestamp"] == "1719935787"
 
     def test_returns_none_timestamp_when_photo_taken_time_absent(self, tmp_path):
-        path = _write_sidecar(tmp_path, {
-            "geoData": {"latitude": 0.0, "longitude": 0.0, "altitude": 0.0},
-        })
+        path = _write_sidecar(
+            tmp_path,
+            {
+                "geoData": {"latitude": 0.0, "longitude": 0.0, "altitude": 0.0},
+            },
+        )
 
         result = read_sidecar(path)
 
         assert result["timestamp"] is None
 
     def test_prefers_geo_data_exif_over_geo_data(self, tmp_path):
-        path = _write_sidecar(tmp_path, {
-            "photoTakenTime": {"timestamp": "1719935787"},
-            "geoData": {
-                "latitude": 10.0,
-                "longitude": 20.0,
-                "altitude": 5.0,
-                "latitudeSpan": 0.0,
-                "longitudeSpan": 0.0,
+        path = _write_sidecar(
+            tmp_path,
+            {
+                "photoTakenTime": {"timestamp": "1719935787"},
+                "geoData": {
+                    "latitude": 10.0,
+                    "longitude": 20.0,
+                    "altitude": 5.0,
+                    "latitudeSpan": 0.0,
+                    "longitudeSpan": 0.0,
+                },
+                "geoDataExif": {
+                    "latitude": 48.8584,
+                    "longitude": 2.2945,
+                    "altitude": 35.0,
+                    "latitudeSpan": 0.0,
+                    "longitudeSpan": 0.0,
+                },
             },
-            "geoDataExif": {
-                "latitude": 48.8584,
-                "longitude": 2.2945,
-                "altitude": 35.0,
-                "latitudeSpan": 0.0,
-                "longitudeSpan": 0.0,
-            },
-        })
+        )
 
         result = read_sidecar(path)
 
@@ -79,16 +91,19 @@ class TestReadSidecar:
         }
 
     def test_falls_back_to_geo_data_when_exif_absent(self, tmp_path):
-        path = _write_sidecar(tmp_path, {
-            "photoTakenTime": {"timestamp": "1719935787"},
-            "geoData": {
-                "latitude": 40.6892,
-                "longitude": -74.0445,
-                "altitude": 10.0,
-                "latitudeSpan": 0.0,
-                "longitudeSpan": 0.0,
+        path = _write_sidecar(
+            tmp_path,
+            {
+                "photoTakenTime": {"timestamp": "1719935787"},
+                "geoData": {
+                    "latitude": 40.6892,
+                    "longitude": -74.0445,
+                    "altitude": 10.0,
+                    "latitudeSpan": 0.0,
+                    "longitudeSpan": 0.0,
+                },
             },
-        })
+        )
 
         result = read_sidecar(path)
 
@@ -99,16 +114,19 @@ class TestReadSidecar:
         }
 
     def test_treats_zero_zero_geo_data_as_missing(self, tmp_path):
-        path = _write_sidecar(tmp_path, {
-            "photoTakenTime": {"timestamp": "1719935787"},
-            "geoData": {
-                "latitude": 0.0,
-                "longitude": 0.0,
-                "altitude": 0.0,
-                "latitudeSpan": 0.0,
-                "longitudeSpan": 0.0,
+        path = _write_sidecar(
+            tmp_path,
+            {
+                "photoTakenTime": {"timestamp": "1719935787"},
+                "geoData": {
+                    "latitude": 0.0,
+                    "longitude": 0.0,
+                    "altitude": 0.0,
+                    "latitudeSpan": 0.0,
+                    "longitudeSpan": 0.0,
+                },
             },
-        })
+        )
 
         result = read_sidecar(path)
 
@@ -116,26 +134,32 @@ class TestReadSidecar:
         assert result["geo"] is None
 
     def test_treats_zero_zero_geo_data_exif_as_missing(self, tmp_path):
-        path = _write_sidecar(tmp_path, {
-            "photoTakenTime": {"timestamp": "1719935787"},
-            "geoData": {"latitude": 0.0, "longitude": 0.0, "altitude": 0.0},
-            "geoDataExif": {"latitude": 0, "longitude": 0, "altitude": 0},
-        })
+        path = _write_sidecar(
+            tmp_path,
+            {
+                "photoTakenTime": {"timestamp": "1719935787"},
+                "geoData": {"latitude": 0.0, "longitude": 0.0, "altitude": 0.0},
+                "geoDataExif": {"latitude": 0, "longitude": 0, "altitude": 0},
+            },
+        )
 
         result = read_sidecar(path)
 
         assert result["geo"] is None
 
     def test_falls_back_to_geo_data_when_exif_is_zero_zero(self, tmp_path):
-        path = _write_sidecar(tmp_path, {
-            "photoTakenTime": {"timestamp": "1719935787"},
-            "geoData": {
-                "latitude": 40.6892,
-                "longitude": -74.0445,
-                "altitude": 10.0,
+        path = _write_sidecar(
+            tmp_path,
+            {
+                "photoTakenTime": {"timestamp": "1719935787"},
+                "geoData": {
+                    "latitude": 40.6892,
+                    "longitude": -74.0445,
+                    "altitude": 10.0,
+                },
+                "geoDataExif": {"latitude": 0, "longitude": 0, "altitude": 0},
             },
-            "geoDataExif": {"latitude": 0, "longitude": 0, "altitude": 0},
-        })
+        )
 
         result = read_sidecar(path)
 
@@ -147,16 +171,19 @@ class TestReadSidecar:
         }
 
     def test_strips_span_fields_from_geo(self, tmp_path):
-        path = _write_sidecar(tmp_path, {
-            "photoTakenTime": {"timestamp": "1719935787"},
-            "geoDataExif": {
-                "latitude": 48.8584,
-                "longitude": 2.2945,
-                "altitude": 35.0,
-                "latitudeSpan": 0.003,
-                "longitudeSpan": 0.004,
+        path = _write_sidecar(
+            tmp_path,
+            {
+                "photoTakenTime": {"timestamp": "1719935787"},
+                "geoDataExif": {
+                    "latitude": 48.8584,
+                    "longitude": 2.2945,
+                    "altitude": 35.0,
+                    "latitudeSpan": 0.003,
+                    "longitudeSpan": 0.004,
+                },
             },
-        })
+        )
 
         result = read_sidecar(path)
 
@@ -165,14 +192,17 @@ class TestReadSidecar:
         assert "longitudeSpan" not in result["geo"]
 
     def test_preserves_negative_altitude(self, tmp_path):
-        path = _write_sidecar(tmp_path, {
-            "photoTakenTime": {"timestamp": "1735645750"},
-            "geoDataExif": {
-                "latitude": 40.3865,
-                "longitude": 49.8916,
-                "altitude": -11.19,
+        path = _write_sidecar(
+            tmp_path,
+            {
+                "photoTakenTime": {"timestamp": "1735645750"},
+                "geoDataExif": {
+                    "latitude": 40.3865,
+                    "longitude": 49.8916,
+                    "altitude": -11.19,
+                },
             },
-        })
+        )
 
         result = read_sidecar(path)
 
@@ -180,16 +210,19 @@ class TestReadSidecar:
         assert result["geo"]["altitude"] == -11.19
 
     def test_ignores_unrelated_sidecar_fields(self, tmp_path):
-        path = _write_sidecar(tmp_path, {
-            "title": "IMG_001.jpg",
-            "description": "My vacation photo",
-            "imageViews": "42",
-            "creationTime": {"timestamp": "1700000000"},
-            "photoTakenTime": {"timestamp": "1719935787"},
-            "geoData": {"latitude": 0.0, "longitude": 0.0, "altitude": 0.0},
-            "url": "https://photos.google.com/photo/abc123",
-            "googlePhotosOrigin": {"mobileUpload": {"deviceType": "IOS_PHONE"}},
-        })
+        path = _write_sidecar(
+            tmp_path,
+            {
+                "title": "IMG_001.jpg",
+                "description": "My vacation photo",
+                "imageViews": "42",
+                "creationTime": {"timestamp": "1700000000"},
+                "photoTakenTime": {"timestamp": "1719935787"},
+                "geoData": {"latitude": 0.0, "longitude": 0.0, "altitude": 0.0},
+                "url": "https://photos.google.com/photo/abc123",
+                "googlePhotosOrigin": {"mobileUpload": {"deviceType": "IOS_PHONE"}},
+            },
+        )
 
         result = read_sidecar(path)
 
@@ -200,14 +233,20 @@ class TestReadSidecar:
         assert "description" not in result
 
     def test_raises_for_malformed_json(self, tmp_path):
+        import re
+
         path = tmp_path / "broken.json"
         path.write_text("{ not valid json")
 
-        with pytest.raises(RuntimeError, match=f"Failed to read sidecar file at {path}"):
+        with pytest.raises(
+            RuntimeError, match=re.escape(f"Failed to read sidecar file at {path}")
+        ):
             read_sidecar(path)
 
     def test_raises_for_missing_file(self):
-        with pytest.raises(RuntimeError, match="Failed to read sidecar file at /nonexistent/path.json"):
+        with pytest.raises(
+            RuntimeError, match="Failed to read sidecar file at /nonexistent/path.json"
+        ):
             read_sidecar("/nonexistent/path.json")
 
 
