@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from pixelkasten.stages.cluster import find_representatives, cluster_summary
+from pixelkasten.catalog.cluster import find_representatives, cluster_summary
 
 
 class TestFindRepresentatives:

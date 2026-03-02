@@ -4,7 +4,7 @@ Tests for the propose stage — LLM album naming adapter.
 
 from unittest.mock import patch
 
-from pixelkasten.stages.propose import extract_album_name, propose_albums
+from pixelkasten.catalog.propose import extract_album_name, propose_albums
 
 
 class TestExtractAlbumName:
@@ -28,7 +28,7 @@ class TestExtractAlbumName:
 
 
 class TestProposeAlbums:
-    @patch("pixelkasten.stages.propose.propose_organization")
+    @patch("pixelkasten.catalog.propose.propose_organization")
     def test_mutates_entries_with_album_source(self, mock_propose):
         mock_propose.return_value = {
             "0": "2024/20240715 - Beach Vacation",
@@ -58,7 +58,7 @@ class TestProposeAlbums:
         # Noise entry unchanged
         assert manifest["entries"][2]["source"] == {"type": "loose"}
 
-    @patch("pixelkasten.stages.propose.propose_organization")
+    @patch("pixelkasten.catalog.propose.propose_organization")
     def test_skips_noise_entries(self, mock_propose):
         mock_propose.return_value = {"0": "2024/20240715 - Album"}
 
@@ -73,7 +73,7 @@ class TestProposeAlbums:
 
         assert manifest["entries"][0]["source"]["type"] == "loose"
 
-    @patch("pixelkasten.stages.propose.propose_organization")
+    @patch("pixelkasten.catalog.propose.propose_organization")
     def test_skips_entries_not_in_cluster_dirs(self, mock_propose):
         mock_propose.return_value = {"0": "2024/20240715 - Album"}
 

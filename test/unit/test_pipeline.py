@@ -20,7 +20,7 @@ PATCH_PREFIX = "pixelkasten.pipeline"
 @patch(f"{PATCH_PREFIX}.dedupe_hash")
 @patch(f"{PATCH_PREFIX}.reconcile")
 @patch(f"{PATCH_PREFIX}.link")
-@patch(f"{PATCH_PREFIX}.scan_takeout")
+@patch(f"{PATCH_PREFIX}.scan")
 class TestTakeoutMode:
     def _run(self, options, hooks=None):
         from pixelkasten.pipeline import run_pipeline
@@ -230,7 +230,7 @@ class TestWorkspaceCaching:
     @patch(f"{PATCH_PREFIX}.dedupe_hash")
     @patch(f"{PATCH_PREFIX}.reconcile")
     @patch(f"{PATCH_PREFIX}.link")
-    @patch(f"{PATCH_PREFIX}.scan_takeout")
+    @patch(f"{PATCH_PREFIX}.scan")
     def test_saves_manifest_to_workspace(
         self,
         mock_scan,
@@ -276,7 +276,7 @@ class TestWorkspaceCaching:
     @patch(f"{PATCH_PREFIX}.dedupe_hash")
     @patch(f"{PATCH_PREFIX}.reconcile")
     @patch(f"{PATCH_PREFIX}.link")
-    @patch(f"{PATCH_PREFIX}.scan_takeout")
+    @patch(f"{PATCH_PREFIX}.scan")
     def test_loads_manifest_from_workspace(
         self,
         mock_scan,
@@ -318,7 +318,7 @@ class TestWorkspaceCaching:
     @patch(f"{PATCH_PREFIX}.dedupe_hash")
     @patch(f"{PATCH_PREFIX}.reconcile")
     @patch(f"{PATCH_PREFIX}.link")
-    @patch(f"{PATCH_PREFIX}.scan_takeout")
+    @patch(f"{PATCH_PREFIX}.scan")
     def test_rescan_ignores_workspace_cache(
         self,
         mock_scan,
