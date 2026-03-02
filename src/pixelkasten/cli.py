@@ -163,37 +163,50 @@ def main(
     console.print(f"\n[bold]Processing ({mode_label} mode) from {source}...[/bold]")
     if catalog:
         console.print("  [cyan]AI album discovery enabled[/cyan]")
+    console.print()
 
-    manifest = run_pipeline(options)
+    progress, hooks = _build_pipeline_ui(console)
+    options["progress"] = progress
+    manifest = run_pipeline(options, hooks)
 
-    # Summary
-    n_total = len(manifest)
+    # Final summary
     if dry_run:
         console.print(
-            f"\n[yellow]Dry run — {n_total} files processed, no files copied.[/yellow]"
+            f"[yellow]Dry run — {len(manifest)} files processed, no files copied.[/yellow]"
         )
     else:
-        n_embedded = sum(
-            1 for e in manifest if e.get("apply", {}).get("status") == "embedded"
-        )
-        n_copied = sum(
-            1 for e in manifest if e.get("apply", {}).get("status") == "copied"
-        )
         n_errors = sum(
             1 for e in manifest if e.get("apply", {}).get("status") == "error"
         )
-        n_deleted = sum(
-            1 for e in manifest if e.get("dedupe", {}).get("status") == "delete"
-        )
-
-        console.print("\n[green bold]Done![/green bold]")
-        console.print(f"  Total files: {n_total}")
-        if not skip_dedupe:
-            console.print(f"  Deduplicated: {n_deleted}")
-        console.print(f"  Embedded metadata: {n_embedded}")
-        console.print(f"  Copied (no changes): {n_copied}")
+        console.print("[green bold]Done![/green bold]")
         if n_errors > 0:
             console.print(f"  [red]Errors: {n_errors}[/red]")
+
+
+def _build_pipeline_ui(console):
+    """Build progress factory and hooks for pipeline UI reporting."""
+    from pixelkasten.reports import (
+        build_progress_factory,
+        render_apply_table,
+        render_dedupe_table,
+        render_link_table,
+        render_reconcile_table,
+        render_rename_table,
+        render_scan_table,
+    )
+
+    progress = build_progress_factory(console)
+
+    hooks = {
+        "on_scan": lambda raw, src: render_scan_table(console, raw, src),
+        "on_link": lambda result: render_link_table(console, result),
+        "on_reconcile": lambda manifest: render_reconcile_table(console, manifest),
+        "on_dedupe": lambda manifest: render_dedupe_table(console, manifest),
+        "on_rename": lambda manifest: render_rename_table(console, manifest),
+        "on_apply": lambda manifest: render_apply_table(console, manifest),
+    }
+
+    return progress, hooks
 
 
 @app.command()
@@ -1072,37 +1085,21 @@ def takeout(
     }
 
     console.print(f"\n[bold]Processing Takeout export from {source}...[/bold]")
+    console.print()
 
-    manifest = run_takeout_pipeline(options)
+    progress, hooks = _build_pipeline_ui(console)
+    options["progress"] = progress
+    manifest = run_takeout_pipeline(options, hooks)
 
-    # Summary
-    n_total = len(manifest)
-    n_matched = sum(1 for e in manifest if e.get("json"))
-    n_unmatched = n_total - n_matched
-
+    # Final summary
     if dry_run:
-        console.print("\n[yellow]Dry run — no files were copied.[/yellow]")
+        console.print(
+            f"[yellow]Dry run — {len(manifest)} files processed, no files copied.[/yellow]"
+        )
     else:
-        n_embedded = sum(
-            1 for e in manifest if e.get("apply", {}).get("status") == "embedded"
-        )
-        n_copied = sum(
-            1 for e in manifest if e.get("apply", {}).get("status") == "copied"
-        )
         n_errors = sum(
             1 for e in manifest if e.get("apply", {}).get("status") == "error"
         )
-        n_deleted = sum(
-            1 for e in manifest if e.get("dedupe", {}).get("status") == "delete"
-        )
-
-        console.print("\n[green bold]Done![/green bold]")
-        console.print(f"  Total files: {n_total}")
-        console.print(f"  Matched to sidecar: {n_matched}")
-        console.print(f"  Unmatched: {n_unmatched}")
-        if not skip_dedupe:
-            console.print(f"  Deduplicated: {n_deleted}")
-        console.print(f"  Embedded metadata: {n_embedded}")
-        console.print(f"  Copied (no changes): {n_copied}")
+        console.print("[green bold]Done![/green bold]")
         if n_errors > 0:
             console.print(f"  [red]Errors: {n_errors}[/red]")

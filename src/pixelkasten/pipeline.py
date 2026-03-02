@@ -11,8 +11,10 @@ Workspace caching (-w) persists init data + embeddings between runs.
 """
 
 import json
+from contextlib import contextmanager
 from pathlib import Path
 
+from pixelkasten.core.manifest import can_keep
 from pixelkasten.core.report import report
 from pixelkasten.stages.apply import apply
 from pixelkasten.stages.dedupe import dedupe_hash, dedupe_resolve
@@ -54,6 +56,7 @@ def run_pipeline(
     hooks = hooks or {}
     mode = options.get("mode", "takeout")
     workspace = Path(options["workspace"]) if options.get("workspace") else None
+    progress = options.get("progress")
 
     # Try loading from workspace cache
     manifest = None
@@ -62,7 +65,7 @@ def run_pipeline(
 
     if manifest is None:
         if mode == "takeout":
-            manifest = _run_takeout_init(options, hooks)
+            manifest = _run_takeout_init(options, hooks, progress)
         else:
             manifest = _run_archive_init(options, hooks)
 
@@ -72,7 +75,8 @@ def run_pipeline(
 
     # Shared stages: dedupe → rename → apply
     if not options.get("skip_dedupe"):
-        dedupe_hash(manifest)
+        with _progress_ctx(progress, "Hashing files", len(manifest)) as on_progress:
+            dedupe_hash(manifest, on_progress=on_progress)
         dedupe_resolve(manifest, options)
         _call_hook(hooks, "on_dedupe", manifest)
 
@@ -85,7 +89,9 @@ def run_pipeline(
         _call_hook(hooks, "on_rename", manifest)
 
     if not options.get("dry_run"):
-        apply(manifest, options)
+        n_keepers = sum(1 for e in manifest if can_keep(e))
+        with _progress_ctx(progress, "Applying changes", n_keepers) as on_progress:
+            apply(manifest, options, on_progress=on_progress)
         _call_hook(hooks, "on_apply", manifest)
         report(manifest, options)
 
@@ -106,7 +112,7 @@ def run_takeout_pipeline(
 # ---------------------------------------------------------------------------
 
 
-def _run_takeout_init(options: dict, hooks: dict) -> list[dict]:
+def _run_takeout_init(options: dict, hooks: dict, progress=None) -> list[dict]:
     """Takeout init: scan → link → reconcile."""
     raw_collections = scan_takeout(options["source"])
     _call_hook(hooks, "on_scan", raw_collections, options["source"])
@@ -117,7 +123,8 @@ def _run_takeout_init(options: dict, hooks: dict) -> list[dict]:
     manifest = result["manifest"]
 
     if not options.get("skip_embed") or not options.get("skip_rename"):
-        reconcile(manifest, options)
+        with _progress_ctx(progress, "Reading metadata", len(manifest)) as on_progress:
+            reconcile(manifest, options, on_progress=on_progress)
         _call_hook(hooks, "on_reconcile", manifest)
 
     return manifest
@@ -352,3 +359,16 @@ def _call_hook(hooks: dict, name: str, *args) -> None:
     hook = hooks.get(name)
     if hook:
         hook(*args)
+
+
+def _progress_ctx(factory, label: str, total: int):
+    """Create a progress context from a factory, or a noop if factory is None."""
+    if factory:
+        return factory(label, total)
+    return _noop_ctx()
+
+
+@contextmanager
+def _noop_ctx():
+    """Context manager that yields None (used when no progress factory is provided)."""
+    yield None

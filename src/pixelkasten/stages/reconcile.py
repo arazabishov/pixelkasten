@@ -7,6 +7,7 @@ writeTags for any metadata missing from disk.
 """
 
 import os
+from collections.abc import Callable
 
 from pixelkasten.core.datetime import parse_photo_taken_time
 from pixelkasten.core.exiftool import read_metadata
@@ -17,7 +18,11 @@ from pixelkasten.core.sidecar import read_sidecar
 BATCH_SIZE = 512
 
 
-def reconcile(manifest: list[dict], options: dict | None = None) -> None:
+def reconcile(
+    manifest: list[dict],
+    options: dict | None = None,
+    on_progress: Callable[[int], None] | None = None,
+) -> None:
     """
     Compare disk EXIF with sidecar data, queue writeTags for missing metadata.
 
@@ -62,6 +67,9 @@ def reconcile(manifest: list[dict], options: dict | None = None) -> None:
                     "writeTags": [],
                     "dates": [],
                 }
+
+        if on_progress is not None:
+            on_progress(min(offset + BATCH_SIZE, len(keepers)))
 
 
 def _resolve(

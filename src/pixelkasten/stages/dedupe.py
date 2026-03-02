@@ -5,9 +5,13 @@ Ported from packages/core/src/stages/dedupe.js.
 """
 
 import hashlib
+from collections.abc import Callable
 
 
-def dedupe_hash(manifest: list[dict]) -> None:
+def dedupe_hash(
+    manifest: list[dict],
+    on_progress: Callable[[int], None] | None = None,
+) -> None:
     """
     Compute SHA-256 for each manifest entry.
 
@@ -16,12 +20,14 @@ def dedupe_hash(manifest: list[dict]) -> None:
     On error:
         entry["dedupe"] = {"hash": None, "status": "error", "reason": str}
     """
-    for entry in manifest:
+    for i, entry in enumerate(manifest):
         try:
             sha256 = _calculate_hash(entry["mediaPath"])
             entry["dedupe"] = {"hash": sha256, "status": "pending"}
         except Exception as e:
             entry["dedupe"] = {"hash": None, "status": "error", "reason": str(e)}
+        if on_progress is not None:
+            on_progress(i + 1)
 
 
 def dedupe_resolve(manifest: list[dict], options: dict | None = None) -> None:

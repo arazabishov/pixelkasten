@@ -6,12 +6,17 @@ Ported from packages/core/src/stages/apply.js.
 
 import os
 import shutil
+from collections.abc import Callable
 
 from pixelkasten.core.exiftool import write_metadata
 from pixelkasten.core.manifest import can_keep
 
 
-def apply(manifest: list[dict], options: dict | None = None) -> None:
+def apply(
+    manifest: list[dict],
+    options: dict | None = None,
+    on_progress: Callable[[int], None] | None = None,
+) -> None:
     """
     Copy files to destination, embed metadata if write_tags exist.
 
@@ -34,7 +39,7 @@ def apply(manifest: list[dict], options: dict | None = None) -> None:
     if not keepers:
         return
 
-    for entry in keepers:
+    for i, entry in enumerate(keepers):
         try:
             # Resolve destination path: use rename targetPath or fall back to original filename
             target_path = entry.get("rename", {}).get("targetPath") or os.path.basename(
@@ -71,3 +76,5 @@ def apply(manifest: list[dict], options: dict | None = None) -> None:
                 "status": "error",
                 "reason": str(e),
             }
+        if on_progress is not None:
+            on_progress(i + 1)
