@@ -9,12 +9,13 @@ Prerequisites:
     - exiftool installed and on PATH (`brew install exiftool`)
 """
 
-import json
-import re
-import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, TypedDict
+
+from pixelkasten.datetime import normalize_disk_date
+from pixelkasten.exiftool import check_exiftool  # noqa: F401 — re-exported
+from pixelkasten.exiftool import read_metadata as _read_metadata_raw
 
 
 class GpsData(TypedDict, total=False):
@@ -29,27 +30,17 @@ class ExifData(TypedDict, total=False):
     camera: str | None
 
 
-def check_exiftool() -> None:
-    """
-    Verify that exiftool is installed and available on PATH.
-
-    Raises RuntimeError with a clear installation message if not found.
-    """
-    try:
-        result = subprocess.run(
-            ["exiftool", "-ver"],
-            capture_output=True,
-            text=True,
-            timeout=10,
-        )
-        if result.returncode != 0:
-            raise RuntimeError(
-                "exiftool is installed but returned an error. Check your installation."
-            )
-    except FileNotFoundError:
-        raise RuntimeError(
-            "exiftool is not installed. Install it with: brew install exiftool"
-        )
+_EXIF_TAGS = [
+    "EXIF:DateTimeOriginal",
+    "EXIF:CreateDate",
+    "QuickTime:CreationDate",
+    "QuickTime:CreateDate",
+    "Composite:GPSLatitude",
+    "Composite:GPSLongitude",
+    "Composite:GPSAltitude",
+    "EXIF:Model",
+    "EXIF:Make",
+]
 
 
 def read_exif(file_paths: list[Path]) -> dict[str, ExifData]:
@@ -57,8 +48,8 @@ def read_exif(file_paths: list[Path]) -> dict[str, ExifData]:
     Read EXIF metadata from multiple files in a single exiftool invocation.
 
     Uses exiftool's -json mode with stdin file list for efficiency (one
-    process for all files, not one per file). This mirrors the batched
-    approach in packages/core/src/core/exiftool.js.
+    process for all files, not one per file). Delegates subprocess work
+    to exiftool.read_metadata().
 
     Args:
         file_paths: List of image file paths to read.
@@ -71,51 +62,11 @@ def read_exif(file_paths: list[Path]) -> dict[str, ExifData]:
     if not file_paths:
         return {}
 
-    args = [
-        "exiftool",
-        "-json",
-        "-n",  # Numeric values (decimal GPS, not DMS strings)
-        "-G",  # Group names (EXIF:, Composite:, etc.)
-        "-fast",  # Skip non-requested tags for speed
-        # Timestamps (priority order)
-        "-EXIF:DateTimeOriginal",
-        "-EXIF:CreateDate",
-        "-QuickTime:CreationDate",
-        "-QuickTime:CreateDate",
-        # GPS (Composite gives cross-format decimal lat/lon)
-        "-Composite:GPSLatitude",
-        "-Composite:GPSLongitude",
-        "-Composite:GPSAltitude",
-        # Camera
-        "-EXIF:Model",
-        "-EXIF:Make",
-        "-@",
-        "-",  # Read file list from stdin
-    ]
-
-    stdin_text = "\n".join(str(p) for p in file_paths)
-
-    result = subprocess.run(
-        args,
-        input=stdin_text,
-        capture_output=True,
-        text=True,
-        timeout=300,
-    )
-
-    # exiftool returns 1 for minor warnings (missing tags), not errors.
-    if result.returncode not in (0, 1):
-        raise RuntimeError(f"exiftool failed: {result.stderr}")
-
-    if not result.stdout.strip():
-        return {str(p): _empty_exif() for p in file_paths}
-
-    entries = json.loads(result.stdout)
+    raw_results = _read_metadata_raw(file_paths, _EXIF_TAGS)
 
     parsed = {}
-    for entry in entries:
-        source_file = entry.get("SourceFile", "")
-        parsed[source_file] = _parse_exiftool_entry(entry)
+    for source_file, raw in raw_results.items():
+        parsed[source_file] = _parse_exiftool_entry(raw)
 
     # Fill in any files that didn't appear in the output.
     for p in file_paths:
@@ -238,20 +189,17 @@ def _parse_exiftool_entry(raw: dict) -> ExifData:
     return ExifData(timestamp=timestamp, gps=gps, camera=camera)
 
 
-# Pattern: "YYYY:MM:DD HH:MM:SS" optionally followed by timezone offset.
-_EXIF_TIMESTAMP_RE = re.compile(
-    r"^(\d{4}):(\d{2}):(\d{2})\s+(\d{2}):(\d{2}):(\d{2})(.*)?$"
-)
-
-
 def _normalize_timestamp(raw_value) -> str | None:
     """
     Normalize an exiftool timestamp value to ISO 8601.
 
+    Strips timezone offsets to preserve wall-clock time (matching Node.js
+    behavior). Delegates string parsing to normalize_disk_date().
+
     Handles:
     - EXIF string: "2019:07:15 14:30:00" -> "2019-07-15T14:30:00"
-    - EXIF with tz: "2019:07:15 14:30:00+02:00" -> "2019-07-15T14:30:00+02:00"
-    - Numeric (Unix epoch): 1563197400 -> "2019-07-15T14:30:00"
+    - EXIF with tz: "2019:07:15 14:30:00+02:00" -> "2019-07-15T14:30:00"
+    - Numeric (Unix epoch): 1563197400 -> "2019-07-15T13:30:00"
 
     Returns None if the value is missing, empty, or unparseable.
     """
@@ -270,16 +218,7 @@ def _normalize_timestamp(raw_value) -> str | None:
     if not raw_str or raw_str == "0000:00:00 00:00:00":
         return None
 
-    m = _EXIF_TIMESTAMP_RE.match(raw_str)
-    if m:
-        year, month, day, hour, minute, second = m.group(1, 2, 3, 4, 5, 6)
-        tz_part = (m.group(7) or "").strip()
-        iso = f"{year}-{month}-{day}T{hour}:{minute}:{second}"
-        if tz_part:
-            iso += tz_part
-        return iso
-
-    return None
+    return normalize_disk_date(raw_str)
 
 
 def _validate_gps(lat, lon) -> bool:

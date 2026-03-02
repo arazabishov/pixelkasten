@@ -20,9 +20,9 @@ class TestNormalizeTimestamp:
         result = _normalize_timestamp("2019:07:15 14:30:00")
         assert result == "2019-07-15T14:30:00"
 
-    def test_exif_colon_format_with_timezone_preserves_offset(self):
+    def test_exif_colon_format_with_timezone_strips_offset(self):
         result = _normalize_timestamp("2019:07:15 14:30:00+02:00")
-        assert result == "2019-07-15T14:30:00+02:00"
+        assert result == "2019-07-15T14:30:00"
 
     def test_unix_epoch_numeric_returns_utc_iso(self):
         result = _normalize_timestamp(1563197400)
