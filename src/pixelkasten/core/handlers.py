@@ -12,6 +12,7 @@ and extension sets used by the scan stage.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Protocol
 
 from pixelkasten.core.datetime import normalize_disk_date
@@ -171,26 +172,39 @@ class QuickTimeHandler:
 
 
 # ---------------------------------------------------------------------------
-# Handler registry
+# Extension sets — single source of truth for format classification.
+# ---------------------------------------------------------------------------
+
+IMAGE_EXTENSIONS: frozenset[str] = frozenset({".jpg", ".jpeg", ".heic", ".png"})
+VIDEO_EXTENSIONS: frozenset[str] = frozenset({".mp4", ".mov"})
+UNSUPPORTED_MEDIA_EXTENSIONS: frozenset[str] = frozenset({".avi", ".mkv", ".wmv", ".flv"})
+
+# ---------------------------------------------------------------------------
+# Handler registry — derived from extension sets.
 # ---------------------------------------------------------------------------
 
 exif_handler = ExifHandler()
 quicktime_handler = QuickTimeHandler()
 
 handlers: dict[str, ExifHandler | QuickTimeHandler] = {
-    ".heic": exif_handler,
-    ".jpeg": exif_handler,
     ".jpg": exif_handler,
+    ".jpeg": exif_handler,
+    ".heic": exif_handler,
     ".png": exif_handler,
     ".mp4": quicktime_handler,
     ".mov": quicktime_handler,
-    ".mp": exif_handler,
+    ".mp": exif_handler,  # Google media format
 }
 
-supported_extensions: set[str] = set(handlers.keys())
+SUPPORTED_EXTENSIONS: frozenset[str] = frozenset(handlers.keys())
+ALL_KNOWN_MEDIA_EXTENSIONS: frozenset[str] = SUPPORTED_EXTENSIONS | UNSUPPORTED_MEDIA_EXTENSIONS
 
-unsupported_media_extensions: set[str] = {".avi", ".mkv", ".wmv", ".flv"}
 
-all_known_media_extensions: set[str] = (
-    supported_extensions | unsupported_media_extensions
-)
+def is_image(path: Path) -> bool:
+    """Check if a path is a supported image (not video) file."""
+    return path.suffix.lower() in IMAGE_EXTENSIONS
+
+
+def is_video(path: Path) -> bool:
+    """Check if a path is a supported video file."""
+    return path.suffix.lower() in VIDEO_EXTENSIONS

@@ -20,7 +20,7 @@ from pixelkasten.stages.catalog.cluster import (
 from pixelkasten.stages.catalog.embed import embed_images, embed_texts, load_model
 from pixelkasten.stages.catalog.propose import propose_albums
 from pixelkasten.stages.catalog.refine import refine_clusters
-from pixelkasten.stages.scan import is_image
+from pixelkasten.core.handlers import is_image
 
 
 def run_catalog(
