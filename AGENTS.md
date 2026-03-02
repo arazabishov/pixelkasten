@@ -59,7 +59,15 @@ Contains the CLI entry point (`cli.js`), logger, progress bar, and report format
 
 ### Python Package (`src/pixelkasten/`)
 
-Python project for AI-powered photo categorization. Not an npm package — communicates with the Node.js pipeline only through JSON manifest files. Uses `uv` for dependency management and `pytest` for testing.
+Python project for AI-powered photo categorization and Google Takeout processing. Not an npm package — communicates with the Node.js pipeline only through JSON manifest files. Uses `uv` for dependency management and `pytest` for testing.
+
+**Sub-package structure:**
+
+- `core/` — shared utilities: `datetime.py`, `exiftool.py`, `sidecar.py`, `handlers.py`, `manifest.py`, `exif.py`
+- `stages/` — pipeline stages: `scan.py`, `link.py`, `dedupe.py`, `reconcile.py`, `embed.py`, `cluster.py`, `classify.py`, `refine.py`, `caption.py`, `organize.py`
+- `cli.py` — CLI entry point (at package root)
+
+Tests mirror this structure: `test/unit/core/`, `test/unit/stages/`, `test/integration/`.
 
 **Pipeline stages (run in this order):**
 

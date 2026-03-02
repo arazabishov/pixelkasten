@@ -2,7 +2,7 @@ import json
 import numpy as np
 import pytest
 
-from pixelkasten.manifest import (
+from pixelkasten.core.manifest import (
     write_manifest,
     read_manifest,
     enrich_manifest,

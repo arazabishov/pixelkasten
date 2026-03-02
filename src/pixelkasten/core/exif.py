@@ -13,9 +13,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, TypedDict
 
-from pixelkasten.datetime import normalize_disk_date
-from pixelkasten.exiftool import check_exiftool  # noqa: F401 — re-exported
-from pixelkasten.exiftool import read_metadata as _read_metadata_raw
+from pixelkasten.core.datetime import normalize_disk_date
+from pixelkasten.core.exiftool import check_exiftool  # noqa: F401 — re-exported
+from pixelkasten.core.exiftool import read_metadata as _read_metadata_raw
 
 
 class GpsData(TypedDict, total=False):

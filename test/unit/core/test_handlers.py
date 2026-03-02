@@ -7,7 +7,7 @@ functions are pure and fast. Test expectations use normalized ISO strings.
 
 import pytest
 
-from pixelkasten.handlers import (
+from pixelkasten.core.handlers import (
     ExifHandler,
     QuickTimeHandler,
     all_known_media_extensions,

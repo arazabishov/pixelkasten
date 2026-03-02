@@ -7,7 +7,7 @@ and parse_iso_date (5 tests).
 
 import pytest
 
-from pixelkasten.datetime import normalize_disk_date, parse_iso_date, parse_photo_taken_time
+from pixelkasten.core.datetime import normalize_disk_date, parse_iso_date, parse_photo_taken_time
 
 
 # ---------------------------------------------------------------------------

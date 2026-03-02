@@ -306,59 +306,65 @@ Album date prefix uses the earliest date among album members. Collision handling
 
 ```
 src/
-  pixelkasten/                  # core library (no UI deps)
+  pixelkasten/                    # core library (no UI deps)
     __init__.py
-    pipeline.py                 # unified orchestrator (both modes)
-    # Shared utilities
-    datetime.py                 # normalizeDiskDate, parseIsoDate, parsePhotoTakenTime
-    exiftool.py                 # subprocess wrapper (read + write)
-    sidecar.py                  # Google sidecar JSON parsing
-    handlers.py                 # EXIF + QuickTime handler registry
-    manifest.py                 # can_keep(), report generation
-    # Takeout stages
-    scan.py                     # file discovery (enhanced with takeout detection)
-    link.py                     # sidecar matching
-    dedupe.py                   # SHA-256 dedup
-    reconcile.py                # EXIF vs sidecar comparison
-    # Catalog stages (moved from ai/)
-    embed.py                    # CLIP embeddings
-    cluster.py                  # HDBSCAN clustering
-    classify.py                 # zero-shot classification
-    refine.py                   # temporal cluster refinement
-    caption.py                  # VLM captioning via Ollama
-    propose.py                  # LLM album naming (adapted from ai/organize.py)
-    # Shared stages
-    rename.py                   # target path computation
-    apply.py                    # file copy + metadata embed
-  pixelkasten_cli/              # CLI (typer + rich)
+    cli.py                        # AI pipeline CLI (legacy, replaced by unified CLI in Phase 6)
+    pipeline.py                   # unified orchestrator (both modes)
+    core/                         # shared utilities
+      __init__.py
+      datetime.py                 # normalize_disk_date, parse_iso_date, parse_photo_taken_time
+      exiftool.py                 # subprocess wrapper (read + write)
+      sidecar.py                  # Google sidecar JSON parsing
+      handlers.py                 # EXIF + QuickTime handler registry
+      manifest.py                 # can_keep(), report generation
+      exif.py                     # AI pipeline EXIF reading + reverse geocoding
+    stages/                       # pipeline stages
+      __init__.py
+      # Takeout stages
+      scan.py                     # file discovery (scan + scan_takeout)
+      link.py                     # sidecar matching (os.path, NOT pathlib)
+      dedupe.py                   # SHA-256 dedup
+      reconcile.py                # EXIF vs sidecar comparison
+      # Catalog stages (moved from ai/)
+      embed.py                    # CLIP embeddings
+      cluster.py                  # HDBSCAN clustering
+      classify.py                 # zero-shot classification
+      refine.py                   # temporal cluster refinement
+      caption.py                  # VLM captioning via Ollama
+      organize.py                 # LLM album naming (becomes propose.py in Phase 6)
+      # Shared stages
+      rename.py                   # target path computation
+      apply.py                    # file copy + metadata embed
+  pixelkasten_cli/                # CLI entry point
     __init__.py
-    main.py                     # single-command entry point
-    progress.py                 # Rich progress bars
-    reports.py                  # stage reporting hooks
+    main.py                       # re-exports app from cli.py
 test/
   unit/
-    test_datetime.py            # all Node.js tests ported + Python-specific edge cases
-    test_sidecar.py             # all Node.js tests ported
-    test_handlers.py            # all Node.js tests ported + pathlib edge cases
-    test_scan.py                # all Node.js tests ported + existing AI tests
-    test_link.py                # all Node.js tests ported + pathlib edge cases (the crown jewels)
-    test_dedupe.py              # all Node.js tests ported
-    test_reconcile.py           # all Node.js tests ported
-    test_rename.py              # all Node.js tests ported (adapted for no-months scheme)
-    test_apply.py               # all Node.js tests ported
-    test_report.py              # all Node.js tests ported
-    test_cluster.py             # existing (moved from ai/)
-    test_classify.py            # existing (moved)
-    test_refine.py              # existing (moved)
-    test_manifest.py            # existing (moved)
-    test_organize_builders.py   # existing (moved, adapted for propose.py)
-    test_exif_parsing.py        # existing (moved)
-  integration/
-    test_takeout_pipeline.py    # 5 tests (ported from Node.js)
-    test_exif_integration.py    # existing (moved)
-    test_pipeline_integration.py # existing (moved)
+    core/                         # mirrors src/pixelkasten/core/
+      test_datetime.py
+      test_sidecar.py
+      test_handlers.py
+      test_exiftool.py
+      test_manifest.py
+      test_exif_parsing.py
+    stages/                       # mirrors src/pixelkasten/stages/
+      test_scan.py
+      test_scan_takeout.py
+      test_link.py                # the crown jewels (56 tests)
+      test_dedupe.py
+      test_reconcile.py
+      test_rename.py
+      test_apply.py
+      test_cluster.py
+      test_classify.py
+      test_refine.py
+      test_organize_builders.py
+  integration/                    # cross-cutting, stays flat
+    test_takeout_pipeline.py
+    test_exif_integration.py
+    test_pipeline_integration.py
   fixtures/
-    media/                      # 4 shared JPEGs (already identical in both suites)
+    media/                        # 4 shared JPEGs (identical to Node.js suite)
 ```
 
 ## Implementation Phases
