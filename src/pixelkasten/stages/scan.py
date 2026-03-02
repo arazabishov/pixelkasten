@@ -1,13 +1,9 @@
 """
-Image discovery — find all supported media files in a directory.
+File discovery — find and categorize all files in a source directory.
 
-This module walks a source directory and collects files whose extensions
-match the formats we can process. Images are embedded directly by CLIP.
-Videos are collected but skipped during embedding (frame extraction is
-not yet implemented).
-
-Also provides scan_takeout() for the Google Takeout pipeline, which
-categorizes ALL files (not just media) into four buckets.
+Walks a source directory and classifies every file by extension into
+buckets: media, metadata (JSON sidecars), album metadata, or other.
+This unified scan is used by both takeout and archive modes.
 """
 
 import os
@@ -16,47 +12,13 @@ from pathlib import Path
 from pixelkasten.core.handlers import all_known_media_extensions
 
 # Extensions we can generate CLIP embeddings for.
-# Images are processed directly. Videos require frame extraction (not yet
-# implemented — for now we collect them but skip during embedding).
 IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".heic", ".png"}
 VIDEO_EXTENSIONS = {".mp4", ".mov"}
-ALL_EXTENSIONS = IMAGE_EXTENSIONS | VIDEO_EXTENSIONS
 
 
-def scan(source: Path) -> list[Path]:
+def scan(source_path: str) -> dict:
     """
-    Find all supported media files under `source`, including subdirectories.
-
-    Returns a sorted list of absolute Path objects. Sorting ensures
-    deterministic ordering — running the pipeline twice on the same
-    directory produces the same manifest.
-
-    Raises FileNotFoundError if the source directory does not exist.
-    """
-    if not source.is_dir():
-        raise FileNotFoundError(f"Source directory not found: {source}")
-
-    files = []
-    for path in source.rglob("*"):
-        if path.is_file() and path.suffix.lower() in ALL_EXTENSIONS:
-            files.append(path.resolve())
-
-    return sorted(files)
-
-
-def is_image(path: Path) -> bool:
-    """Check if a path is a supported image (not video) file."""
-    return path.suffix.lower() in IMAGE_EXTENSIONS
-
-
-def is_video(path: Path) -> bool:
-    """Check if a path is a supported video file."""
-    return path.suffix.lower() in VIDEO_EXTENSIONS
-
-
-def scan_takeout(source_path: str) -> dict:
-    """
-    Categorize all files under source_path into four buckets for takeout processing.
+    Categorize all files under source_path into four buckets.
 
     Walks the directory tree using os.walk() and classifies every file by
     extension into one of: media, metadata (JSON sidecars), album metadata
@@ -100,14 +62,6 @@ def scan_takeout(source_path: str) -> dict:
         + len(files_other_ignored)
     )
 
-    # Invariant: every file must land in exactly one bucket.
-    assert files_total == (
-        len(files_media)
-        + len(files_metadata)
-        + len(files_metadata_albums)
-        + len(files_other_ignored)
-    ), "Bucket counts do not sum to total file count"
-
     return {
         "files_media": files_media,
         "files_metadata": files_metadata,
@@ -115,3 +69,13 @@ def scan_takeout(source_path: str) -> dict:
         "files_other_ignored": files_other_ignored,
         "files_total": files_total,
     }
+
+
+def is_image(path: Path) -> bool:
+    """Check if a path is a supported image (not video) file."""
+    return path.suffix.lower() in IMAGE_EXTENSIONS
+
+
+def is_video(path: Path) -> bool:
+    """Check if a path is a supported video file."""
+    return path.suffix.lower() in VIDEO_EXTENSIONS

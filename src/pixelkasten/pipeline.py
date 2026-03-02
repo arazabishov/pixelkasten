@@ -1,12 +1,11 @@
 """
 Unified pipeline orchestrator — supports both takeout and archive modes.
 
-Takeout mode: scan → link → reconcile → dedupe → rename → apply
-Archive mode: scan → exif_read → dedupe → embed → cluster → classify →
-              refine → caption → propose → rename → apply
+Linear flow with conditional stages:
+  scan → [takeout: link → reconcile] → dedupe → [catalog] → rename → apply
 
 Mode is set explicitly via options["mode"] ("takeout" or "archive").
-The --catalog flag enables AI album discovery (propose stage).
+The --catalog flag enables AI album discovery.
 Workspace caching (-w) persists init data + embeddings between runs.
 """
 
@@ -21,7 +20,7 @@ from pixelkasten.stages.dedupe import dedupe_hash, dedupe_resolve
 from pixelkasten.stages.link import link
 from pixelkasten.stages.reconcile import reconcile
 from pixelkasten.stages.rename import rename
-from pixelkasten.stages.scan import scan_takeout
+from pixelkasten.stages.scan import scan
 
 
 def run_pipeline(
@@ -29,7 +28,7 @@ def run_pipeline(
     hooks: dict | None = None,
 ) -> list[dict]:
     """
-    Unified pipeline: run takeout or archive stages based on mode.
+    Unified pipeline: linear flow with conditional stages based on mode.
 
     Args:
         options: Pipeline configuration with keys:
@@ -64,25 +63,41 @@ def run_pipeline(
         manifest = _load_workspace_manifest(workspace)
 
     if manifest is None:
+        # Scan (always full scan, both modes)
+        raw_collections = scan(options["source"])
+        _call_hook(hooks, "on_scan", raw_collections, options["source"])
+
         if mode == "takeout":
-            manifest = _run_takeout_init(options, hooks, progress)
+            # Takeout: link sidecars + reconcile metadata
+            result = link(raw_collections, options)
+            _call_hook(hooks, "on_link", result)
+            manifest = result["manifest"]
+
+            if not options.get("skip_embed") or not options.get("skip_rename"):
+                with _progress_ctx(
+                    progress, "Reading metadata", len(manifest)
+                ) as on_progress:
+                    reconcile(manifest, options, on_progress=on_progress)
+                _call_hook(hooks, "on_reconcile", manifest)
         else:
-            manifest = _run_archive_init(options, hooks)
+            # Archive: build manifest from media files, read EXIF
+            manifest = _build_archive_manifest(raw_collections, hooks)
 
         # Save to workspace cache
         if workspace:
             _save_workspace_manifest(workspace, manifest)
 
-    # Shared stages: dedupe → rename → apply
+    # Shared stages: dedupe → catalog → rename → apply
     if not options.get("skip_dedupe"):
         with _progress_ctx(progress, "Hashing files", len(manifest)) as on_progress:
             dedupe_hash(manifest, on_progress=on_progress)
         dedupe_resolve(manifest, options)
         _call_hook(hooks, "on_dedupe", manifest)
 
-    # Catalog stages (AI album discovery)
     if options.get("catalog"):
-        manifest = _run_catalog_stages(manifest, options, hooks, workspace)
+        from pixelkasten.catalog import run_catalog
+
+        manifest = run_catalog(manifest, options, workspace=workspace)
 
     if not options.get("skip_rename"):
         rename(manifest, options)
@@ -110,52 +125,33 @@ def run_takeout_pipeline(
 
 
 # ---------------------------------------------------------------------------
-# Init stages (mode-specific)
+# Archive manifest builder
 # ---------------------------------------------------------------------------
 
 
-def _run_takeout_init(options: dict, hooks: dict, progress=None) -> list[dict]:
-    """Takeout init: scan → link → reconcile."""
-    raw_collections = scan_takeout(options["source"])
-    _call_hook(hooks, "on_scan", raw_collections, options["source"])
-
-    result = link(raw_collections, options)
-    _call_hook(hooks, "on_link", result)
-
-    manifest = result["manifest"]
-
-    if not options.get("skip_embed") or not options.get("skip_rename"):
-        with _progress_ctx(progress, "Reading metadata", len(manifest)) as on_progress:
-            reconcile(manifest, options, on_progress=on_progress)
-        _call_hook(hooks, "on_reconcile", manifest)
-
-    return manifest
-
-
-def _run_archive_init(options: dict, hooks: dict) -> list[dict]:
+def _build_archive_manifest(
+    raw_collections: dict,
+    hooks: dict,
+) -> list[dict]:
     """
-    Archive init: scan → exif_read.
+    Build a manifest from scan results without sidecar processing.
 
-    Returns a manifest list of dicts with mediaPath, source, and metadata
-    populated from EXIF. Albums are not yet assigned (that's the propose stage).
+    Reads EXIF directly from media files and populates metadata.dates.
+    No sidecar matching or metadata embedding.
     """
     from pixelkasten.core.exif import read_exif
-    from pixelkasten.stages.scan import scan
 
-    image_paths = scan(Path(options["source"]))
-    _call_hook(hooks, "on_scan", image_paths, options["source"])
+    media_paths = raw_collections["files_media"]
 
-    # Build manifest entries
-    manifest = []
-    for path in image_paths:
+    manifest: list[dict] = []
+    for path in media_paths:
         manifest.append(
             {
-                "mediaPath": str(path),
+                "mediaPath": path,
                 "source": {"type": "loose"},
             }
         )
 
-    # Read EXIF for all files
     if manifest:
         exif_data = read_exif([Path(e["mediaPath"]) for e in manifest])
 
@@ -180,137 +176,6 @@ def _run_archive_init(options: dict, hooks: dict) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
-# Catalog stages (AI album discovery)
-# ---------------------------------------------------------------------------
-
-
-def _run_catalog_stages(
-    manifest: list[dict],
-    options: dict,
-    hooks: dict,
-    workspace: Path | None,
-) -> list[dict]:
-    """
-    Run AI catalog stages: embed → cluster → classify → refine → caption → propose.
-
-    Heavy dependencies (torch, sklearn, ollama) are deferred-imported here
-    so they're only loaded when --catalog is used.
-    """
-    from pixelkasten.stages.classify import build_label_list, classify
-    from pixelkasten.stages.cluster import (
-        cluster_embeddings,
-        cluster_summary,
-        find_representatives,
-    )
-    from pixelkasten.stages.embed import embed_images, embed_texts, load_model
-    from pixelkasten.stages.propose import propose_albums
-    from pixelkasten.stages.scan import is_image
-
-    # Filter to embeddable images
-    image_entries = [e for e in manifest if is_image(Path(e["mediaPath"]))]
-    image_paths = [Path(e["mediaPath"]) for e in image_entries]
-
-    if not image_paths:
-        return manifest
-
-    # Try loading cached embeddings
-    embeddings = None
-    if workspace and not options.get("rescan"):
-        embeddings = _load_workspace_embeddings(workspace)
-
-    if embeddings is None:
-        # Embed
-        model_name = options.get("clip_model", "ViT-L-14")
-        model, preprocess, tokenizer, device = load_model(model_name=model_name)
-
-        embeddings, failed_indices = embed_images(
-            model,
-            preprocess,
-            image_paths,
-            device,
-            batch_size=options.get("batch_size", 32),
-        )
-
-        # Save embeddings to workspace
-        if workspace:
-            _save_workspace_embeddings(workspace, embeddings)
-    else:
-        failed_indices = []
-
-    # Cluster
-    min_cluster_size = options.get("min_cluster_size", 5)
-    labels = cluster_embeddings(embeddings, min_cluster_size=min_cluster_size)
-    representatives = find_representatives(embeddings, labels)
-
-    # Classify
-    threshold = options.get("threshold", 0.15)
-    model_name = options.get("clip_model", "ViT-L-14")
-    model, preprocess, tokenizer, device = load_model(model_name=model_name)
-    from pixelkasten.stages.classify import DEFAULT_LABEL_SETS
-
-    prefixed_names, raw_labels = build_label_list(DEFAULT_LABEL_SETS)
-    label_embeddings = embed_texts(model, tokenizer, raw_labels, device)
-    classify(embeddings, label_embeddings, prefixed_names, threshold=threshold)
-
-    # Write cluster info onto manifest entries
-    ok_indices = [i for i in range(len(image_paths)) if i not in failed_indices]
-    for idx, entry_idx in enumerate(range(len(image_entries))):
-        if entry_idx < len(ok_indices):
-            image_entries[entry_idx]["cluster"] = int(labels[ok_indices[entry_idx]])
-            image_entries[entry_idx]["status"] = "ok"
-            image_entries[entry_idx]["is_representative"] = ok_indices[entry_idx] in [
-                r for reps in representatives.values() for r in reps
-            ]
-        else:
-            image_entries[entry_idx]["status"] = "failed"
-
-    # Build manifest dict for organize/propose (expects {"entries": [...], "clusters": {...}})
-    summary = cluster_summary(labels)
-    manifest_dict = {
-        "entries": manifest,
-        "clusters": {
-            str(k): {"size": v} for k, v in summary.get("cluster_sizes", {}).items()
-        },
-    }
-
-    # Refine (optional)
-    if not options.get("skip_refine"):
-        from pixelkasten.stages.refine import refine_clusters
-
-        new_labels, _ = refine_clusters(manifest_dict, embeddings)
-        # Update labels on entries
-        for i, entry in enumerate(image_entries):
-            if i < len(new_labels):
-                entry["cluster"] = int(new_labels[i])
-        representatives = find_representatives(embeddings, new_labels)
-
-    # Caption (optional)
-    if not options.get("skip_caption"):
-        from pixelkasten.stages.caption import caption_representatives
-
-        # Caption representatives (requires Ollama)
-        caption_model = options.get("caption_model", "llava")
-        captions = caption_representatives(
-            manifest_dict,
-            caption_model,
-            "Describe this photo briefly.",
-        )
-        # Write captions onto entries
-        for path, cap in captions.items():
-            for entry in manifest:
-                if entry["mediaPath"] == path:
-                    entry["caption"] = cap
-
-    # Propose albums (requires Ollama)
-    propose_albums(manifest_dict, options)
-
-    # Sync source info back from manifest_dict entries to manifest
-    # (propose_albums mutates manifest_dict["entries"] which IS manifest)
-
-    return manifest
-
-
-# ---------------------------------------------------------------------------
 # Workspace caching
 # ---------------------------------------------------------------------------
 
@@ -330,25 +195,6 @@ def _save_workspace_manifest(workspace: Path, manifest: list[dict]) -> None:
     manifest_path = workspace / "manifest.json"
     with open(manifest_path, "w") as f:
         json.dump(manifest, f, indent=2)
-
-
-def _load_workspace_embeddings(workspace: Path):
-    """Load cached embeddings from workspace, or None if not found."""
-    import numpy as np
-
-    embeddings_path = workspace / "embeddings.npy"
-    if embeddings_path.exists():
-        return np.load(str(embeddings_path))
-    return None
-
-
-def _save_workspace_embeddings(workspace: Path, embeddings) -> None:
-    """Save embeddings to workspace."""
-    import numpy as np
-
-    workspace.mkdir(parents=True, exist_ok=True)
-    embeddings_path = workspace / "embeddings.npy"
-    np.save(str(embeddings_path), embeddings)
 
 
 # ---------------------------------------------------------------------------

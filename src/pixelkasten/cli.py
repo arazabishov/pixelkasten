@@ -288,13 +288,13 @@ def embed(
     Run the Phase 1 pipeline: scan, embed, cluster, classify, write manifest.
     """
     from pixelkasten.stages.scan import scan, is_image
-    from pixelkasten.stages.embed import load_model, embed_images, embed_texts
-    from pixelkasten.stages.cluster import (
+    from pixelkasten.catalog.embed import load_model, embed_images, embed_texts
+    from pixelkasten.catalog.cluster import (
         cluster_embeddings,
         find_representatives,
         cluster_summary,
     )
-    from pixelkasten.stages.classify import (
+    from pixelkasten.catalog.classify import (
         classify,
         build_label_list,
         DEFAULT_LABEL_SETS,
@@ -303,15 +303,15 @@ def embed(
 
     # --- Step 1: Scan for images ---
     console.print("\n[bold]Step 1/5:[/bold] Scanning for images...")
-    all_files = scan(source)
-    image_files = [f for f in all_files if is_image(f)]
+    raw = scan(str(source))
+    image_files = [Path(f) for f in raw["files_media"] if is_image(Path(f))]
 
     if len(image_files) == 0:
         console.print("[red]No supported images found in source directory.[/red]")
         raise typer.Exit(code=1)
 
     console.print(
-        f"  Found {len(image_files)} images ({len(all_files) - len(image_files)} videos skipped)"
+        f"  Found {len(image_files)} images ({len(raw['files_media']) - len(image_files)} videos skipped)"
     )
 
     # --- Step 2: Load CLIP model ---
@@ -443,7 +443,7 @@ def caption(
     enriched results (captions + cluster summaries) back to the manifest.
     """
     from pixelkasten.core.manifest import read_manifest, enrich_manifest
-    from pixelkasten.stages.caption import (
+    from pixelkasten.catalog.caption import (
         check_ollama,
         caption_representatives,
         DEFAULT_PROMPT,
@@ -679,8 +679,8 @@ def refine(
         load_embeddings,
         update_manifest_clusters,
     )
-    from pixelkasten.stages.cluster import find_representatives, cluster_summary
-    from pixelkasten.stages.refine import refine_clusters
+    from pixelkasten.catalog.cluster import find_representatives, cluster_summary
+    from pixelkasten.catalog.refine import refine_clusters
 
     # --- Step 1: Load data ---
     console.print("\n[bold]Step 1/3:[/bold] Loading manifest and embeddings...")
@@ -799,9 +799,9 @@ def organize(
 
     Requires Ollama running locally with a text model pulled.
     """
-    from pixelkasten.stages.caption import check_ollama
+    from pixelkasten.catalog.caption import check_ollama
     from pixelkasten.core.manifest import read_manifest
-    from pixelkasten.stages.organize import (
+    from pixelkasten.catalog.organize import (
         propose_organization,
         build_organization_plan,
         write_organization_plan,
@@ -965,7 +965,7 @@ def apply(
     Originals are not modified — this is a copy, not a move.
     """
     import json as json_mod
-    from pixelkasten.stages.organize import apply_organization_plan
+    from pixelkasten.catalog.organize import apply_organization_plan
 
     # Read plan to get total count.
     with open(plan_path) as f:

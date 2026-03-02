@@ -8,7 +8,7 @@ source.name so the rename stage can build the correct directory structure.
 
 import re
 
-from pixelkasten.stages.organize import propose_organization
+from pixelkasten.catalog.organize import propose_organization
 
 
 # Pattern to extract album name from "YYYY/YYYYMMDD - Name" or "YYYY/Name".

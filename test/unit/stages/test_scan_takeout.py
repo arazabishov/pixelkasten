@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from pixelkasten.stages.scan import scan_takeout
+from pixelkasten.stages.scan import scan
 
 
 class TestScanTakeout:
@@ -19,7 +19,7 @@ class TestScanTakeout:
         ]:
             (tmp_path / name).touch()
 
-        result = scan_takeout(str(tmp_path))
+        result = scan(str(tmp_path))
 
         # All 7 files should be categorized as media
         assert len(result["files_media"]) == 7
@@ -34,7 +34,7 @@ class TestScanTakeout:
         for name in ["video.avi", "movie.mkv", "clip.wmv", "stream.flv"]:
             (tmp_path / name).touch()
 
-        result = scan_takeout(str(tmp_path))
+        result = scan(str(tmp_path))
 
         # All 4 unsupported media files should still be categorized as media
         assert len(result["files_media"]) == 4
@@ -48,7 +48,7 @@ class TestScanTakeout:
         ]:
             (tmp_path / name).touch()
 
-        result = scan_takeout(str(tmp_path))
+        result = scan(str(tmp_path))
 
         # All 3 JSON files should be categorized as metadata
         assert len(result["files_metadata"]) == 3
@@ -64,7 +64,7 @@ class TestScanTakeout:
         (tmp_path / "Japan" / "metadata.json").touch()
         (tmp_path / "other.json").touch()
 
-        result = scan_takeout(str(tmp_path))
+        result = scan(str(tmp_path))
 
         # Two metadata.json files should be album metadata
         assert len(result["files_metadata_albums"]) == 2
@@ -77,7 +77,7 @@ class TestScanTakeout:
         for name in ["readme.txt", "notes.md", "archive.zip"]:
             (tmp_path / name).touch()
 
-        result = scan_takeout(str(tmp_path))
+        result = scan(str(tmp_path))
 
         # All 3 files should go to other/ignored
         assert len(result["files_other_ignored"]) == 3
@@ -91,7 +91,7 @@ class TestScanTakeout:
         (tmp_path / "subdir").mkdir()
         (tmp_path / "photo.jpg").touch()
 
-        result = scan_takeout(str(tmp_path))
+        result = scan(str(tmp_path))
 
         # Total should count only files, not directories
         assert result["files_total"] == 1
@@ -105,7 +105,7 @@ class TestScanTakeout:
         album_dir.mkdir()
         (album_dir / "photo.jpg").touch()
 
-        result = scan_takeout(str(tmp_path))
+        result = scan(str(tmp_path))
 
         # The full path should include the directory name
         assert len(result["files_media"]) == 1
@@ -117,7 +117,7 @@ class TestScanTakeout:
         for name in ["photo.JPG", "image.HEIC", "clip.MP4"]:
             (tmp_path / name).touch()
 
-        result = scan_takeout(str(tmp_path))
+        result = scan(str(tmp_path))
 
         # All 3 uppercase-extension files should be categorized as media
         assert len(result["files_media"]) == 3
@@ -130,7 +130,7 @@ class TestScanTakeout:
         (tmp_path / "Album" / "metadata.json").touch()
         (tmp_path / "readme.txt").touch()
 
-        result = scan_takeout(str(tmp_path))
+        result = scan(str(tmp_path))
 
         # Total should count only files (not the directory)
         assert result["files_total"] == 4
@@ -147,4 +147,4 @@ class TestScanTakeout:
     def test_raises_for_nonexistent_directory(self):
         # Attempting to scan a path that does not exist should raise
         with pytest.raises(FileNotFoundError):
-            scan_takeout("/nonexistent/path")
+            scan("/nonexistent/path")

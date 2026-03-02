@@ -24,14 +24,14 @@ from pixelkasten.core.manifest import (
     enrich_manifest_exif,
     update_manifest_clusters,
 )
-from pixelkasten.stages.cluster import (
+from pixelkasten.catalog.cluster import (
     cluster_embeddings,
     find_representatives,
     cluster_summary,
 )
-from pixelkasten.stages.classify import classify, build_label_list
+from pixelkasten.catalog.classify import classify, build_label_list
 from pixelkasten.core.exif import read_exif_for_all, reverse_geocode
-from pixelkasten.stages.refine import refine_clusters
+from pixelkasten.catalog.refine import refine_clusters
 
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "media"
@@ -61,14 +61,14 @@ class TestScanToManifest:
     """Test that scan → embed → write produces a valid manifest."""
 
     def test_scan_finds_fixture_images(self, test_images):
-        all_files = scan(test_images)
-        image_files = [f for f in all_files if is_image(f)]
+        all_files = scan(str(test_images))["files_media"]
+        image_files = [f for f in all_files if is_image(Path(f))]
 
         # Should find all 4 fixture JPEGs.
         assert len(image_files) == 4
 
     def test_write_manifest_produces_valid_json(self, test_images, output_dir):
-        image_files = [f for f in scan(test_images) if is_image(f)]
+        image_files = [Path(f) for f in scan(str(test_images))["files_media"] if is_image(Path(f))]
 
         # Use synthetic embeddings (avoid CLIP dependency).
         rng = np.random.RandomState(42)
@@ -114,7 +114,7 @@ class TestEnrichManifestStructure:
 
     def _create_manifest(self, test_images, output_dir):
         """Helper: create a basic manifest from fixture images."""
-        image_files = [f for f in scan(test_images) if is_image(f)]
+        image_files = [Path(f) for f in scan(str(test_images))["files_media"] if is_image(Path(f))]
 
         rng = np.random.RandomState(42)
         embeddings = rng.randn(len(image_files), 64).astype(np.float32)
@@ -193,7 +193,7 @@ class TestRefineManifestStructure:
 
     def _create_enriched_manifest(self, test_images, output_dir):
         """Helper: create an enriched manifest from fixture images."""
-        image_files = [f for f in scan(test_images) if is_image(f)]
+        image_files = [Path(f) for f in scan(str(test_images))["files_media"] if is_image(Path(f))]
 
         rng = np.random.RandomState(42)
         embeddings = rng.randn(len(image_files), 64).astype(np.float32)

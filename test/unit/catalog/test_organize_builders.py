@@ -8,7 +8,7 @@ Unit tests for the organize module's pure logic functions:
 
 import pytest
 
-from pixelkasten.stages.organize import (
+from pixelkasten.catalog.organize import (
     _date_directory_from_timestamp,
     _parse_llm_response,
     build_organization_plan,
