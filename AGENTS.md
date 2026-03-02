@@ -23,22 +23,21 @@ npm start -- -s <source> -d <destination>
 # Format code
 npx prettier --write .
 
-# --- AI Pipeline (Python) ---
+# --- Python Pipeline ---
 
-# Run AI pipeline tests
-cd ai && uv run pytest -v
+# Run Python pipeline tests
+uv run pytest -v
 
-# Run AI pipeline unit tests only
-cd ai && uv run pytest test/unit/ -v
+# Run Python pipeline unit tests only
+uv run pytest test/unit/ -v
 
-# Run the full AI pipeline
-cd ai
-uv run pixelkasten-ai embed -s <source> -o <output>
-uv run pixelkasten-ai enrich -m <output>/manifest.json
-uv run pixelkasten-ai refine -m <output>/manifest.json
-uv run pixelkasten-ai caption -m <output>/manifest.json
-uv run pixelkasten-ai organize -m <output>/manifest.json
-uv run pixelkasten-ai apply -p <output>/organization.json -d <destination>
+# Run the full pipeline
+uv run pixelkasten embed -s <source> -o <output>
+uv run pixelkasten enrich -m <output>/manifest.json
+uv run pixelkasten refine -m <output>/manifest.json
+uv run pixelkasten caption -m <output>/manifest.json
+uv run pixelkasten organize -m <output>/manifest.json
+uv run pixelkasten apply -p <output>/organization.json -d <destination>
 ```
 
 ## Monorepo Structure
@@ -58,9 +57,9 @@ Contains the pipeline stages, handlers, and core utilities. All stages accept op
 
 Contains the CLI entry point (`cli.js`), logger, progress bar, and report formatters. Wires up concrete `logger`, `progress`, and `hooks` implementations and passes them to `runPipeline()`.
 
-### AI Package (`ai/`)
+### Python Package (`src/pixelkasten/`)
 
-Standalone Python project for AI-powered photo categorization. Not an npm package — communicates with the Node.js pipeline only through JSON manifest files. Uses `uv` for dependency management and `pytest` for testing.
+Python project for AI-powered photo categorization. Not an npm package — communicates with the Node.js pipeline only through JSON manifest files. Uses `uv` for dependency management and `pytest` for testing.
 
 **Pipeline stages (run in this order):**
 
@@ -85,7 +84,7 @@ Standalone Python project for AI-powered photo categorization. Not an npm packag
 
 - All public functions should have full type annotations
 - Imports for heavy dependencies (torch, sklearn) are deferred inside CLI commands
-- Tests use pytest; fixtures in `ai/test/fixtures/media/`
+- Tests use pytest; fixtures in `test/fixtures/media/`
 
 ## Integration Test Fixtures
 
@@ -284,7 +283,7 @@ entry.rename = { status: "error" };
 
 ## Python Test Code Style
 
-Tests use `pytest`. Fixtures live in `ai/test/fixtures/media/` (copies of the Node.js fixtures).
+Tests use `pytest`. Fixtures live in `test/fixtures/media/` (copies of the Node.js fixtures).
 
 ```python
 # Use descriptive class + method names
@@ -305,4 +304,4 @@ The long-term plan (see `spec/architecture.md`) is to consolidate the Node.js Ta
 - The `rename` stage uses `Intl.DateTimeFormat` with `month: "long"` — the AI pipeline dropped month directories entirely (files go directly under `YYYY/`)
 - Both pipelines share the same exiftool subprocess pattern for metadata reading
 - GPS validation rules are aligned: both reject `(0, 0)` as Google's placeholder
-- Timestamp handling differs slightly: Node.js strips timezone offsets, Python preserves them
+- Timestamp handling: Node.js strips timezone offsets; Python will be unified to strip-offsets-early in Phase 1

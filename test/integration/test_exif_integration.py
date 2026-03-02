@@ -8,7 +8,7 @@ Uses real JPEG fixtures from the Node.js test suite.
 from pathlib import Path
 import pytest
 
-from pixelkasten_ai.exif import (
+from pixelkasten.exif import (
     check_exiftool,
     read_exif,
     reverse_geocode,

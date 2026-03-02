@@ -1,8 +1,8 @@
-"""Unit tests for EXIF parsing helper functions in pixelkasten_ai.exif."""
+"""Unit tests for EXIF parsing helper functions in pixelkasten.exif."""
 
 import pytest
 
-from pixelkasten_ai.exif import (
+from pixelkasten.exif import (
     _normalize_timestamp,
     _parse_exiftool_entry,
     _safe_float,

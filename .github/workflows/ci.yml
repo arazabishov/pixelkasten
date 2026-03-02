@@ -49,14 +49,11 @@ jobs:
       - run: npm ci
       - run: npm run format:check
 
-  test-ai:
+  test-python:
     strategy:
       matrix:
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        working-directory: ai
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
@@ -73,11 +70,8 @@ jobs:
       - name: Integration tests
         run: uv run pytest test/integration/ -v
 
-  lint-ai:
+  lint-python:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ai
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5

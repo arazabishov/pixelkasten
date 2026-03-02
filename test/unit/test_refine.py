@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from datetime import datetime
 
-from pixelkasten_ai.refine import (
+from pixelkasten.refine import (
     _parse_timestamp,
     _eject_metadataless,
     _split_by_temporal_gaps,

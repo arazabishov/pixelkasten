@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from pixelkasten_ai.cluster import find_representatives, cluster_summary
+from pixelkasten.cluster import find_representatives, cluster_summary
 
 
 class TestFindRepresentatives:
