@@ -286,16 +286,16 @@ src/
     reports.py                  # stage reporting hooks
 test/
   unit/
-    test_datetime.py            # 37 tests (ported from Node.js)
-    test_sidecar.py             # 13 tests (ported)
-    test_handlers.py            # 22 tests (ported)
-    test_scan.py                # 9 tests (ported) + 7 existing
-    test_link.py                # 87 tests (ported — the crown jewels)
-    test_dedupe.py              # 21 tests (ported)
-    test_reconcile.py           # 11 tests (ported)
-    test_rename.py              # 23 tests (ported, adapted for no-months scheme)
-    test_apply.py               # 19 tests (ported)
-    test_report.py              # 7 tests (ported)
+    test_datetime.py            # all Node.js tests ported + Python-specific edge cases
+    test_sidecar.py             # all Node.js tests ported
+    test_handlers.py            # all Node.js tests ported + pathlib edge cases
+    test_scan.py                # all Node.js tests ported + existing AI tests
+    test_link.py                # all Node.js tests ported + pathlib edge cases (the crown jewels)
+    test_dedupe.py              # all Node.js tests ported
+    test_reconcile.py           # all Node.js tests ported
+    test_rename.py              # all Node.js tests ported (adapted for no-months scheme)
+    test_apply.py               # all Node.js tests ported
+    test_report.py              # all Node.js tests ported
     test_cluster.py             # existing (moved from ai/)
     test_classify.py            # existing (moved)
     test_refine.py              # existing (moved)
@@ -321,16 +321,16 @@ Move existing AI code into the new package layout. No logic changes.
 - Move `ai/src/pixelkasten_ai/*.py` into `src/pixelkasten/`
 - Move `ai/test/` into `test/`
 - Create root `pyproject.toml` (replaces `ai/pyproject.toml`)
-- Backward-compat shim in `ai/` so `pixelkasten-ai` CLI keeps working
+- Delete `ai/` entirely (no backward-compat shim — nobody depends on `pixelkasten-ai`)
 
 **Key files:**
 - `pyproject.toml` (new, root level)
 - `src/pixelkasten/__init__.py` (new)
 - `src/pixelkasten_cli/main.py` (new, re-exports existing AI CLI commands)
 
-**Verify:** `uv run pytest -v` passes all 113 existing AI tests in the new location. `pixelkasten-ai embed --help` still works.
+**Verify:** `uv run pytest -v` passes all existing AI tests in the new location.
 
-**Size:** ~100 lines new code (config, init files, CLI shim). Rest is file moves.
+**Size:** ~100 lines new code (config, init files). Rest is file moves.
 
 ---
 
@@ -354,13 +354,13 @@ Port the foundational modules that all takeout stages depend on. Small, self-con
   - Handler registry mapping extensions to handlers
   - `all_known_media_extensions` set
 
-**Tests ported:** 37 (datetime) + 13 (sidecar) + 22 (handlers) = **72 tests**
+**Tests:** Port all Node.js datetime, sidecar, and handler tests. Add Python-specific tests where behavior could diverge (e.g., `pathlib` normalization of double extensions like `.MP.jpg`).
 
-**Verify:** All 72 ported tests pass. Existing AI tests still pass.
+**Verify:** All ported tests pass. Existing AI tests still pass.
 
 **Size:** ~260 lines source + ~850 lines tests ≈ **1,110 lines**
 
-**Risk:** Timezone stripping behavior must exactly match Node.js `normalizeDiskDate()`. The AI pipeline's `_normalize_timestamp()` preserves timezones — different behavior. Both must coexist until Phase 7 unifies them.
+**Timezone unification:** Replace the AI pipeline's `_normalize_timestamp()` in `exif.py` with the new `normalize_disk_date()` from `datetime.py`. Both must strip timezone offsets early (wall-clock time). This is a behavior change for the AI pipeline — update any AI tests that asserted on preserved timezone offsets. Do not defer this to a later phase.
 
 ---
 
@@ -401,11 +401,9 @@ The hardest single piece. Port Google Takeout sidecar matching with all its edge
   - Bidirectional fuzzy matching with length threshold
 - Add `can_keep()` to `src/pixelkasten/manifest.py`
 
-**Tests ported:** 9 (scan) + 87 (link) = **96 tests**
+**Tests:** Port all Node.js scan and link tests. The link tests are the crown jewels — they encode every Google Takeout filename edge case. **Port every test case before writing the implementation.** Then implement until all pass. Add Python-specific tests for `pathlib` edge cases: double extensions (`.MP.jpg`), duplicate markers `(1)`, and any other cases where `pathlib` silently normalizes filenames differently from Node.js `path`.
 
-The link tests are the crown jewels — they encode every Google Takeout filename edge case. **Port every test case before writing the implementation.** Then implement until all pass.
-
-**Verify:** All 96 ported tests pass. Existing AI tests still pass.
+**Verify:** All ported tests pass. Existing AI tests still pass.
 
 **Size:** ~320 lines source + ~700 lines tests ≈ **1,020 lines**
 
@@ -425,9 +423,9 @@ Port content-based deduplication and metadata reconciliation.
   - `reconcile()` — batch EXIF reading (512-item windows) + sidecar comparison
   - Per-file resolution: queue `write_tags` when disk metadata is missing but sidecar has it
 
-**Tests ported:** 21 (dedupe) + 11 (reconcile) = **32 tests**
+**Tests:** Port all Node.js dedupe and reconcile tests.
 
-**Verify:** All 32 ported tests pass.
+**Verify:** All ported tests pass.
 
 **Size:** ~230 lines source + ~650 lines tests ≈ **880 lines**
 
@@ -453,11 +451,9 @@ Build the shared stages that both pipelines converge on. Implements the new nami
 - `report.js` → `src/pixelkasten/report.py`
   - CSV report generation from manifest
 
-**Tests ported:** 23 (rename, adapted for no-months) + 19 (apply) + 7 (report) = **49 tests**
+**Tests:** Port all Node.js rename, apply, and report tests. Rename test expectations must be adapted for no-months (implementing the spec, not the legacy code).
 
-Rename test expectations differ from Node.js originals — `2024/03 - March/` becomes `2024/`. This is intentional (implementing the spec, not the legacy code).
-
-**Verify:** All 49 ported tests pass. Apply collision handling works (fixes the silent-overwrite bug in the current AI pipeline).
+**Verify:** All ported tests pass. Apply collision handling works (fixes the silent-overwrite bug in the current AI pipeline).
 
 **Size:** ~280 lines source + ~1,000 lines tests ≈ **1,280 lines**
 
@@ -504,15 +500,12 @@ Wire everything together into one command with auto-detection and workspace cach
 End-to-end validation and removal of legacy code.
 
 **What gets built:**
-- Port 5 Node.js integration tests (`pipeline.test.js`) → `test/integration/test_takeout_pipeline.py`
+- Port all Node.js integration tests (`pipeline.test.js`) → `test/integration/test_takeout_pipeline.py`
   - Full pipeline with real exiftool, real JPEG fixtures
   - Verifies: metadata embedding, dedup behavior, sidecar copy, dry-run, unsupported format handling
 - New unified integration tests
   - Takeout → organize (sequential workflow)
   - Archive with catalog → verify album structure
-- Remove `ai/` backward-compat shims
-- Remove `ai/pyproject.toml`
-- Unify `exif.py` timestamp normalization to use `datetime.py` (eliminate duplicate `_normalize_timestamp`)
 - Update `CLAUDE.md` / `AGENTS.md` with new commands and structure
 - Update CI workflow
 
@@ -528,23 +521,23 @@ End-to-end validation and removal of legacy code.
 
 ## Phase Summary
 
-| Phase | Description | Source | Tests | Total | New Tests |
-|-------|-------------|--------|-------|-------|-----------|
-| 0 | Project scaffolding | ~100 | 0 | ~100 | 0 |
-| 1 | Shared utilities | ~260 | ~850 | ~1,110 | 72 |
-| 2 | Exiftool unification | ~100 | ~50 | ~150 | 5 |
-| 3 | Link stage | ~320 | ~700 | ~1,020 | 96 |
-| 4 | Dedupe + reconcile | ~230 | ~650 | ~880 | 32 |
-| 5 | Rename + apply | ~280 | ~1,000 | ~1,280 | 49 |
-| 6 | Unified pipeline + CLI | ~300 | ~200 | ~500 | 15 |
-| 7 | Integration + cleanup | ~50 | ~500 | ~550 | 10+ |
-| **Total** | | **~1,640** | **~3,950** | **~5,590** | **279+** |
+| Phase | Description | Source | Tests | Total |
+|-------|-------------|--------|-------|-------|
+| 0 | Project scaffolding | ~100 | 0 | ~100 |
+| 1 | Shared utilities + TZ unification | ~260 | ~850 | ~1,110 |
+| 2 | Exiftool unification | ~100 | ~50 | ~150 |
+| 3 | Link stage | ~320 | ~700 | ~1,020 |
+| 4 | Dedupe + reconcile | ~230 | ~650 | ~880 |
+| 5 | Rename + apply | ~280 | ~1,000 | ~1,280 |
+| 6 | Unified pipeline + CLI | ~300 | ~200 | ~500 |
+| 7 | Integration + cleanup | ~50 | ~500 | ~550 |
+| **Total** | | **~1,640** | **~3,950** | **~5,590** |
+
+Test requirement: every Node.js test must be ported. Hardcoded counts are estimates for sizing — the source of truth is the Node.js test suite. Add Python-specific tests where behavior could diverge (e.g., `pathlib` edge cases, double extensions, Unicode filenames).
 
 ## Risk Assessment
 
-**Highest risk:** Phase 3 (link stage). 87 test cases encoding undocumented Google behavior. Mitigation: port tests first, implement until they pass.
-
-**Medium risk:** Phase 1 (timezone handling). Node.js strips TZ offsets, Python AI preserves them. Two behaviors must coexist. Mitigation: separate functions, merge in Phase 7.
+**Highest risk:** Phase 3 (link stage). Encodes undocumented Google Takeout filename truncation behavior across many test cases. Mitigation: port tests first, implement until they pass.
 
 **Medium risk:** Phase 5 (naming scheme divergence). Ported rename tests must be adapted for no-months. Easy to miss a test expectation. Mitigation: systematic find-and-replace on test expectations, then manual review.
 
@@ -552,8 +545,10 @@ End-to-end validation and removal of legacy code.
 
 ## What Gets Deleted
 
+After Phase 0:
+- `ai/` — code moved to `src/pixelkasten/`, directory deleted entirely (no shim)
+
 After Phase 7:
 - `packages/core/` — Node.js core (tag before deleting, keep for reference)
 - `packages/cli/` — Node.js CLI
-- `ai/` — backward-compat shims (code has been moved to `src/pixelkasten/`)
 - Root `package.json`, `package-lock.json`, `.eslintrc.*`, etc.
