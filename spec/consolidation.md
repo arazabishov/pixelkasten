@@ -60,6 +60,57 @@ Strip timezone offsets early (matching Node.js behavior). `2024:03:21 10:24:10-0
 
 Directory structure: `YYYY/yyyymmdd-hhmmss.ext` for loose files, `YYYY/yyyymmdd - Album Name/yyyymmdd-hhmmss.ext` for albums. No `MM - Mon/` layer.
 
+## Porting Conventions
+
+The Node.js code is the behavioral spec (via its tests), but not the implementation spec. Port the *what*, not the *how*. The following conventions prevent non-idiomatic Python.
+
+### Use `datetime` objects, not dicts
+
+The Node.js code passes dates as `{year, month, day, hour, minute, second}` dicts and manually compares/formats components throughout. In Python:
+
+- `normalize_disk_date()` uses regex to strip timezone offsets (correct — deliberately not parsing the TZ), but returns a `datetime` object, not a string.
+- `parse_photo_taken_time()` uses `datetime.utcfromtimestamp()`.
+- Date comparison uses `<` on `datetime` objects (replaces `isEarlierDate` component-by-component comparison).
+- Date formatting uses `strftime` (replaces manual `pad2` + string interpolation).
+
+### Use dataclasses for structured data
+
+The Node.js manifest is a mutable list of plain objects, enriched stage-by-stage: `entry.metadata = { ... }`, `entry.rename = { ... }`. Direct port produces untyped dicts with no discoverability.
+
+Instead:
+
+- `ManifestEntry` is a `@dataclass` with `Optional` fields for each stage's output.
+- Each stage's output is its own small dataclass (`DedupeResult`, `MetadataResult`, `RenameResult`, etc.).
+- Stages still mutate entries in place (`entry.metadata = MetadataResult(...)`), but the types are explicit.
+- Filename parsing helpers (`media()`, `sidecar()` in link) return `NamedTuple` or frozen dataclasses, not dicts.
+
+### Use Protocol for handlers
+
+The Node.js handler objects are plain dicts with `readTags`, `parse`, `timestamp`, `geo` properties. In Python, define a `Protocol`:
+
+```python
+class Handler(Protocol):
+    read_tags: list[str]
+    def parse(self, raw: dict) -> ParsedMetadata: ...
+    def timestamp(self, data: str) -> list[str]: ...
+    def geo(self, data: GeoData) -> list[str]: ...
+```
+
+Concrete handlers (EXIF, QuickTime) implement the protocol. The registry remains a `dict[str, Handler]`.
+
+### Use `Optional` defaults over `None` checks
+
+The Node.js code uses optional chaining (`entry.metadata?.dates`) extensively. In Python, prefer dataclass defaults that eliminate `None` checks: `dates: list[str] = field(default_factory=list)`. Check for empty (`if not entry.dates`) rather than `if entry.dates is not None`.
+
+### Don't port `Promise.all`
+
+`reconcile.js` uses `Promise.all(batch.map(async ...))` for concurrent sidecar reads within batches. This pattern doesn't translate to Python — the concurrency was marginal anyway (disk I/O is sequential, parsing is trivial). Use a simple `for` loop. If sidecar reads become a bottleneck, use `concurrent.futures.ThreadPoolExecutor`.
+
+### Use `pathlib` for path construction, not decomposition
+
+- **Rename/apply** (building target paths): use `pathlib.Path` / `/` operator. This is where Python's path handling is genuinely better.
+- **Link stage** (decomposing Google Takeout filenames): use `os.path` string operations. `pathlib` silently normalizes double extensions (`.MP.jpg`), duplicate markers `(1)`, and other patterns that the link stage must preserve exactly.
+
 ## CLI Interface
 
 ```bash
