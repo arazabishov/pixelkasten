@@ -96,12 +96,12 @@ def build_cluster_summary_text(manifest: dict) -> str:
             top_tags = [name for name, _ in tag_counts.most_common(5)]
             lines.append(f"  Top tags: {', '.join(top_tags)}")
 
-        # Date range from EXIF timestamps.
-        timestamps = [
-            e["exif"]["timestamp"]
-            for e in cluster_entries
-            if e.get("exif", {}).get("timestamp")
-        ]
+        # Date range from metadata timestamps (populated by reconcile).
+        timestamps = []
+        for e in cluster_entries:
+            dates = e.get("metadata", {}).get("dates", [])
+            if dates:
+                timestamps.append(dates[0])
         if timestamps:
             timestamps.sort()
             lines.append(f"  Date range: {timestamps[0]} to {timestamps[-1]}")

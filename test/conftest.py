@@ -12,6 +12,9 @@ def sample_manifest():
     - Entries 5-7: cluster 1, with EXIF (timestamps, no GPS)
     - Entry 8: noise (cluster -1), with EXIF timestamp
     - Entry 9: failed status
+
+    The metadata.dates field mirrors what reconcile produces.
+    The exif dict mirrors what the catalog pipeline reads for location info.
     """
     return {
         "version": 1,
@@ -27,6 +30,11 @@ def sample_manifest():
                 "tags": [{"name": "scene:beach", "score": 0.31}],
                 "caption": "A beach scene",
                 "is_representative": True,
+                "metadata": {
+                    "status": "noop",
+                    "writeTags": [],
+                    "dates": ["2019-07-15T14:30:00"],
+                },
                 "exif": {
                     "timestamp": "2019-07-15T14:30:00",
                     "gps": {"latitude": 37.80, "longitude": -122.41, "altitude": 10.0},
@@ -41,6 +49,11 @@ def sample_manifest():
                 "cluster": 0,
                 "tags": [{"name": "scene:beach", "score": 0.28}],
                 "is_representative": False,
+                "metadata": {
+                    "status": "noop",
+                    "writeTags": [],
+                    "dates": ["2019-07-15T16:00:00"],
+                },
                 "exif": {
                     "timestamp": "2019-07-15T16:00:00",
                     "gps": {"latitude": 37.79, "longitude": -122.44, "altitude": 5.0},
@@ -55,6 +68,11 @@ def sample_manifest():
                 "cluster": 0,
                 "tags": [{"name": "scene:city street", "score": 0.25}],
                 "is_representative": False,
+                "metadata": {
+                    "status": "noop",
+                    "writeTags": [],
+                    "dates": ["2019-07-16T10:00:00"],
+                },
                 "exif": {
                     "timestamp": "2019-07-16T10:00:00",
                     "gps": {"latitude": 37.40, "longitude": -122.03, "altitude": None},
@@ -69,6 +87,11 @@ def sample_manifest():
                 "cluster": 0,
                 "tags": [],
                 "is_representative": True,
+                "metadata": {
+                    "status": "noop",
+                    "writeTags": [],
+                    "dates": ["2019-07-17T09:00:00"],
+                },
                 "exif": {
                     "timestamp": "2019-07-17T09:00:00",
                     "gps": {"latitude": 37.80, "longitude": -122.41, "altitude": None},
@@ -83,6 +106,11 @@ def sample_manifest():
                 "cluster": 0,
                 "tags": [],
                 "is_representative": False,
+                "metadata": {
+                    "status": "noop",
+                    "writeTags": [],
+                    "dates": ["2019-07-17T11:00:00"],
+                },
                 "exif": {
                     "timestamp": "2019-07-17T11:00:00",
                     "gps": {"latitude": 37.80, "longitude": -122.41, "altitude": None},
@@ -98,6 +126,11 @@ def sample_manifest():
                 "tags": [{"name": "event:dinner gathering", "score": 0.22}],
                 "caption": "A dinner gathering",
                 "is_representative": True,
+                "metadata": {
+                    "status": "noop",
+                    "writeTags": [],
+                    "dates": ["2019-08-20T19:00:00"],
+                },
                 "exif": {
                     "timestamp": "2019-08-20T19:00:00",
                     "gps": None,
@@ -110,6 +143,11 @@ def sample_manifest():
                 "cluster": 1,
                 "tags": [{"name": "event:dinner gathering", "score": 0.20}],
                 "is_representative": False,
+                "metadata": {
+                    "status": "noop",
+                    "writeTags": [],
+                    "dates": ["2019-08-20T20:30:00"],
+                },
                 "exif": {
                     "timestamp": "2019-08-20T20:30:00",
                     "gps": None,
@@ -122,6 +160,11 @@ def sample_manifest():
                 "cluster": 1,
                 "tags": [],
                 "is_representative": False,
+                "metadata": {
+                    "status": "noop",
+                    "writeTags": [],
+                    "dates": ["2019-08-20T21:00:00"],
+                },
                 "exif": {
                     "timestamp": "2019-08-20T21:00:00",
                     "gps": None,
@@ -134,6 +177,11 @@ def sample_manifest():
                 "cluster": -1,
                 "tags": [],
                 "is_representative": False,
+                "metadata": {
+                    "status": "noop",
+                    "writeTags": [],
+                    "dates": ["2019-09-01T12:00:00"],
+                },
                 "exif": {
                     "timestamp": "2019-09-01T12:00:00",
                     "gps": None,
