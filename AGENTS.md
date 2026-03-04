@@ -1,158 +1,121 @@
 # AGENTS.md
 
-This file provides guidance to AI coding agents when working with code in this repository.
+The core objective of this tool is to help organize a photo library. For Google Takeout exports, it matches media files to their JSON sidecars, deduplicates, and embeds metadata (timestamps, geo-data) into files using exiftool. For any photo library, Takeout or not, it can automatically discover and name albums using local AI (CLIP + Ollama). Both capabilities work independently or together.
 
-## Commands
+## Guiding principles
+
+### 1. Correctness and transparency
+
+It is critical that the tool updates the correct media files with the correct metadata and never loses user data. Changes must only be applied to copies. Original source files are never modified in place. If the tool has low confidence in any change, or if errors occur during processing, this must be communicated to the user.
+
+#### 1.1. Do not overwrite existing data
+
+If a media file already contains the relevant native metadata, it MUST NOT be updated. Always read and parse existing metadata before deciding to write.
+
+#### 1.2. Validate input data
+
+Invalid data from the `.json` sidecar must be ignored. For example, if `geoData.latitude` or `geoData.longitude` are `0`, `0.0`, or `None`, skip geo-data entirely. Sidecar rejects either-zero (Google placeholder); disk EXIF rejects only both-zero.
+
+#### 1.3. Use native tags & correct formatting
+
+Metadata MUST be written to the correct native tags for each file format (EXIF for JPEG, QuickTime for MOV, etc.), and the value MUST be formatted to that tag's standard. The JSON sidecar provides `photoTakenTime.timestamp` (UTC Unix epoch) and `geoData` (signed decimal lat/lon/alt).
+
+#### 1.4. Maintain transparency
+
+Log outcomes of different phases and report file statuses: matched, skipped (with reason), unmatched pairs.
+
+### 2. Prioritize simplicity
+
+Minimize third-party dependencies. Any added dependency should be justified.
+
+### 3. Ensure testability
+
+All code changes must be covered by unit and/or integration tests. Tests must be reliable, reproducible, and fast. No dependencies on long-running tools like LLMs or VLMs. Mock external services where needed.
+
+### 4. Privacy
+
+User data must never leave the device. All processing, including AI-powered categorization, happens offline using local models. No cloud API calls, no telemetry, no network requests.
+
+## Architecture
+
+The project is a uv workspaces monorepo. For example, `packages/core` contains pipeline logic, stages, and AI catalog with no UI dependencies, while `packages/cli` is a thin typer + rich consumer that wires up progress, hooks, and reporting.
+
+The separation exists so that multiple frontends can consume the same core library without pulling in each other's dependencies. The CLI should not be the only way to use the pipeline. A web UI or desktop app should be able to import core directly. This boundary is enforced at the package level, not just by convention.
+
+### Data pipeline
+
+Processing photos requires multiple steps (scanning, matching sidecars, deduplicating, writing metadata, etc.) that must happen in order, where each step builds on the results of the previous one. The pipeline tracks all work in a single in-memory manifest (a list of dicts) that each stage reads from and enriches. No stage performs side effects. File copies and metadata writes are deferred to the final apply stage.
+
+The pipeline is a linear sequence of stages where flags control which stages run. `--takeout` enables the link stage (sidecar matching for Google Takeout exports). `--catalog` enables AI album discovery stages (embed → cluster → classify → refine → caption → propose). Both flags can be combined.
+
+Stages never re-read raw data; each stage reads from fields that upstream stages wrote. The manifest is the single source of truth passed between stages. For the exact execution sequence and stage wiring, see `pipeline.py`.
+
+Workspace caching (`-w`) persists `manifest.json` after init stages and `embeddings.npy` after CLIP embedding. Re-runs skip cached stages.
+
+### Handlers
+
+Different media formats store metadata in different ways: EXIF tags for images (JPEG, HEIC, PNG) and QuickTime tags for video (MP4, MOV). Handlers encapsulate these differences behind a common interface (`read_tags`, `parse()`, `timestamp()`, `geo()`), so pipeline stages can work with metadata without knowing the underlying format. To add support for a new image or video format, register a new handler. The rest of the pipeline requires no changes. Formats without an explicit handler (e.g., `.mkv`, `.avi`) are skipped and reported in the final summary.
+
+## Dependencies
+
+Python 3.12+ and uv are required to run the project. exiftool must be installed separately for metadata read/write operations. Ollama with vision and text models is only needed for `--catalog` mode. All Python dependencies, including ruff and pytest, are managed by uv. Run `uv sync` to install them.
+
+## Useful commands
 
 ```bash
-# Run all tests (unit + integration)
+# CLI usage and all available options
+uv run pixelkasten --help
+
+# Run all tests
 uv run pytest -v
 
-# Run unit tests only
-uv run pytest test/unit/ -v
-
-# Run integration tests only (requires exiftool)
-uv run pytest test/integration/ -v
-
-# Run the unified pipeline
-uv run pixelkasten -s <source> -d <destination>                    # takeout (default)
-uv run pixelkasten -s <source> -d <destination> --dry-run          # preview
-uv run pixelkasten -s <source> -d <destination> --no-takeout --catalog  # archive + AI
-uv run pixelkasten -s <source> -d <destination> -w ./workspace     # with caching
-
-# Inspect a workspace
-uv run pixelkasten status -w ./workspace
-
-# Lint and format
+# Lint
 uv run ruff check src/
+
+# Format check
 uv run ruff format --check src/
 ```
 
-## Project Structure
+## Code conventions
 
-```
-src/pixelkasten/
-  cli.py                    # CLI entry point (typer)
-  pipeline.py               # unified orchestrator (takeout + archive modes)
-  reports.py                # Rich progress bars + summary tables
-  core/                     # shared utilities
-    datetime.py             # normalize_disk_date, parse_iso_date, parse_photo_taken_time
-    exiftool.py             # subprocess wrapper (read + write)
-    geocode.py              # offline reverse geocoding (GPS → city/region)
-    sidecar.py              # Google sidecar JSON parsing
-    handlers.py             # EXIF + QuickTime handler registry
-    manifest.py             # can_keep(), manifest I/O
-    report.py               # CSV report generation
-  stages/                   # pipeline stages
-    scan.py                 # file discovery (scan + scan_takeout)
-    link.py                 # sidecar matching (uses os.path, NOT pathlib)
-    dedupe.py               # SHA-256 deduplication
-    reconcile.py            # EXIF vs sidecar comparison + metadata population
-    rename.py               # target path computation (no month directories)
-    apply.py                # file copy + metadata embedding
-    catalog/                # AI album discovery (--catalog)
-      pipeline.py           # run_catalog() orchestrator
-      embed.py              # CLIP embeddings
-      cluster.py            # HDBSCAN clustering
-      classify.py           # zero-shot classification
-      refine.py             # temporal cluster refinement
-      caption.py            # VLM captioning via Ollama
-      organize.py           # LLM album naming + propose_albums()
-test/
-  unit/
-    core/                   # mirrors src/pixelkasten/core/
-    stages/                 # mirrors src/pixelkasten/stages/
-  integration/
-  fixtures/media/           # 4 shared JPEG test fixtures
-```
+### Style
 
-## Pipeline Architecture
-
-Two modes sharing stages:
-
-**Takeout mode** (default, `--takeout`):
-```
-scan → link → reconcile → geocode → dedupe → [catalog] → rename → apply
-```
-
-**Archive mode** (`--no-takeout`):
-```
-scan → reconcile → geocode → dedupe → [catalog] → rename → apply
-```
-
-The catalog stages only run when `--catalog` is specified:
-```
-embed → cluster → classify → [refine] → [caption] → propose
-```
-
-The rename and apply stages are source-agnostic — they work the same for both modes.
-
-**Workspace caching** (`-w`): persists `manifest.json` after init stages and `embeddings.npy` after CLIP embedding. Re-run skips cached stages.
-
-## Manifest Data Flow
-
-Each stage enriches the shared manifest. Downstream stages consume what upstream stages produce:
-
-| Stage | Writes | Key fields |
-|-------|--------|------------|
-| scan | raw file lists | `files_media`, `files_metadata`, etc. |
-| link | matched entries | `mediaPath`, `source`, `json` |
-| reconcile | metadata from EXIF + sidecar | `metadata.status`, `metadata.dates`, `metadata.writeTags`, `metadata.geo` |
-| geocode | location names from GPS | `location.name`, `location.region` |
-| dedupe | duplicate resolution | `dedupe.status`, `dedupe.hash` |
-| catalog/classify | per-image tags | `tags` |
-| catalog/refine | updated clusters | `cluster` |
-| catalog/caption | image descriptions | `caption` |
-| catalog/organize | album assignments | `source.type`, `source.name` |
-| rename | target paths | `rename.status`, `rename.targetPath` |
-| apply | copy results | `apply.status` |
-
-## Key Architecture Decisions
-
-- **Python-only**: single runtime for AI + file processing. Direct ML integration, no process boundary. `typer` + `rich` for CLI, `pathlib` for path construction, FastAPI-ready for future web UI.
-- **No month directories**: `YYYY/yyyymmdd-hhmmss.ext` (loose), `YYYY/yyyymmdd - Album/yyyymmdd-hhmmss.ext` (album). Lexicographic sort = chronological sort at every level.
-- **Timezone**: strip offsets early (wall-clock time in filenames)
-- **Manifest-driven**: single in-memory dict enriched by each stage. Side effects (file copy, metadata write) deferred to the apply stage.
-- **Core/CLI separation**: `pixelkasten.core` + `pixelkasten.stages` are importable libraries with no UI deps. CLI is a thin consumer. Critical for future web/desktop UI.
-- **Hooks pattern**: stage-level callbacks so different consumers (CLI, web UI, desktop app) can provide their own reporting.
-- **Handler protocol**: EXIF + QuickTime handlers with `read_tags`, `parse()`, `timestamp()`, `geo()`
-- **GPS validation**: sidecar rejects either-zero (Google placeholder); disk EXIF rejects only both-zero
-- **All-local AI**: `--catalog` runs CLIP + HDBSCAN + Ollama locally. No cloud API calls. Signal stack: EXIF (when/where) > CLIP embeddings (looks like) > VLM captions (what's happening).
-- **Cluster refinement**: HDBSCAN groups by appearance; metadata fixes it via eject (no dates), split (48h gaps), merge (similar + temporally close), absorb (by location or visual similarity). Region-level matching, home location inference, outlier filtering (< 10%).
-
-## Guiding Principles
-
-1. **Do Not Overwrite Existing Data** — check for existing EXIF before writing sidecar data
-2. **Validate Input Data** — reject `(0, 0)` GPS, invalid timestamps
-3. **Use Native Tags** — correct format-specific tags (EXIF vs QuickTime)
-4. **Be Strict on Unknown Formats** — skip `.avi`, `.mkv` etc., report in summary
-5. **Prioritize Simplicity** — minimize dependencies, justify additions
-6. **Ensure Testability** — pytest, good coverage
-7. **Maintain Transparency** — log outcomes, report file statuses
-8. **Stages consume upstream output** — never re-read raw data; each stage reads from fields that upstream stages wrote
-
-## Code Conventions
-
-- All public functions should have full type annotations
-- Imports for heavy dependencies (torch, sklearn, ollama) are deferred inside functions
-- Link stage uses `os.path` for filename decomposition (NOT pathlib — it normalizes double extensions)
-
-## Python Test Code Style
-
-Tests use `pytest`. Fixtures live in `test/fixtures/media/`.
+Favor clarity over conciseness. Avoid inline ternaries and dense one-liners when a local variable would be more readable:
 
 ```python
-# Use descriptive class + method names
-class TestSplitByTemporalGaps:
-    def test_splits_cluster_at_48h_gap(self):
+# Bad — hard to parse
+return {
+    "timestamp": photo_taken_time.get("timestamp") if photo_taken_time else None,
+    "geo": geo,
+}
 
-# Create minimal inline test data per test
-# Use numpy random with fixed seed for deterministic embeddings
-rng = np.random.RandomState(42)
+# Good — explicit and readable
+timestamp = photo_taken_time.get("timestamp") if photo_taken_time else None
+return {"timestamp": timestamp, "geo": geo}
 ```
 
-## Prerequisites
+All public functions should have full type annotations. Imports for heavy dependencies (torch, sklearn, ollama) are deferred inside functions to keep startup fast and allow consumers to avoid pulling in unused ML libraries.
 
-- Python 3.12+, uv
-- exiftool (`brew install exiftool`)
-- Ollama with vision + text models (for `--catalog` mode)
+### Testing
+
+Tests use pytest. Test names should describe observable behavior, not implementation details. Treat functions as black boxes and verify what you can observe externally (e.g., `test_does_not_perform_disk_operations_when_manifest_is_empty`, not `test_filters_out_entries_marked_for_deletion`).
+
+Every assertion should have a descriptive comment explaining what it verifies:
+
+```python
+def test_queues_timestamp_write_when_missing_from_disk(self):
+    manifest = [{"mediaPath": "/path/image.jpg"}]
+
+    reconcile(manifest, {})
+
+    # Verify entry was marked for processing
+    assert manifest[0]["metadata"]["status"] == "processed"
+
+    # Verify one tag was queued for writing
+    assert len(manifest[0]["metadata"]["writeTags"]) == 1
+
+    # Verify timestamp was added to dates
+    assert manifest[0]["metadata"]["dates"][0] == "2023-01-01T12:00:00.000Z"
+```
+
+Keep test setup minimal. If the code under test doesn't reach a function, don't mock it.
