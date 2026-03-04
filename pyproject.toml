@@ -1,5 +1,4 @@
-# Root workspace config — no package lives here.
-# Each member in packages/ has its own pyproject.toml with dependencies.
+# Root workspace config; each member in packages/ has its own pyproject.toml.
 [tool.uv.workspace]
 members = ["packages/*"]
 
