@@ -2,11 +2,11 @@
 
 [![CI](https://github.com/arazabishov/pixelkasten/actions/workflows/ci.yml/badge.svg)](https://github.com/arazabishov/pixelkasten/actions/workflows/ci.yml)
 
-If you've ever tried to make sense of a Google Photos Takeout export, you know the pain. Your photos and videos are scattered across directories, timestamps and GPS coordinates are trapped in `.json` sidecar files instead of the media itself, and filenames are truncated in ways that make matching things up surprisingly difficult.
+PixelKasten helps you organize your photo library. It can automatically discover and name albums in any photo collection using local AI (CLIP + Ollama), and it can process Google Takeout exports by matching media files to their JSON sidecars, embedding metadata, and deduplicating. Both capabilities work independently or together.
 
-PixelKasten is a CLI tool that fixes this. It pairs your media files with their metadata, writes that metadata back into the files, and organizes them into a clean folder structure. It can also use AI (CLIP + LLM) to automatically discover and name albums in unstructured photo archives.
+If you've ever tried to make sense of a Google Photos Takeout export, you know the pain: photos scattered across directories, timestamps and GPS coordinates trapped in `.json` sidecar files, and filenames truncated in ways that make matching things up surprisingly difficult. PixelKasten handles all of that. And if you just have a folder of photos you want organized into albums, no Takeout involved, it can do that too.
 
-> **A note on stability:** PixelKasten is under active development. It will never touch your source files — everything is copied into a separate destination directory and changes are applied there. That said, keeping a backup of your Takeout export is always a good idea.
+> **A note on stability:** PixelKasten is under active development. It will never touch your source files. Everything is copied into a separate destination directory and changes are applied there. That said, keeping a backup of your Takeout export is always a good idea.
 
 ## Quick start
 
@@ -21,121 +21,35 @@ pixelkasten -s ~/takeout -d ~/photos --dry-run
 pixelkasten -s ~/photos -d ~/organized --no-takeout --catalog
 ```
 
-## Pipeline
+## What it does
 
-PixelKasten runs in two modes, controlled by `--takeout` (default) and `--no-takeout`. Each stage can be skipped independently.
+PixelKasten is built around the idea that you should be able to pick exactly the steps you need and skip the rest. Each stage of the pipeline can be turned on or off independently.
 
-### Takeout mode (default)
+### Match media to metadata
 
-```mermaid
-graph LR
-    A[Scan] --> B[Link]
-    B --> C[Reconcile]
-    C --> D[Dedupe]
-    D --> E[Rename]
-    E --> F[Apply]
+At its core, PixelKasten scans your Takeout export and pairs each media file with the JSON sidecar that belongs to it. This is the one step that always runs.
 
-    style A fill:#4a9eff,color:white
-    style B fill:#4a9eff,color:white
-    style C fill:#4a9eff,color:white
-    style D fill:#7c7c7c,color:white
-    style E fill:#7c7c7c,color:white
-    style F fill:#7c7c7c,color:white
-```
+Google makes this matching harder than you'd expect. Long filenames get truncated, collision markers like `(1)` are appended, and `-edited` variants or `.supplemental-metadata` suffixes follow their own naming rules. PixelKasten uses a combination of exact and fuzzy matching to handle these cases, and every match gets a confidence score so you can verify the results yourself.
 
-Processes a Google Photos Takeout export:
-
-1. **Scan** — Categorize files into media, JSON sidecars, album metadata, and ignored.
-2. **Link** — Pair each media file with its JSON sidecar using exact and fuzzy matching. Handles Google's filename truncation, `-edited` variants, `.supplemental-metadata` suffixes, and `(N)` collision markers.
-3. **Reconcile** — Compare disk EXIF with sidecar data, queue metadata writes for missing timestamps and GPS.
-4. **Dedupe** — SHA-256 hashing to detect duplicates across album and loose copies.
-5. **Rename** — Build target paths from timestamps: `YYYY/yyyymmdd-hhmmss.ext` (loose), `YYYY/yyyymmdd - Album/yyyymmdd-hhmmss.ext` (album).
-6. **Apply** — Copy files to destination, write metadata via exiftool.
-
-### Takeout + catalog (`--takeout --catalog`)
-
-```mermaid
-graph LR
-    A[Scan] --> B[Link]
-    B --> C[Reconcile]
-    C --> D[Dedupe]
-    D --> E[Embed]
-    E --> F[Cluster]
-    F --> G[Classify]
-    G --> H[Refine]
-    H --> I[Caption]
-    I --> J[Propose]
-    J --> K[Rename]
-    K --> L[Apply]
-
-    style A fill:#4a9eff,color:white
-    style B fill:#4a9eff,color:white
-    style C fill:#4a9eff,color:white
-    style D fill:#7c7c7c,color:white
-    style E fill:#e8a838,color:white
-    style F fill:#e8a838,color:white
-    style G fill:#e8a838,color:white
-    style H fill:#e8a838,color:white
-    style I fill:#e8a838,color:white
-    style J fill:#e8a838,color:white
-    style K fill:#7c7c7c,color:white
-    style L fill:#7c7c7c,color:white
-```
-
-Combines takeout processing with AI-powered album discovery. The catalog stages (orange) use CLIP embeddings, HDBSCAN clustering, and LLM reasoning to propose album names that feed into the standard rename stage.
-
-### Archive mode (`--no-takeout --catalog`)
-
-```mermaid
-graph LR
-    A[Scan] --> B[EXIF Read]
-    B --> C[Dedupe]
-    C --> D[Embed]
-    D --> E[Cluster]
-    E --> F[Classify]
-    F --> G[Refine]
-    G --> H[Caption]
-    H --> I[Propose]
-    I --> J[Rename]
-    J --> K[Apply]
-
-    style A fill:#4a9eff,color:white
-    style B fill:#4a9eff,color:white
-    style C fill:#7c7c7c,color:white
-    style D fill:#e8a838,color:white
-    style E fill:#e8a838,color:white
-    style F fill:#e8a838,color:white
-    style G fill:#e8a838,color:white
-    style H fill:#e8a838,color:white
-    style I fill:#e8a838,color:white
-    style J fill:#7c7c7c,color:white
-    style K fill:#7c7c7c,color:white
-```
-
-For plain photo archives (no Google sidecars). No link or reconcile stages — EXIF is read directly. AI stages discover and name albums.
+If all you need is the pairing, skip everything else. You'll get a CSV report mapping each file to its sidecar, and you can take it from there with exiftool or any other tool you prefer.
 
 ```bash
-# Full pipeline
-pixelkasten -s ~/takeout -d ~/photos
-
-# Just match and embed metadata, skip renaming
-pixelkasten -s ~/takeout -d ~/photos --skip-rename
-
-# Just match sidecars, skip everything else
 pixelkasten -s ~/takeout -d ~/photos --skip-embed --skip-rename
 ```
 
-### Archive mode with AI catalog
+### Embed metadata into your files
 
-For unstructured photo archives (no Google sidecars), use `--no-takeout --catalog` to enable AI-powered album discovery:
+If you'd rather not wrangle exiftool yourself, PixelKasten can write timestamps and GPS coordinates from the JSON sidecars directly into your media files. It uses the correct native tags for each format: EXIF for images, QuickTime for video.
+
+It will not overwrite metadata that already exists on disk, it ignores invalid sidecar data (like `0,0` GPS coordinates), and it does not attempt to write to formats it doesn't have explicit rules for. If it doesn't know exactly what to do with a file, it leaves it alone.
 
 ```bash
-pixelkasten -s ~/photos -d ~/organized --no-takeout --catalog
+pixelkasten -s ~/takeout -d ~/photos --skip-rename
 ```
 
-This runs CLIP embedding, HDBSCAN clustering, VLM captioning, and LLM-driven album naming. Requires [Ollama](https://ollama.com/) with vision and text models.
+### Organize and rename files
 
-### Directory structure
+PixelKasten can arrange your library into a date-based folder structure:
 
 ```
 destination/
@@ -149,31 +63,25 @@ destination/
     IMG-20161115-WA0000.jpg
 ```
 
-**Why this format?** The compact `yyyymmdd-hhmmss` avoids separator ambiguity — the single dash unambiguously splits 8 date digits from 6 time digits. No month directories: the `YYYYMMDD` prefix on album names provides chronological sorting, and lexicographic sort equals chronological sort at every level. The scheme contains no subjective formatting choices, making it durable across OS and file manager changes.
+Files are named by their timestamp. Album files get grouped into subdirectories named after the album. Collisions are resolved with `-1`, `-2` suffixes.
 
-### Workspace caching
+### AI album discovery
 
-For iterating on AI catalog settings without re-running expensive CLIP embedding:
+For unstructured photo archives, or even Takeout exports where you want smarter organization, the `--catalog` flag enables AI-powered album discovery. It runs entirely locally using CLIP embeddings for visual grouping, HDBSCAN for clustering, and an LLM (via Ollama) for naming the albums it finds.
 
 ```bash
-# First run — full pipeline, cache embeddings
-pixelkasten -s ~/photos -d ~/organized --no-takeout --catalog -w ./ws
+# Plain archive with AI albums
+pixelkasten -s ~/photos -d ~/organized --no-takeout --catalog
 
-# Re-run with different settings — embeddings cached
-pixelkasten -s ~/photos -d ~/organized --no-takeout --catalog -w ./ws
-
-# Force re-scan
-pixelkasten -s ~/photos -d ~/organized --no-takeout --catalog -w ./ws --rescan
-
-# Inspect workspace
-pixelkasten status -w ./ws
+# Takeout processing + AI albums combined
+pixelkasten -s ~/takeout -d ~/photos --catalog
 ```
+
+This requires [Ollama](https://ollama.com/) with vision and text models installed locally. No data leaves your device.
 
 ## Prerequisites
 
-- **Python 3.12+** and [uv](https://docs.astral.sh/uv/)
-- **exiftool** — `brew install exiftool` (required unless `--skip-embed` is set)
-- **Ollama** — only required for `--catalog` mode
+Python 3.12+ and [uv](https://docs.astral.sh/uv/) are required. [exiftool](https://exiftool.org/) must be installed separately for metadata embedding. [Ollama](https://ollama.com/) with vision and text models is only needed for `--catalog` mode.
 
 ## Installation
 
@@ -184,23 +92,8 @@ uv sync
 ## Usage
 
 ```bash
-pixelkasten -s <source> -d <destination> [options]
+pixelkasten --help
 ```
-
-| Flag | Description |
-| --- | --- |
-| `-s, --source <path>` | Source directory (required) |
-| `-d, --destination <path>` | Destination directory (required unless `--dry-run`) |
-| `--takeout / --no-takeout` | Takeout mode (default) or archive mode |
-| `--catalog` | Enable AI-powered album discovery |
-| `--dry-run` | Preview changes without writing anything |
-| `--skip-dedupe` | Skip duplicate detection |
-| `--skip-embed` | Skip metadata embedding |
-| `--skip-caption` | Skip VLM captioning (catalog only) |
-| `--skip-refine` | Skip temporal cluster refinement (catalog only) |
-| `--prefer <album\|loose>` | When deduplicating, prefer album or loose copies (default: `album`) |
-| `-w, --workspace <path>` | Workspace directory for caching |
-| `--rescan` | Invalidate workspace cache, re-scan source |
 
 ## Report
 
