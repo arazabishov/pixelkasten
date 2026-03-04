@@ -102,6 +102,7 @@ def _resolve(
         "status": "noop",
         "writeTags": [],
         "dates": list(disk_data.dates),
+        "geo": disk_data.geo,
     }
 
     # Retrieve and parse sidecar data.
@@ -125,6 +126,10 @@ def _resolve(
     # Queue geo data for writing if embedding is enabled.
     if not options.get("skip_embed") and not disk_data.geo and sidecar_data.get("geo"):
         metadata["writeTags"].extend(handler.geo(sidecar_data["geo"]))
+
+    # Use sidecar geo if disk has none (for downstream geocoding).
+    if not metadata["geo"] and sidecar_data.get("geo"):
+        metadata["geo"] = sidecar_data["geo"]
 
     if metadata["writeTags"]:
         metadata["status"] = "processed"

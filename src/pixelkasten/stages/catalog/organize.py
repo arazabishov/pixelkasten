@@ -112,12 +112,12 @@ def build_cluster_summary_text(manifest: dict) -> str:
         city_counts: Counter = Counter()
         region_counts: Counter = Counter()
         for entry in cluster_entries:
-            exif = entry.get("exif", {})
-            if exif.get("location_name"):
-                city = exif["location_name"].split(",")[0].strip()
+            location = entry.get("location", {})
+            if location.get("name"):
+                city = location["name"].split(",")[0].strip()
                 city_counts[city] += 1
-            if exif.get("location_region"):
-                region_counts[exif["location_region"]] += 1
+            if location.get("region"):
+                region_counts[location["region"]] += 1
 
         total_geotagged = sum(region_counts.values())
         if total_geotagged > 0:
@@ -126,9 +126,9 @@ def build_cluster_summary_text(manifest: dict) -> str:
             ]
             significant_cities = []
             for entry in cluster_entries:
-                exif = entry.get("exif", {})
-                if exif.get("location_region") in significant_regions:
-                    city = exif.get("location_name", "").split(",")[0].strip()
+                location = entry.get("location", {})
+                if location.get("region") in significant_regions:
+                    city = location.get("name", "").split(",")[0].strip()
                     if city and city not in significant_cities:
                         significant_cities.append(city)
 

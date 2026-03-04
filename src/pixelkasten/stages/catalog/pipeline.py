@@ -136,6 +136,11 @@ def run_catalog(
             if i < len(new_labels):
                 entry["cluster"] = int(new_labels[i])
         representatives = find_representatives(embeddings, new_labels)
+        # Rebuild clusters dict so caption/propose see post-refine clusters
+        summary = cluster_summary(new_labels)
+        manifest_dict["clusters"] = {
+            str(k): {"size": v} for k, v in summary.get("cluster_sizes", {}).items()
+        }
 
     # Caption (optional)
     if not options.get("skip_caption"):
@@ -164,11 +169,6 @@ def run_catalog(
             on_progress(1)
 
     return manifest
-
-
-# ---------------------------------------------------------------------------
-# Embedding cache
-# ---------------------------------------------------------------------------
 
 
 def _load_workspace_embeddings(workspace: Path):

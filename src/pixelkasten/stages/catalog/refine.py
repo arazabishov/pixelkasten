@@ -57,40 +57,32 @@ def refine_clusters(
         - new_labels: np.ndarray of shape (N,) with refined cluster IDs.
         - stats: dict with counts for each operation.
     """
-    # Build mappings from embed_index → EXIF data.
-    # This mirrors the two-index-space logic in manifest.py: failed entries
-    # don't appear in embeddings, so embed_index skips them.
+    # Build mappings from embed_index → metadata.
+    # Failed entries don't appear in embeddings, so embed_index skips them.
     #
-    # For locations, we use the region-level identifier (e.g., "California, US")
-    # instead of the city name. This is the lowest common denominator that
-    # groups San Francisco, Stanford, Mountain View etc. as "same area" while
-    # keeping Oslo separate from California.
+    # Timestamps come from metadata.dates (populated by reconcile).
+    # Locations come from entry["location"]["region"] (populated by reverse_geocode).
     timestamps = {}
     regions = {}
-    has_any_exif = {}
+    has_metadata = {}
     embed_index = 0
     for entry in manifest["entries"]:
         if entry.get("status") != "ok":
             continue
-        exif = entry.get("exif")
-        if exif:
-            has_exif = bool(
-                exif.get("timestamp") or exif.get("gps") or exif.get("camera")
-            )
-            has_any_exif[embed_index] = has_exif
-            if exif.get("timestamp"):
-                timestamps[embed_index] = exif["timestamp"]
-            if exif.get("location_region"):
-                regions[embed_index] = exif["location_region"]
-        else:
-            has_any_exif[embed_index] = False
+        dates = entry.get("metadata", {}).get("dates", [])
+        has_metadata[embed_index] = bool(dates)
+        if dates:
+            timestamps[embed_index] = dates[0]
+        location = entry.get("location", {})
+        if location.get("region"):
+            regions[embed_index] = location["region"]
         embed_index += 1
 
     # Extract current labels from manifest.
     labels = _extract_labels(manifest)
 
     # Step 1: Eject images with no EXIF metadata from clusters.
-    labels, n_ejected = _eject_metadataless(labels, has_any_exif)
+    labels, n_ejected = _eject_metadataless(labels, has_metadata)
 
     # Step 2: Split clusters with temporal gaps.
     labels, n_splits = _split_by_temporal_gaps(labels, timestamps, split_gap_hours)
@@ -153,15 +145,15 @@ def _extract_labels(manifest: dict) -> np.ndarray:
 
 def _eject_metadataless(
     labels: np.ndarray,
-    has_any_exif: dict[int, bool],
+    has_metadata: dict[int, bool],
 ) -> tuple[np.ndarray, int]:
     """
-    Eject images with no EXIF metadata from clusters.
+    Eject images with no metadata from clusters.
 
-    Images without any EXIF data (no timestamp, no GPS, no camera) were
-    placed in clusters purely by visual similarity. These are the most
-    error-prone assignments (e.g., a WhatsApp portrait ending up in a
-    Golden Gate Bridge album). Move them to noise (-1).
+    Images without any date metadata were placed in clusters purely by
+    visual similarity. These are the most error-prone assignments (e.g.,
+    a WhatsApp portrait ending up in a Golden Gate Bridge album). Move
+    them to noise (-1).
 
     Returns (new_labels, eject_count).
     """
@@ -171,7 +163,7 @@ def _eject_metadataless(
     for idx in range(len(new_labels)):
         if new_labels[idx] == -1:
             continue
-        if not has_any_exif.get(idx, False):
+        if not has_metadata.get(idx, False):
             new_labels[idx] = -1
             eject_count += 1
 

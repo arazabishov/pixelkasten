@@ -63,11 +63,6 @@ def build_progress_factory(console: Console) -> Callable:
     return factory
 
 
-# ---------------------------------------------------------------------------
-# Summary table renderers — one per pipeline stage
-# ---------------------------------------------------------------------------
-
-
 def _make_table(title: str, header_left: str = "Category") -> Table:
     """Create a consistently-styled summary table with a stage title."""
     table = Table(

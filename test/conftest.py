@@ -8,13 +8,16 @@ from pathlib import Path
 def sample_manifest():
     """
     A small manifest with 10 entries covering different scenarios:
-    - Entries 0-4: cluster 0, with EXIF (timestamps + GPS)
-    - Entries 5-7: cluster 1, with EXIF (timestamps, no GPS)
-    - Entry 8: noise (cluster -1), with EXIF timestamp
+    - Entries 0-4: cluster 0, with metadata dates + GPS locations
+    - Entries 5-7: cluster 1, with metadata dates, no GPS
+    - Entry 8: noise (cluster -1), with metadata dates
     - Entry 9: failed status
 
-    The metadata.dates field mirrors what reconcile produces.
-    The exif dict mirrors what the catalog pipeline reads for location info.
+    Fields match what the real pipeline produces:
+    - metadata (from reconcile): status, writeTags, dates, geo
+    - location (from reverse_geocode): name, region, country
+    - tags (from classify): [{name, score}]
+    - caption (from caption): string on representatives
     """
     return {
         "version": 1,
@@ -34,13 +37,12 @@ def sample_manifest():
                     "status": "noop",
                     "writeTags": [],
                     "dates": ["2019-07-15T14:30:00"],
+                    "geo": {"latitude": 37.80, "longitude": -122.41},
                 },
-                "exif": {
-                    "timestamp": "2019-07-15T14:30:00",
-                    "gps": {"latitude": 37.80, "longitude": -122.41, "altitude": 10.0},
-                    "camera": "iPhone 11",
-                    "location_name": "San Francisco, California, US",
-                    "location_region": "California, US",
+                "location": {
+                    "name": "San Francisco, California, US",
+                    "region": "California, US",
+                    "country": "US",
                 },
             },
             {
@@ -53,13 +55,12 @@ def sample_manifest():
                     "status": "noop",
                     "writeTags": [],
                     "dates": ["2019-07-15T16:00:00"],
+                    "geo": {"latitude": 37.79, "longitude": -122.44},
                 },
-                "exif": {
-                    "timestamp": "2019-07-15T16:00:00",
-                    "gps": {"latitude": 37.79, "longitude": -122.44, "altitude": 5.0},
-                    "camera": "iPhone 11",
-                    "location_name": "San Francisco, California, US",
-                    "location_region": "California, US",
+                "location": {
+                    "name": "San Francisco, California, US",
+                    "region": "California, US",
+                    "country": "US",
                 },
             },
             {
@@ -72,13 +73,12 @@ def sample_manifest():
                     "status": "noop",
                     "writeTags": [],
                     "dates": ["2019-07-16T10:00:00"],
+                    "geo": {"latitude": 37.40, "longitude": -122.03},
                 },
-                "exif": {
-                    "timestamp": "2019-07-16T10:00:00",
-                    "gps": {"latitude": 37.40, "longitude": -122.03, "altitude": None},
-                    "camera": "iPhone 11",
-                    "location_name": "Sunnyvale, California, US",
-                    "location_region": "California, US",
+                "location": {
+                    "name": "Sunnyvale, California, US",
+                    "region": "California, US",
+                    "country": "US",
                 },
             },
             {
@@ -91,13 +91,12 @@ def sample_manifest():
                     "status": "noop",
                     "writeTags": [],
                     "dates": ["2019-07-17T09:00:00"],
+                    "geo": {"latitude": 37.80, "longitude": -122.41},
                 },
-                "exif": {
-                    "timestamp": "2019-07-17T09:00:00",
-                    "gps": {"latitude": 37.80, "longitude": -122.41, "altitude": None},
-                    "camera": "iPhone 11",
-                    "location_name": "San Francisco, California, US",
-                    "location_region": "California, US",
+                "location": {
+                    "name": "San Francisco, California, US",
+                    "region": "California, US",
+                    "country": "US",
                 },
             },
             {
@@ -110,13 +109,12 @@ def sample_manifest():
                     "status": "noop",
                     "writeTags": [],
                     "dates": ["2019-07-17T11:00:00"],
+                    "geo": {"latitude": 37.80, "longitude": -122.41},
                 },
-                "exif": {
-                    "timestamp": "2019-07-17T11:00:00",
-                    "gps": {"latitude": 37.80, "longitude": -122.41, "altitude": None},
-                    "camera": "iPhone 11",
-                    "location_name": "San Francisco, California, US",
-                    "location_region": "California, US",
+                "location": {
+                    "name": "San Francisco, California, US",
+                    "region": "California, US",
+                    "country": "US",
                 },
             },
             {
@@ -130,11 +128,7 @@ def sample_manifest():
                     "status": "noop",
                     "writeTags": [],
                     "dates": ["2019-08-20T19:00:00"],
-                },
-                "exif": {
-                    "timestamp": "2019-08-20T19:00:00",
-                    "gps": None,
-                    "camera": "Pixel 3",
+                    "geo": None,
                 },
             },
             {
@@ -147,11 +141,7 @@ def sample_manifest():
                     "status": "noop",
                     "writeTags": [],
                     "dates": ["2019-08-20T20:30:00"],
-                },
-                "exif": {
-                    "timestamp": "2019-08-20T20:30:00",
-                    "gps": None,
-                    "camera": "Pixel 3",
+                    "geo": None,
                 },
             },
             {
@@ -164,11 +154,7 @@ def sample_manifest():
                     "status": "noop",
                     "writeTags": [],
                     "dates": ["2019-08-20T21:00:00"],
-                },
-                "exif": {
-                    "timestamp": "2019-08-20T21:00:00",
-                    "gps": None,
-                    "camera": "Pixel 3",
+                    "geo": None,
                 },
             },
             {
@@ -181,11 +167,7 @@ def sample_manifest():
                     "status": "noop",
                     "writeTags": [],
                     "dates": ["2019-09-01T12:00:00"],
-                },
-                "exif": {
-                    "timestamp": "2019-09-01T12:00:00",
-                    "gps": None,
-                    "camera": None,
+                    "geo": None,
                 },
             },
             {

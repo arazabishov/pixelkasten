@@ -2,7 +2,7 @@
 Unified pipeline orchestrator — supports both takeout and archive modes.
 
 Linear flow with conditional stages:
-  scan → [takeout: link → reconcile] → dedupe → [catalog] → rename → apply
+  scan → link → dedupe → reconcile → geocode → [catalog] → rename → apply
 
 Mode is set explicitly via options["mode"] ("takeout" or "archive").
 The --catalog flag enables AI album discovery.
@@ -13,6 +13,7 @@ import json
 from contextlib import contextmanager
 from pathlib import Path
 
+from pixelkasten.core.geocode import reverse_geocode
 from pixelkasten.core.manifest import can_keep
 from pixelkasten.core.report import report
 from pixelkasten.stages.apply import apply
@@ -68,39 +69,39 @@ def run_pipeline(
         _call_hook(hooks, "on_scan", raw_collections, options["source"])
 
         if mode == "takeout":
-            # Takeout: link sidecars + reconcile metadata
+            # Takeout: link sidecars → manifest
             result = link(raw_collections, options)
             _call_hook(hooks, "on_link", result)
             manifest = result["manifest"]
-
-            if not options.get("skip_embed") or not options.get("skip_rename"):
-                with _progress_ctx(
-                    progress, "Reading metadata", len(manifest)
-                ) as on_progress:
-                    reconcile(manifest, options, on_progress=on_progress)
-                _call_hook(hooks, "on_reconcile", manifest)
         else:
-            # Archive: build manifest entries, then reconcile EXIF (no sidecars)
+            # Archive: build manifest entries (no sidecars)
             manifest = [
                 {"mediaPath": p, "source": {"type": "loose"}}
                 for p in raw_collections["files_media"]
             ]
+
+        # Dedupe runs before reconcile so reconcile can skip deleted entries
+        # via can_keep(). Dedupe only needs mediaPath + source.type (from link).
+        if not options.get("skip_dedupe"):
+            with _progress_ctx(progress, "Hashing files", len(manifest)) as on_progress:
+                dedupe_hash(manifest, on_progress=on_progress)
+            dedupe_resolve(manifest, options)
+            _call_hook(hooks, "on_dedupe", manifest)
+
+        # Reconcile: read EXIF from disk, compare with sidecar data
+        if not options.get("skip_embed") or not options.get("skip_rename"):
             with _progress_ctx(
                 progress, "Reading metadata", len(manifest)
             ) as on_progress:
                 reconcile(manifest, options, on_progress=on_progress)
             _call_hook(hooks, "on_reconcile", manifest)
 
+        # Reverse geocode GPS → location names (for catalog LLM prompt).
+        reverse_geocode(manifest)
+
         # Save to workspace cache
         if workspace:
             _save_workspace_manifest(workspace, manifest)
-
-    # Shared stages: dedupe → catalog → rename → apply
-    if not options.get("skip_dedupe"):
-        with _progress_ctx(progress, "Hashing files", len(manifest)) as on_progress:
-            dedupe_hash(manifest, on_progress=on_progress)
-        dedupe_resolve(manifest, options)
-        _call_hook(hooks, "on_dedupe", manifest)
 
     if options.get("catalog"):
         from pixelkasten.stages.catalog import run_catalog
@@ -125,11 +126,6 @@ def run_pipeline(
     return manifest
 
 
-# ---------------------------------------------------------------------------
-# Workspace caching
-# ---------------------------------------------------------------------------
-
-
 def _load_workspace_manifest(workspace: Path) -> list[dict] | None:
     """Load cached manifest from workspace, or None if not found."""
     manifest_path = workspace / "manifest.json"
@@ -145,11 +141,6 @@ def _save_workspace_manifest(workspace: Path, manifest: list[dict]) -> None:
     manifest_path = workspace / "manifest.json"
     with open(manifest_path, "w") as f:
         json.dump(manifest, f, indent=2)
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 
 def _call_hook(hooks: dict, name: str, *args) -> None:
