@@ -90,5 +90,3 @@ class TestReadExif:
 
         # Should have one result per file.
         assert len(result) == 4
-
-

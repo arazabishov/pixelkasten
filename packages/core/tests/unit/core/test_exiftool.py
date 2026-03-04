@@ -14,11 +14,6 @@ import pytest
 from pixelkasten.core.exiftool import read_metadata, write_metadata
 
 
-# ---------------------------------------------------------------------------
-# write_metadata — unit tests
-# ---------------------------------------------------------------------------
-
-
 class TestWriteMetadata:
     @patch("pixelkasten.core.exiftool.subprocess.run")
     def test_returns_without_subprocess_for_empty_tags(self, mock_run):
@@ -65,11 +60,6 @@ class TestWriteMetadata:
         assert "-Tag2=Value2" in call_args
 
 
-# ---------------------------------------------------------------------------
-# read_metadata — unit tests
-# ---------------------------------------------------------------------------
-
-
 class TestReadMetadata:
     def test_returns_empty_dict_for_empty_paths(self):
         result = read_metadata([])
@@ -90,10 +80,6 @@ class TestReadMetadata:
 
         assert "-EXIF:DateTimeOriginal" in call_args
 
-
-# ---------------------------------------------------------------------------
-# write_metadata — integration test (requires exiftool)
-# ---------------------------------------------------------------------------
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent.parent / "fixtures" / "media"
 

@@ -5,5 +5,9 @@
   "[javascript]": {
     "editor.formatOnSave": true,
     "editor.defaultFormatter": "esbenp.prettier-vscode"
-  }
+  },
+  "python.analysis.extraPaths": [
+    "packages/core/src",
+    "packages/cli/src"
+  ]
 }

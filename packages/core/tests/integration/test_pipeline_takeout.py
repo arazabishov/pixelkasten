@@ -29,10 +29,6 @@ VERIFY_TAGS = [
 ]
 
 
-# ---------------------------------------------------------------------------
-# Skip all tests if exiftool is not installed.
-# ---------------------------------------------------------------------------
-
 try:
     check_exiftool()
     _has_exiftool = True
@@ -43,11 +39,6 @@ pytestmark = pytest.mark.skipif(
     not _has_exiftool,
     reason="exiftool not installed",
 )
-
-
-# ---------------------------------------------------------------------------
-# Helper: build a Google Takeout directory structure.
-# ---------------------------------------------------------------------------
 
 
 def build_takeout(base_dir: Path, structure: dict) -> None:
@@ -119,11 +110,6 @@ def _build_sidecar(title: str, data: dict) -> dict:
         result["geoDataExif"] = geo
 
     return result
-
-
-# ---------------------------------------------------------------------------
-# Tests
-# ---------------------------------------------------------------------------
 
 
 class TestTakeoutPipeline:

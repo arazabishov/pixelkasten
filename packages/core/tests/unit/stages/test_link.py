@@ -15,11 +15,6 @@ def _link_and_map(raw, options=None):
     return {e["mediaPath"]: e for e in result["manifest"]}, result["stats"]
 
 
-# ---------------------------------------------------------------------------
-# Metadata normalization & matching
-# ---------------------------------------------------------------------------
-
-
 class TestMetadataNormalizationAndMatching:
     RAW = {
         "files_media": [
@@ -90,11 +85,6 @@ class TestMetadataNormalizationAndMatching:
         )
 
 
-# ---------------------------------------------------------------------------
-# Exact matching
-# ---------------------------------------------------------------------------
-
-
 class TestExactMatching:
     RAW = {
         "files_media": [
@@ -130,11 +120,6 @@ class TestExactMatching:
             m["/tmp/FA79581F10E4.jpeg"]["json"]["path"]
             == "/tmp/FA79581F10E4.jpeg..json"
         )
-
-
-# ---------------------------------------------------------------------------
-# Truncated filenames (fuzzy matching)
-# ---------------------------------------------------------------------------
 
 
 class TestTruncatedFilenamesFuzzyMatching:
@@ -190,11 +175,6 @@ class TestTruncatedFilenamesFuzzyMatching:
             assert entry["json"]["path"] == metadata, f"Mismatch for case {c}"
 
 
-# ---------------------------------------------------------------------------
-# Duplicate files
-# ---------------------------------------------------------------------------
-
-
 class TestDuplicateFiles:
     RAW = {
         "files_media": ["/tmp/1804928587.jpg", "/tmp/1804928587(1).jpg"],
@@ -218,11 +198,6 @@ class TestDuplicateFiles:
             m["/tmp/1804928587(1).jpg"]["json"]["path"]
             == "/tmp/1804928587.jpg.supplemental-metadata(1).json"
         )
-
-
-# ---------------------------------------------------------------------------
-# Distance-based fuzzy matching with duplicate markers
-# ---------------------------------------------------------------------------
 
 
 class TestDistanceBasedFuzzyMatchingWithDuplicates:
@@ -287,11 +262,6 @@ class TestDistanceBasedFuzzyMatchingWithDuplicates:
         )
 
 
-# ---------------------------------------------------------------------------
-# Distance threshold prevents false matches
-# ---------------------------------------------------------------------------
-
-
 class TestDistanceThresholdPreventsFalseMatches:
     RAW = {
         "files_media": [
@@ -320,11 +290,6 @@ class TestDistanceThresholdPreventsFalseMatches:
             m["/tmp/IMG_0449(1).MP4"]["json"]["path"]
             == "/tmp/IMG_0449.HEIC.supplemental-metadata(1).json"
         )
-
-
-# ---------------------------------------------------------------------------
-# Edited files
-# ---------------------------------------------------------------------------
 
 
 class TestEditedFiles:
@@ -368,11 +333,6 @@ class TestEditedFiles:
             m["/tmp/j23456789012345678901234567890123456-edited.jpg"]["json"]["path"]
             == "/tmp/j2345678901234567890123456789012345678901.jpg.json"
         )
-
-
-# ---------------------------------------------------------------------------
-# Complex extensions & collisions
-# ---------------------------------------------------------------------------
 
 
 class TestComplexExtensionsAndCollisions:
@@ -419,11 +379,6 @@ class TestComplexExtensionsAndCollisions:
         )
 
 
-# ---------------------------------------------------------------------------
-# Album source detection
-# ---------------------------------------------------------------------------
-
-
 class TestAlbumSourceDetection:
     RAW = {
         "files_media": [
@@ -450,11 +405,6 @@ class TestAlbumSourceDetection:
         assert m["/tmp/loose.jpg"]["source"]["type"] == "loose"
 
 
-# ---------------------------------------------------------------------------
-# Directory isolation
-# ---------------------------------------------------------------------------
-
-
 class TestDirectoryIsolation:
     def test_does_not_match_across_sibling_directories(self):
         raw = {
@@ -464,11 +414,6 @@ class TestDirectoryIsolation:
         }
         m, _ = _link_and_map(raw)
         assert m["/Photos/Vacation.jpg"]["json"] is None
-
-
-# ---------------------------------------------------------------------------
-# Statistics & reporting
-# ---------------------------------------------------------------------------
 
 
 class TestStatisticsAndReporting:
@@ -487,11 +432,6 @@ class TestStatisticsAndReporting:
         _, stats = _link_and_map(self.RAW)
         assert "/tmp/unused.json" in stats["unmatched_metadata_files"]
         assert len(stats["unmatched_metadata_files"]) == 1
-
-
-# ---------------------------------------------------------------------------
-# Extension-specific matching with same base name
-# ---------------------------------------------------------------------------
 
 
 class TestExtensionSpecificMatching:
@@ -546,11 +486,6 @@ class TestExtensionSpecificMatching:
         assert len(stats["unmatched_metadata_files"]) == 3
 
 
-# ---------------------------------------------------------------------------
-# Safety against false positives
-# ---------------------------------------------------------------------------
-
-
 class TestSafetyAgainstFalsePositives:
     RAW = {
         "files_media": ["/tmp/IMG_123.jpg", "/tmp/IMG_1234.jpg"],
@@ -565,11 +500,6 @@ class TestSafetyAgainstFalsePositives:
     def test_does_not_fuzzy_match_short_prefix(self):
         m, _ = _link_and_map(self.RAW)
         assert m["/tmp/IMG_1234.jpg"]["json"] is None
-
-
-# ---------------------------------------------------------------------------
-# Truncated -edited suffixes
-# ---------------------------------------------------------------------------
 
 
 class TestTruncatedEditedSuffixes:
@@ -615,11 +545,6 @@ class TestTruncatedEditedSuffixes:
         )
 
 
-# ---------------------------------------------------------------------------
-# Truncated Live Photo with shared sidecar
-# ---------------------------------------------------------------------------
-
-
 class TestTruncatedLivePhotoWithSharedSidecar:
     RAW = {
         "files_media": [
@@ -645,11 +570,6 @@ class TestTruncatedLivePhotoWithSharedSidecar:
         )
 
 
-# ---------------------------------------------------------------------------
-# Fuzzy matching disabled
-# ---------------------------------------------------------------------------
-
-
 class TestFuzzyMatchingDisabled:
     RAW = {
         "files_media": [
@@ -670,11 +590,6 @@ class TestFuzzyMatchingDisabled:
     def test_truncated_does_not_match(self):
         m, _ = _link_and_map(self.RAW, {"fuzzy_threshold": 0, "fuzzy": False})
         assert m["/tmp/truncated-media-file-name-that-is-very-long.jpg"]["json"] is None
-
-
-# ---------------------------------------------------------------------------
-# Extension case insensitivity
-# ---------------------------------------------------------------------------
 
 
 class TestExtensionCaseInsensitivity:
@@ -705,11 +620,6 @@ class TestExtensionCaseInsensitivity:
             m["/tmp/VIDEO.MOV"]["json"]["path"]
             == "/tmp/VIDEO.mov.supplemental-metadata.json"
         )
-
-
-# ---------------------------------------------------------------------------
-# Python-specific: verify os.path preserves tricky filenames
-# ---------------------------------------------------------------------------
 
 
 class TestOsPathPreservesFilenames:

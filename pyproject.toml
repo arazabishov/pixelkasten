@@ -1,48 +1,15 @@
-[project]
-name = "pixelkasten"
-version = "0.1.0"
-description = "Photo library organizer — Google Takeout processing and AI-powered categorization"
-requires-python = ">=3.12"
-dependencies = [
-    # CLIP model loading and inference. This is the canonical open-source CLIP
-    # library — it handles downloading model weights, image preprocessing, and
-    # encoding images/text into embedding vectors.
-    "open-clip-torch>=2.29.0",
+# Root workspace config — no package lives here.
+# Each member in packages/ has its own pyproject.toml with dependencies.
+[tool.uv.workspace]
+members = ["packages/*"]
 
-    # Clustering algorithms (HDBSCAN, k-means) for grouping similar embeddings.
-    # HDBSCAN was added to scikit-learn in v1.3, so no separate package needed.
-    "scikit-learn>=1.3.0",
-
-    # Array operations on embedding vectors (dot products, norms, stacking).
-    "numpy>=1.26.0",
-
-    # CLI framework with rich integration for progress bars, colored output,
-    # and formatted tables.
-    "typer>=0.15.0",
-    "rich>=13.0.0",
-
-    # Ollama Python client for VLM captioning (Phase 2). Sends images to a
-    # local Ollama server running vision models (LLaVA, Moondream, etc.).
-    "ollama>=0.4.0",
-
-    # Offline reverse geocoding — resolves GPS coordinates to city/country
-    # names using a local dataset (~30MB). No API calls, no rate limits.
-    "reverse_geocoder>=1.5.1",
-]
-
-[dependency-groups]
-dev = [
-    "pytest>=8.0",
-    "ruff>=0.9.0",
-]
+# Dev dependencies are shared across all workspace members.
+[tool.uv]
+dev-dependencies = ["pytest>=8.0", "ruff>=0.9.0"]
 
 [tool.pytest.ini_options]
-testpaths = ["test"]
+testpaths = ["packages/core/tests"]
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
-# Register the CLI command so `uv run pixelkasten` works.
-[project.scripts]
-pixelkasten = "pixelkasten.cli:app"
+# Tell ruff where first-party source roots are so it sorts imports correctly.
+[tool.ruff]
+src = ["packages/core/src", "packages/cli/src"]

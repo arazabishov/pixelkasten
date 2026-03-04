@@ -18,11 +18,6 @@ def _write_sidecar(tmp_path, data):
     return path
 
 
-# ---------------------------------------------------------------------------
-# read_sidecar
-# ---------------------------------------------------------------------------
-
-
 class TestReadSidecar:
     def test_returns_none_for_none_path(self):
         assert read_sidecar(None) is None
@@ -250,11 +245,6 @@ class TestReadSidecar:
             read_sidecar("/nonexistent/path.json")
 
 
-# ---------------------------------------------------------------------------
-# has_geo_data
-# ---------------------------------------------------------------------------
-
-
 class TestHasGeoData:
     def test_returns_false_for_none(self):
         assert has_geo_data(None) is False
@@ -274,11 +264,6 @@ class TestHasGeoData:
 
     def test_returns_false_when_lon_is_zero(self):
         assert has_geo_data({"latitude": 48.8584, "longitude": 0}) is False
-
-
-# ---------------------------------------------------------------------------
-# get_geo_data
-# ---------------------------------------------------------------------------
 
 
 class TestGetGeoData:

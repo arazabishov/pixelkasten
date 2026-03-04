@@ -27,7 +27,7 @@ PixelKasten is built around the idea that you should be able to pick exactly the
 
 ### Match media to metadata
 
-At its core, PixelKasten scans your Takeout export and pairs each media file with the JSON sidecar that belongs to it. This is the one step that always runs.
+When processing a Takeout export, PixelKasten scans the directory and pairs each media file with the JSON sidecar that belongs to it.
 
 Google makes this matching harder than you'd expect. Long filenames get truncated, collision markers like `(1)` are appended, and `-edited` variants or `.supplemental-metadata` suffixes follow their own naming rules. PixelKasten uses a combination of exact and fuzzy matching to handle these cases, and every match gets a confidence score so you can verify the results yourself.
 
@@ -81,7 +81,7 @@ This requires [Ollama](https://ollama.com/) with vision and text models installe
 
 ## Prerequisites
 
-Python 3.12+ and [uv](https://docs.astral.sh/uv/) are required. [exiftool](https://exiftool.org/) must be installed separately for metadata embedding. [Ollama](https://ollama.com/) with vision and text models is only needed for `--catalog` mode.
+Python 3.12+ and [uv](https://docs.astral.sh/uv/) are required. [exiftool](https://exiftool.org/) must be installed separately for metadata embedding. [Ollama](https://ollama.com/) with vision and text models is only needed when running with `--catalog`.
 
 ## Installation
 

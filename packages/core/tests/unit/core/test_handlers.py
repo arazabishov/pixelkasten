@@ -18,11 +18,6 @@ from pixelkasten.core.handlers import (
 )
 
 
-# ---------------------------------------------------------------------------
-# parse_composite_geo
-# ---------------------------------------------------------------------------
-
-
 class TestParseCompositeGeo:
     def test_returns_geo_when_lat_and_lon_present(self):
         raw = {
@@ -76,14 +71,7 @@ class TestParseCompositeGeo:
         assert parse_composite_geo(raw)["altitude"] is None
 
 
-# ---------------------------------------------------------------------------
-# ExifHandler
-# ---------------------------------------------------------------------------
-
-
 class TestExifHandler:
-    # --- parse ---
-
     def test_extracts_timestamp_from_datetime_original(self):
         result = exif_handler.parse(
             {
@@ -160,14 +148,10 @@ class TestExifHandler:
 
         assert result.geo is None
 
-    # --- timestamp ---
-
     def test_returns_subsec_datetime_original_tag(self):
         result = exif_handler.timestamp("2023:05:20 14:30:00+00:00")
 
         assert result == ["SubSecDateTimeOriginal=2023:05:20 14:30:00+00:00"]
-
-    # --- geo ---
 
     def test_returns_all_gps_tags(self):
         result = exif_handler.geo(
@@ -196,8 +180,6 @@ class TestExifHandler:
         assert result[2] == "GPSAltitude=-5"
         assert result[3] == "GPSAltitudeRef=-5"
 
-    # --- readTags ---
-
     def test_includes_exif_date_tags(self):
         tags = exif_handler.read_tags
 
@@ -216,14 +198,7 @@ class TestExifHandler:
         assert "Composite:GPSLongitude" in tags
 
 
-# ---------------------------------------------------------------------------
-# QuickTimeHandler
-# ---------------------------------------------------------------------------
-
-
 class TestQuickTimeHandler:
-    # --- parse ---
-
     def test_extracts_timestamp_from_creation_date(self):
         result = quicktime_handler.parse(
             {
@@ -299,14 +274,10 @@ class TestQuickTimeHandler:
 
         assert result.geo is None
 
-    # --- timestamp ---
-
     def test_returns_creation_date_tag(self):
         result = quicktime_handler.timestamp("2024:03:15 10:30:00+00:00")
 
         assert result == ["CreationDate=2024:03:15 10:30:00+00:00"]
-
-    # --- geo ---
 
     def test_returns_gps_coordinates_tag(self):
         result = quicktime_handler.geo(
@@ -331,8 +302,6 @@ class TestQuickTimeHandler:
 
         assert result[0] == "Keys:GPSCoordinates=-33.8688, 151.2093, -10"
 
-    # --- readTags ---
-
     def test_includes_quicktime_date_tags(self):
         tags = quicktime_handler.read_tags
 
@@ -348,11 +317,6 @@ class TestQuickTimeHandler:
         assert "Composite:GPSAltitude" in tags
         assert "Composite:GPSLatitude" in tags
         assert "Composite:GPSLongitude" in tags
-
-
-# ---------------------------------------------------------------------------
-# Handler registry
-# ---------------------------------------------------------------------------
 
 
 class TestHandlerRegistry:

@@ -19,11 +19,6 @@ from pixelkasten.stages.catalog.refine import (
 )
 
 
-# ---------------------------------------------------------------------------
-# _parse_timestamp
-# ---------------------------------------------------------------------------
-
-
 class TestParseTimestamp:
     def test_iso_format_returns_datetime(self):
         result = _parse_timestamp("2019-07-15T14:30:00")
@@ -42,11 +37,6 @@ class TestParseTimestamp:
         # The function strips everything after 19 chars, so timezone info is ignored.
         result = _parse_timestamp("2019-07-15T14:30:00+02:00")
         assert result == datetime(2019, 7, 15, 14, 30, 0)
-
-
-# ---------------------------------------------------------------------------
-# _eject_metadataless
-# ---------------------------------------------------------------------------
 
 
 class TestEjectMetadataless:
@@ -79,11 +69,6 @@ class TestEjectMetadataless:
         # Already noise, should not be counted as ejected.
         assert list(new_labels) == [-1, -1]
         assert count == 0
-
-
-# ---------------------------------------------------------------------------
-# _split_by_temporal_gaps
-# ---------------------------------------------------------------------------
 
 
 class TestSplitByTemporalGaps:
@@ -155,11 +140,6 @@ class TestSplitByTemporalGaps:
         # Should produce 3 distinct clusters (2 splits).
         assert len(set(new_labels)) == 3
         assert split_count == 2
-
-
-# ---------------------------------------------------------------------------
-# _merge_similar_clusters
-# ---------------------------------------------------------------------------
 
 
 def _make_normalized_vec(base, dim=64):
@@ -317,11 +297,6 @@ class TestMergeSimilarClusters:
         assert merge_count == 2
 
 
-# ---------------------------------------------------------------------------
-# _infer_home_location
-# ---------------------------------------------------------------------------
-
-
 class TestInferHomeLocation:
     def test_returns_most_frequent_region(self):
         locations = {
@@ -340,11 +315,6 @@ class TestInferHomeLocation:
 
     def test_returns_none_for_empty_dict(self):
         assert _infer_home_location({}) is None
-
-
-# ---------------------------------------------------------------------------
-# _absorb_noise_by_location
-# ---------------------------------------------------------------------------
 
 
 class TestAbsorbNoiseByLocation:
@@ -420,11 +390,6 @@ class TestAbsorbNoiseByLocation:
         # Multiple candidates — should not absorb.
         assert new_labels[2] == -1
         assert count == 0
-
-
-# ---------------------------------------------------------------------------
-# _absorb_noise_by_similarity
-# ---------------------------------------------------------------------------
 
 
 class TestAbsorbNoiseBySimilarity:
@@ -509,11 +474,6 @@ class TestAbsorbNoiseBySimilarity:
         assert count == 0
 
 
-# ---------------------------------------------------------------------------
-# _renumber_labels
-# ---------------------------------------------------------------------------
-
-
 class TestRenumberLabels:
     def test_produces_contiguous_ids(self):
         labels = np.array([5, 5, 10, 10, -1, 20])
@@ -534,11 +494,6 @@ class TestRenumberLabels:
         # Non-noise should be contiguous.
         non_noise = new_labels[new_labels != -1]
         assert list(sorted(set(non_noise))) == list(range(len(set(non_noise))))
-
-
-# ---------------------------------------------------------------------------
-# _temporally_close
-# ---------------------------------------------------------------------------
 
 
 class TestTemporallyClose:
@@ -565,11 +520,6 @@ class TestTemporallyClose:
         info_b = {"min_time": datetime(2019, 7, 15), "max_time": datetime(2019, 7, 16)}
 
         assert _temporally_close(info_a, info_b, threshold_seconds=999999) is False
-
-
-# ---------------------------------------------------------------------------
-# _safe_min / _safe_max
-# ---------------------------------------------------------------------------
 
 
 class TestSafeMinMax:

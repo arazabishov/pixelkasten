@@ -14,14 +14,7 @@ from pixelkasten.core.datetime import (
 )
 
 
-# ---------------------------------------------------------------------------
-# normalize_disk_date
-# ---------------------------------------------------------------------------
-
-
 class TestNormalizeDiskDate:
-    # --- EXIF date formats ---
-
     def test_normalizes_standard_exif_datetime_original(self):
         assert normalize_disk_date("2023:05:20 14:30:00") == "2023-05-20T14:30:00"
 
@@ -33,8 +26,6 @@ class TestNormalizeDiskDate:
 
     def test_normalizes_end_of_day_timestamp(self):
         assert normalize_disk_date("2023:12:31 23:59:59") == "2023-12-31T23:59:59"
-
-    # --- Timezone stripping (wall clock preservation) ---
 
     def test_strips_negative_timezone_offset(self):
         assert normalize_disk_date("2023:05:20 14:30:00-05:00") == "2023-05-20T14:30:00"
@@ -48,15 +39,11 @@ class TestNormalizeDiskDate:
     def test_strips_fractional_timezone_offset(self):
         assert normalize_disk_date("2023:05:20 14:30:00+05:30") == "2023-05-20T14:30:00"
 
-    # --- Alternative date formats ---
-
     def test_handles_dash_separators(self):
         assert normalize_disk_date("2023-05-20 14:30:00") == "2023-05-20T14:30:00"
 
     def test_handles_mixed_separators(self):
         assert normalize_disk_date("2023-05-20 14:30:00") == "2023-05-20T14:30:00"
-
-    # --- Whitespace handling ---
 
     def test_trims_leading_whitespace(self):
         assert normalize_disk_date("  2023:05:20 14:30:00") == "2023-05-20T14:30:00"
@@ -66,8 +53,6 @@ class TestNormalizeDiskDate:
 
     def test_trims_leading_and_trailing_whitespace(self):
         assert normalize_disk_date("  2023:05:20 14:30:00  ") == "2023-05-20T14:30:00"
-
-    # --- Invalid inputs ---
 
     def test_returns_none_for_none(self):
         assert normalize_disk_date(None) is None
@@ -90,8 +75,6 @@ class TestNormalizeDiskDate:
     def test_returns_none_for_boolean(self):
         assert normalize_disk_date(True) is None
 
-    # --- Edge cases ---
-
     def test_handles_leap_year(self):
         assert normalize_disk_date("2024:02:29 12:00:00") == "2024-02-29T12:00:00"
 
@@ -108,14 +91,7 @@ class TestNormalizeDiskDate:
         )
 
 
-# ---------------------------------------------------------------------------
-# parse_photo_taken_time
-# ---------------------------------------------------------------------------
-
-
 class TestParsePhotoTakenTime:
-    # --- Real-world timestamps ---
-
     def test_formats_timestamp_1719935787(self):
         result = parse_photo_taken_time("1719935787")
         assert result["exif"] == "2024:07:02 15:56:27+00:00"
@@ -140,8 +116,6 @@ class TestParsePhotoTakenTime:
         result = parse_photo_taken_time("1711016650")
         assert result["exif"] == "2024:03:21 10:24:10+00:00"
         assert result["iso"] == "2024-03-21T10:24:10"
-
-    # --- Padding and special values ---
 
     def test_pads_single_digit_month_and_day(self):
         result = parse_photo_taken_time("1704675601")
@@ -168,8 +142,6 @@ class TestParsePhotoTakenTime:
         assert result["exif"] == "1990:01:01 00:00:00+00:00"
         assert result["iso"] == "1990-01-01T00:00:00"
 
-    # --- Error handling and type flexibility ---
-
     def test_raises_for_invalid_string(self):
         with pytest.raises(
             ValueError, match="Failed to parse photoTakenTime timestamp: invalid"
@@ -186,11 +158,6 @@ class TestParsePhotoTakenTime:
         result = parse_photo_taken_time(1704067200)
         assert result["exif"] == "2024:01:01 00:00:00+00:00"
         assert result["iso"] == "2024-01-01T00:00:00"
-
-
-# ---------------------------------------------------------------------------
-# parse_iso_date
-# ---------------------------------------------------------------------------
 
 
 class TestParseIsoDate:
