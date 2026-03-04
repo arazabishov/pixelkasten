@@ -2,6 +2,18 @@ version = 1
 revision = 3
 requires-python = ">=3.12"
 
+[manifest]
+members = [
+    "pixelkasten-cli",
+    "pixelkasten-core",
+]
+
+[manifest.dependency-groups]
+dev = [
+    { name = "pytest", specifier = ">=8.0" },
+    { name = "ruff", specifier = ">=0.9.0" },
+]
+
 [[package]]
 name = "annotated-doc"
 version = "0.0.4"
@@ -652,23 +664,32 @@ wheels = [
 ]
 
 [[package]]
-name = "pixelkasten"
+name = "pixelkasten-cli"
 version = "0.1.0"
-source = { editable = "." }
+source = { editable = "packages/cli" }
+dependencies = [
+    { name = "pixelkasten-core" },
+    { name = "rich" },
+    { name = "typer" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pixelkasten-core", editable = "packages/core" },
+    { name = "rich", specifier = ">=13.0.0" },
+    { name = "typer", specifier = ">=0.15.0" },
+]
+
+[[package]]
+name = "pixelkasten-core"
+version = "0.1.0"
+source = { editable = "packages/core" }
 dependencies = [
     { name = "numpy" },
     { name = "ollama" },
     { name = "open-clip-torch" },
     { name = "reverse-geocoder" },
-    { name = "rich" },
     { name = "scikit-learn" },
-    { name = "typer" },
-]
-
-[package.dev-dependencies]
-dev = [
-    { name = "pytest" },
-    { name = "ruff" },
 ]
 
 [package.metadata]
@@ -677,15 +698,7 @@ requires-dist = [
     { name = "ollama", specifier = ">=0.4.0" },
     { name = "open-clip-torch", specifier = ">=2.29.0" },
     { name = "reverse-geocoder", specifier = ">=1.5.1" },
-    { name = "rich", specifier = ">=13.0.0" },
     { name = "scikit-learn", specifier = ">=1.3.0" },
-    { name = "typer", specifier = ">=0.15.0" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pytest", specifier = ">=8.0" },
-    { name = "ruff", specifier = ">=0.9.0" },
 ]
 
 [[package]]

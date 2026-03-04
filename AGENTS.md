@@ -38,27 +38,25 @@ User data must never leave the device. All processing, including AI-powered cate
 
 ## Architecture
 
-The project is a uv workspaces monorepo. For example, `packages/core` contains pipeline logic, stages, and AI catalog with no UI dependencies, while `packages/cli` is a thin typer + rich consumer that wires up progress, hooks, and reporting.
+The project is a uv workspaces monorepo: `packages/core` contains pipeline logic, stages, and AI catalog with no UI dependencies, while `packages/cli` is a thin typer + rich consumer that wires up progress, hooks, and reporting.
 
-The separation exists so that multiple frontends can consume the same core library without pulling in each other's dependencies. The CLI should not be the only way to use the pipeline. A web UI or desktop app should be able to import core directly. This boundary is enforced at the package level, not just by convention.
+A simple `core/` and `cli/` directory split inside one package would not be enough. uv workspaces enforce the dependency boundary at install time, so core can never accidentally import typer or rich. This matters because the CLI should not be the only frontend. A web UI or desktop app should be able to import core directly without pulling in CLI dependencies.
 
 ### Data pipeline
 
-Processing photos requires multiple steps (scanning, matching sidecars, deduplicating, writing metadata, etc.) that must happen in order, where each step builds on the results of the previous one. The pipeline tracks all work in a single in-memory manifest (a list of dicts) that each stage reads from and enriches. No stage performs side effects. File copies and metadata writes are deferred to the final apply stage.
+Processing photos requires multiple steps (scanning, matching sidecars, deduplicating, writing metadata, etc.) that must happen in order, where each step builds on the results of the previous one. The pipeline tracks all work in a single in-memory manifest that each stage reads from and enriches. Stages are decoupled: each reads fields that upstream stages wrote, without needing to know about the stages themselves. No stage performs side effects. File copies and metadata writes are deferred to the final apply stage. This is what makes `--dry-run` possible (just skip apply), makes the pipeline safe to retry (a failed stage leaves disk untouched), and keeps tests simple (assert on manifest state, no filesystem mocking).
 
-The pipeline is a linear sequence of stages where flags control which stages run. `--takeout` enables the link stage (sidecar matching for Google Takeout exports). `--catalog` enables AI album discovery stages (embed → cluster → classify → refine → caption → propose). Both flags can be combined.
+The pipeline is a linear sequence where flags control which stages run. `--takeout` enables sidecar matching, `--catalog` enables AI album discovery, and both can be combined. Workspace caching (`-w`) persists `manifest.json` after init stages and `embeddings.npy` after CLIP embedding, the two most expensive operations. Caching them lets you iterate on downstream stages (clustering parameters, LLM prompts) without re-doing the slow work. For the exact execution sequence and stage wiring, see `pipeline.py`.
 
-Stages never re-read raw data; each stage reads from fields that upstream stages wrote. The manifest is the single source of truth passed between stages. For the exact execution sequence and stage wiring, see `pipeline.py`.
-
-Workspace caching (`-w`) persists `manifest.json` after init stages and `embeddings.npy` after CLIP embedding. Re-runs skip cached stages.
+Two areas are complex enough to have their own documentation. The link stage (sidecar matching) deals with Google Takeout's unpredictable filename truncation, collision markers, and edited variants; see `docs/takeout.md` for the full breakdown. The catalog is effectively a sub-pipeline with its own stages (embedding, clustering, classification, captioning, album naming) orchestrated by `stages/catalog/`.
 
 ### Handlers
 
-Different media formats store metadata in different ways: EXIF tags for images (JPEG, HEIC, PNG) and QuickTime tags for video (MP4, MOV). Handlers encapsulate these differences behind a common interface (`read_tags`, `parse()`, `timestamp()`, `geo()`), so pipeline stages can work with metadata without knowing the underlying format. To add support for a new image or video format, register a new handler. The rest of the pipeline requires no changes. Formats without an explicit handler (e.g., `.mkv`, `.avi`) are skipped and reported in the final summary.
+Different media formats store metadata in incompatible ways: EXIF tags for images (JPEG, HEIC, PNG) and QuickTime tags for video (MP4, MOV). The tag names differ, the value formats differ, and the GPS encoding differs. Handlers encapsulate all of this behind a common interface (`read_tags`, `parse()`, `timestamp()`, `geo()`), so pipeline stages work with metadata without knowing the underlying format. Adding a new format means registering a new handler; nothing else in the pipeline changes. Formats without an explicit handler (e.g., `.mkv`, `.avi`) are skipped and reported in the final summary.
 
 ## Dependencies
 
-Python 3.12+ and uv are required to run the project. exiftool must be installed separately for metadata read/write operations. Ollama with vision and text models is only needed for `--catalog` mode. All Python dependencies, including ruff and pytest, are managed by uv. Run `uv sync` to install them.
+Python 3.12+ and uv are required to run the project. exiftool must be installed separately for metadata read/write operations. Ollama with vision and text models is only needed when running with `--catalog`. All Python dependencies, including ruff and pytest, are managed by uv. Run `uv sync` to install them.
 
 ## Useful commands
 
@@ -94,7 +92,7 @@ timestamp = photo_taken_time.get("timestamp") if photo_taken_time else None
 return {"timestamp": timestamp, "geo": geo}
 ```
 
-All public functions should have full type annotations. Imports for heavy dependencies (torch, sklearn, ollama) are deferred inside functions to keep startup fast and allow consumers to avoid pulling in unused ML libraries.
+All public functions should have full type annotations. Imports for heavy dependencies (torch, sklearn, ollama) are deferred inside functions. This is not just about startup speed. A user running `--no-catalog` takeout processing should not need torch installed at all. Deferred imports make optional dependencies truly optional.
 
 ### Testing
 

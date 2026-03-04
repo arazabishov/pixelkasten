@@ -10,11 +10,6 @@ from pixelkasten.core.exiftool import (
 )
 
 
-# ---------------------------------------------------------------------------
-# _normalize_timestamp
-# ---------------------------------------------------------------------------
-
-
 class TestNormalizeTimestamp:
     def test_exif_colon_format_returns_iso(self):
         result = _normalize_timestamp("2019:07:15 14:30:00")
@@ -46,11 +41,6 @@ class TestNormalizeTimestamp:
         assert result == "2023-12-31T23:59:59"
 
 
-# ---------------------------------------------------------------------------
-# _validate_gps
-# ---------------------------------------------------------------------------
-
-
 class TestValidateGps:
     def test_valid_coordinates_returns_true(self):
         assert _validate_gps(37.8, -122.4) is True
@@ -69,11 +59,6 @@ class TestValidateGps:
         assert _validate_gps(0, 122.4) is True
 
 
-# ---------------------------------------------------------------------------
-# _safe_float
-# ---------------------------------------------------------------------------
-
-
 class TestSafeFloat:
     def test_valid_number_returns_float(self):
         assert _safe_float(42) == 42.0
@@ -84,11 +69,6 @@ class TestSafeFloat:
 
     def test_non_numeric_string_returns_none(self):
         assert _safe_float("not_a_number") is None
-
-
-# ---------------------------------------------------------------------------
-# _parse_exiftool_entry
-# ---------------------------------------------------------------------------
 
 
 class TestParseExiftoolEntry:

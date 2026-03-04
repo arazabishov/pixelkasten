@@ -180,7 +180,7 @@ def main(
 
 def _build_pipeline_ui(console):
     """Build progress factory and hooks for pipeline UI reporting."""
-    from pixelkasten.reports import (
+    from pixelkasten_cli.reports import (
         build_progress_factory,
         render_apply_table,
         render_dedupe_table,

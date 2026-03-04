@@ -12,11 +12,6 @@ from pixelkasten.stages.catalog.organize import (
 )
 
 
-# ---------------------------------------------------------------------------
-# _parse_llm_response
-# ---------------------------------------------------------------------------
-
-
 class TestParseLlmResponse:
     def test_clean_json_string(self):
         raw = '{"0": "Beach Vacation", "1": "Dinner Party"}'
@@ -41,11 +36,6 @@ class TestParseLlmResponse:
         raw = "Sorry, I cannot process this request."
         with pytest.raises(ValueError, match="LLM did not return valid JSON"):
             _parse_llm_response(raw)
-
-
-# ---------------------------------------------------------------------------
-# build_cluster_summary_text (uses sample_manifest fixture from conftest)
-# ---------------------------------------------------------------------------
 
 
 class TestBuildClusterSummaryText:
