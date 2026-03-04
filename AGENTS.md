@@ -23,13 +23,6 @@ uv run pixelkasten -s <source> -d <destination> -w ./workspace     # with cachin
 # Inspect a workspace
 uv run pixelkasten status -w ./workspace
 
-# Legacy: run individual AI catalog stages
-uv run pixelkasten embed -s <source> -o <output>
-uv run pixelkasten enrich -m <output>/manifest.json
-uv run pixelkasten refine -m <output>/manifest.json
-uv run pixelkasten caption -m <output>/manifest.json
-uv run pixelkasten organize -m <output>/manifest.json
-
 # Lint and format
 uv run ruff check src/
 uv run ruff format --check src/
@@ -41,10 +34,11 @@ uv run ruff format --check src/
 src/pixelkasten/
   cli.py                    # CLI entry point (typer)
   pipeline.py               # unified orchestrator (takeout + archive modes)
+  reports.py                # Rich progress bars + summary tables
   core/                     # shared utilities
     datetime.py             # normalize_disk_date, parse_iso_date, parse_photo_taken_time
     exiftool.py             # subprocess wrapper (read + write)
-    exif.py                 # EXIF reading + reverse geocoding
+    geocode.py              # offline reverse geocoding (GPS → city/region)
     sidecar.py              # Google sidecar JSON parsing
     handlers.py             # EXIF + QuickTime handler registry
     manifest.py             # can_keep(), manifest I/O
@@ -53,16 +47,17 @@ src/pixelkasten/
     scan.py                 # file discovery (scan + scan_takeout)
     link.py                 # sidecar matching (uses os.path, NOT pathlib)
     dedupe.py               # SHA-256 deduplication
-    reconcile.py            # EXIF vs sidecar comparison
+    reconcile.py            # EXIF vs sidecar comparison + metadata population
     rename.py               # target path computation (no month directories)
     apply.py                # file copy + metadata embedding
-    propose.py              # LLM album naming adapter
-    embed.py                # CLIP embeddings
-    cluster.py              # HDBSCAN clustering
-    classify.py             # zero-shot classification
-    refine.py               # temporal cluster refinement
-    caption.py              # VLM captioning via Ollama
-    organize.py             # LLM organization (legacy)
+    catalog/                # AI album discovery (--catalog)
+      pipeline.py           # run_catalog() orchestrator
+      embed.py              # CLIP embeddings
+      cluster.py            # HDBSCAN clustering
+      classify.py           # zero-shot classification
+      refine.py             # temporal cluster refinement
+      caption.py            # VLM captioning via Ollama
+      organize.py           # LLM album naming + propose_albums()
 test/
   unit/
     core/                   # mirrors src/pixelkasten/core/
@@ -77,17 +72,40 @@ Two modes sharing stages:
 
 **Takeout mode** (default, `--takeout`):
 ```
-scan_takeout → link → reconcile → dedupe → rename → apply
+scan → link → reconcile → geocode → dedupe → [catalog] → rename → apply
 ```
 
 **Archive mode** (`--no-takeout`):
 ```
-scan → exif_read → dedupe → [embed → cluster → classify → refine → caption → propose] → rename → apply
+scan → reconcile → geocode → dedupe → [catalog] → rename → apply
 ```
 
-The catalog stages (in brackets) only run when `--catalog` is specified. The rename and apply stages are source-agnostic — they work the same for both modes.
+The catalog stages only run when `--catalog` is specified:
+```
+embed → cluster → classify → [refine] → [caption] → propose
+```
+
+The rename and apply stages are source-agnostic — they work the same for both modes.
 
 **Workspace caching** (`-w`): persists `manifest.json` after init stages and `embeddings.npy` after CLIP embedding. Re-run skips cached stages.
+
+## Manifest Data Flow
+
+Each stage enriches the shared manifest. Downstream stages consume what upstream stages produce:
+
+| Stage | Writes | Key fields |
+|-------|--------|------------|
+| scan | raw file lists | `files_media`, `files_metadata`, etc. |
+| link | matched entries | `mediaPath`, `source`, `json` |
+| reconcile | metadata from EXIF + sidecar | `metadata.status`, `metadata.dates`, `metadata.writeTags`, `metadata.geo` |
+| geocode | location names from GPS | `location.name`, `location.region` |
+| dedupe | duplicate resolution | `dedupe.status`, `dedupe.hash` |
+| catalog/classify | per-image tags | `tags` |
+| catalog/refine | updated clusters | `cluster` |
+| catalog/caption | image descriptions | `caption` |
+| catalog/organize | album assignments | `source.type`, `source.name` |
+| rename | target paths | `rename.status`, `rename.targetPath` |
+| apply | copy results | `apply.status` |
 
 ## Key Architecture Decisions
 
@@ -100,7 +118,7 @@ The catalog stages (in brackets) only run when `--catalog` is specified. The ren
 - **Handler protocol**: EXIF + QuickTime handlers with `read_tags`, `parse()`, `timestamp()`, `geo()`
 - **GPS validation**: sidecar rejects either-zero (Google placeholder); disk EXIF rejects only both-zero
 - **All-local AI**: `--catalog` runs CLIP + HDBSCAN + Ollama locally. No cloud API calls. Signal stack: EXIF (when/where) > CLIP embeddings (looks like) > VLM captions (what's happening).
-- **Cluster refinement**: HDBSCAN groups by appearance; EXIF fixes it via eject (no metadata), split (48h gaps), merge (similar + temporally close), absorb (by location or visual similarity). Region-level matching, home location inference, outlier filtering (< 10%).
+- **Cluster refinement**: HDBSCAN groups by appearance; metadata fixes it via eject (no dates), split (48h gaps), merge (similar + temporally close), absorb (by location or visual similarity). Region-level matching, home location inference, outlier filtering (< 10%).
 
 ## Guiding Principles
 
@@ -111,6 +129,7 @@ The catalog stages (in brackets) only run when `--catalog` is specified. The ren
 5. **Prioritize Simplicity** — minimize dependencies, justify additions
 6. **Ensure Testability** — pytest, good coverage
 7. **Maintain Transparency** — log outcomes, report file statuses
+8. **Stages consume upstream output** — never re-read raw data; each stage reads from fields that upstream stages wrote
 
 ## Code Conventions
 

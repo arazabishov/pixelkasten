@@ -39,10 +39,6 @@ class Handler(Protocol):
     def geo(self, data: dict) -> list[str]: ...
 
 
-# ---------------------------------------------------------------------------
-# Composite GPS tags (shared by EXIF and QuickTime handlers)
-# ---------------------------------------------------------------------------
-
 COMPOSITE_GEO_TAGS = [
     "Composite:GPSAltitude",
     "Composite:GPSLatitude",
@@ -68,11 +64,6 @@ def parse_composite_geo(raw: dict) -> dict | None:
         "longitude": lon,
         "altitude": raw.get("Composite:GPSAltitude"),
     }
-
-
-# ---------------------------------------------------------------------------
-# EXIF handler (JPEG, HEIC, PNG)
-# ---------------------------------------------------------------------------
 
 
 class ExifHandler:
@@ -122,11 +113,6 @@ class ExifHandler:
         ]
 
 
-# ---------------------------------------------------------------------------
-# QuickTime handler (MP4, MOV)
-# ---------------------------------------------------------------------------
-
-
 class QuickTimeHandler:
     """Metadata handler for QuickTime-based formats (MP4, MOV)."""
 
@@ -171,19 +157,11 @@ class QuickTimeHandler:
         ]
 
 
-# ---------------------------------------------------------------------------
-# Extension sets — single source of truth for format classification.
-# ---------------------------------------------------------------------------
-
 IMAGE_EXTENSIONS: frozenset[str] = frozenset({".jpg", ".jpeg", ".heic", ".png"})
 VIDEO_EXTENSIONS: frozenset[str] = frozenset({".mp4", ".mov"})
 UNSUPPORTED_MEDIA_EXTENSIONS: frozenset[str] = frozenset(
     {".avi", ".mkv", ".wmv", ".flv"}
 )
-
-# ---------------------------------------------------------------------------
-# Handler registry — derived from extension sets.
-# ---------------------------------------------------------------------------
 
 exif_handler = ExifHandler()
 quicktime_handler = QuickTimeHandler()

@@ -20,11 +20,6 @@ from typing import TypedDict
 from pixelkasten.core.datetime import normalize_disk_date
 
 
-# ---------------------------------------------------------------------------
-# Types
-# ---------------------------------------------------------------------------
-
-
 class GpsData(TypedDict, total=False):
     latitude: float
     longitude: float
@@ -35,11 +30,6 @@ class ExifData(TypedDict, total=False):
     timestamp: str | None
     gps: GpsData | None
     camera: str | None
-
-
-# ---------------------------------------------------------------------------
-# Subprocess wrapper
-# ---------------------------------------------------------------------------
 
 
 def check_exiftool() -> None:
@@ -157,10 +147,6 @@ def write_metadata(file_path: str | Path, tags: list[str]) -> None:
         raise RuntimeError(f"Failed to write metadata using exiftool: {result.stderr}")
 
 
-# ---------------------------------------------------------------------------
-# Parsed EXIF reading
-# ---------------------------------------------------------------------------
-
 _EXIF_TAGS = [
     "EXIF:DateTimeOriginal",
     "EXIF:CreateDate",
@@ -205,11 +191,6 @@ def read_exif(file_paths: list[Path]) -> dict[str, ExifData]:
             parsed[key] = ExifData(timestamp=None, gps=None, camera=None)
 
     return parsed
-
-
-# ---------------------------------------------------------------------------
-# Tag parsing helpers
-# ---------------------------------------------------------------------------
 
 
 def _parse_exiftool_entry(raw: dict) -> ExifData:

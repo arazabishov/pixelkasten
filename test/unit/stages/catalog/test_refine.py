@@ -52,9 +52,9 @@ class TestParseTimestamp:
 class TestEjectMetadataless:
     def test_ejects_no_exif_images_from_clusters(self):
         labels = np.array([0, 0, 1, -1])
-        has_any_exif = {0: True, 1: False, 2: True, 3: False}
+        has_metadata = {0: True, 1: False, 2: True, 3: False}
 
-        new_labels, count = _eject_metadataless(labels, has_any_exif)
+        new_labels, count = _eject_metadataless(labels, has_metadata)
 
         # Index 1 had no EXIF and was in cluster 0, should be ejected to noise.
         assert new_labels[1] == -1
@@ -62,9 +62,9 @@ class TestEjectMetadataless:
 
     def test_keeps_images_with_exif(self):
         labels = np.array([0, 0, 1])
-        has_any_exif = {0: True, 1: True, 2: True}
+        has_metadata = {0: True, 1: True, 2: True}
 
-        new_labels, count = _eject_metadataless(labels, has_any_exif)
+        new_labels, count = _eject_metadataless(labels, has_metadata)
 
         # All images have EXIF, none ejected.
         assert list(new_labels) == [0, 0, 1]
@@ -72,9 +72,9 @@ class TestEjectMetadataless:
 
     def test_does_not_touch_noise_labels(self):
         labels = np.array([-1, -1])
-        has_any_exif = {0: False, 1: False}
+        has_metadata = {0: False, 1: False}
 
-        new_labels, count = _eject_metadataless(labels, has_any_exif)
+        new_labels, count = _eject_metadataless(labels, has_metadata)
 
         # Already noise, should not be counted as ejected.
         assert list(new_labels) == [-1, -1]
