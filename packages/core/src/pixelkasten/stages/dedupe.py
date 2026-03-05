@@ -7,6 +7,8 @@ Ported from packages/core/src/stages/dedupe.js.
 import hashlib
 from collections.abc import Callable
 
+from pixelkasten.core.options import PipelineOptions
+
 
 def dedupe_hash(
     manifest: list[dict],
@@ -30,7 +32,9 @@ def dedupe_hash(
             on_progress(i + 1)
 
 
-def dedupe_resolve(manifest: list[dict], options: dict | None = None) -> None:
+def dedupe_resolve(
+    manifest: list[dict], options: PipelineOptions | None = None
+) -> None:
     """
     Resolve duplicates: prefer album over loose (or vice versa), keep same-type dupes.
 
@@ -44,8 +48,7 @@ def dedupe_resolve(manifest: list[dict], options: dict | None = None) -> None:
     options:
         prefer: "album" | "loose" (default: "album")
     """
-    options = options or {}
-    prefer = options.get("prefer", "album")
+    prefer = options.prefer if options else "album"
 
     # Group by hash, skip entries with None hash (errors)
     groups: dict[str, list[dict]] = {}

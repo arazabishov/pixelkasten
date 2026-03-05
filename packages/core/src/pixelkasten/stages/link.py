@@ -12,6 +12,8 @@ import os
 import re
 from typing import NamedTuple
 
+from pixelkasten.core.options import PipelineOptions
+
 # Truncated variants of .supplemental-metadata (longest first for greedy matching).
 _METADATA_SUFFIX_PATTERN = re.compile(
     "|".join(
@@ -61,7 +63,7 @@ class SidecarParsed(NamedTuple):
     extension: str  # lowercase, with dot (e.g., ".jpg") or ""
 
 
-def link(raw_collections: dict, options: dict | None = None) -> dict:
+def link(raw_collections: dict, options: PipelineOptions | None = None) -> dict:
     """
     Match media files to their JSON sidecar metadata files.
 
@@ -232,7 +234,9 @@ def _match(media_parsed: dict, candidates: list[dict], options: dict) -> dict | 
     return {"path": best_match["path"], "confidence": confidence}
 
 
-def _match_score(media_parsed: dict, metadata_parsed: dict, options: dict) -> int:
+def _match_score(
+    media_parsed: dict, metadata_parsed: dict, options: PipelineOptions
+) -> int:
     """
     Calculate match score between a media file and a metadata file.
 
@@ -242,8 +246,8 @@ def _match_score(media_parsed: dict, metadata_parsed: dict, options: dict) -> in
         50+: Fuzzy/truncated name match (bidirectional prefix)
           0: No match
     """
-    threshold = options.get("fuzzy_threshold", 40)
-    fuzzy = options.get("fuzzy", True)
+    threshold = options.fuzzy_threshold
+    fuzzy = options.fuzzy
 
     media_name = media_parsed["name"]
     media_ext = media_parsed["extension"]

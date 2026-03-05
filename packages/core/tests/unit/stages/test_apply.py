@@ -10,6 +10,7 @@ Path comparisons use os.path.join for platform independence.
 import os
 from unittest.mock import call, patch
 
+from helpers import make_options
 from pixelkasten.stages.apply import apply
 
 # Helper: build platform-correct paths for assertions
@@ -24,7 +25,7 @@ class TestApply:
         self, mock_makedirs, mock_copy2, mock_write_metadata
     ):
         manifest = []
-        apply(manifest, {"destination": "/dest"})
+        apply(manifest, make_options(destination="/dest"))
 
         mock_makedirs.assert_not_called()
         mock_copy2.assert_not_called()
@@ -48,7 +49,7 @@ class TestApply:
             },
         ]
 
-        apply(manifest, {"destination": "/dest", "skip_embed": True})
+        apply(manifest, make_options(destination="/dest", skip_embed=True))
 
         assert mock_copy2.call_count == 1
         assert mock_copy2.call_args_list[0] == call(
@@ -70,7 +71,7 @@ class TestApply:
             },
         ]
 
-        apply(manifest, {"destination": "/dest", "skip_embed": True})
+        apply(manifest, make_options(destination="/dest", skip_embed=True))
 
         assert mock_copy2.call_args_list[0] == call(
             "/source/photos/IMG_1234.jpg", J("/dest", "IMG_1234.jpg")
@@ -94,7 +95,7 @@ class TestApply:
             },
         ]
 
-        apply(manifest, {"destination": "/dest", "skip_embed": True})
+        apply(manifest, make_options(destination="/dest", skip_embed=True))
 
         expected_dir = os.path.dirname(J("/dest", "2023/20230515-120000.jpg"))
         assert mock_makedirs.call_args_list[0] == call(expected_dir, exist_ok=True)
@@ -116,7 +117,7 @@ class TestApply:
             },
         ]
 
-        apply(manifest, {"destination": "/dest", "skip_embed": True})
+        apply(manifest, make_options(destination="/dest", skip_embed=True))
 
         assert mock_copy2.call_count == 1
         assert manifest[0]["apply"]["status"] == "copied"
@@ -140,7 +141,7 @@ class TestApply:
             },
         ]
 
-        apply(manifest, {"destination": "/dest", "skip_embed": False})
+        apply(manifest, make_options(destination="/dest", skip_embed=False))
 
         mock_write_metadata.assert_not_called()
         assert manifest[0]["apply"]["status"] == "copied"
@@ -160,7 +161,7 @@ class TestApply:
             },
         ]
 
-        apply(manifest, {"destination": "/dest"})
+        apply(manifest, make_options(destination="/dest"))
 
         mock_write_metadata.assert_not_called()
         assert manifest[0]["apply"]["status"] == "copied"
@@ -179,7 +180,7 @@ class TestApply:
             },
         ]
 
-        apply(manifest, {"destination": "/dest"})
+        apply(manifest, make_options(destination="/dest"))
 
         mock_write_metadata.assert_not_called()
         assert manifest[0]["apply"]["status"] == "copied"
@@ -202,7 +203,7 @@ class TestApply:
             },
         ]
 
-        apply(manifest, {"destination": "/dest"})
+        apply(manifest, make_options(destination="/dest"))
 
         assert mock_write_metadata.call_count == 1
         assert mock_write_metadata.call_args_list[0] == call(
@@ -227,7 +228,7 @@ class TestApply:
 
         mock_copy2.side_effect = OSError("ENOENT: no such file")
 
-        apply(manifest, {"destination": "/dest", "skip_embed": True})
+        apply(manifest, make_options(destination="/dest", skip_embed=True))
 
         assert manifest[0]["apply"]["status"] == "error"
         assert manifest[0]["apply"]["reason"] == "ENOENT: no such file"
@@ -252,7 +253,7 @@ class TestApply:
 
         mock_write_metadata.side_effect = RuntimeError("exiftool failed")
 
-        apply(manifest, {"destination": "/dest"})
+        apply(manifest, make_options(destination="/dest"))
 
         assert manifest[0]["apply"]["status"] == "error"
         assert manifest[0]["apply"]["reason"] == "exiftool failed"
@@ -271,7 +272,7 @@ class TestApply:
             },
         ]
 
-        apply(manifest, {"destination": "/dest", "skip_embed": True})
+        apply(manifest, make_options(destination="/dest", skip_embed=True))
 
         assert manifest[0]["apply"]["targetPath"] == J("/dest", "2023/photo.jpg")
 
@@ -290,7 +291,7 @@ class TestApply:
             },
         ]
 
-        apply(manifest, {"destination": "/dest", "skip_embed": True})
+        apply(manifest, make_options(destination="/dest", skip_embed=True))
 
         assert mock_copy2.call_count == 2
         assert mock_copy2.call_args_list[1] == call(
@@ -312,7 +313,7 @@ class TestApply:
             },
         ]
 
-        apply(manifest, {"destination": "/dest", "skip_embed": False})
+        apply(manifest, make_options(destination="/dest", skip_embed=False))
 
         assert mock_copy2.call_count == 1
 
@@ -331,7 +332,7 @@ class TestApply:
             },
         ]
 
-        apply(manifest, {"destination": "/dest", "skip_embed": True})
+        apply(manifest, make_options(destination="/dest", skip_embed=True))
 
         assert mock_copy2.call_count == 1
 
@@ -349,7 +350,7 @@ class TestApply:
             },
         ]
 
-        apply(manifest, {"destination": "/dest", "skip_embed": True})
+        apply(manifest, make_options(destination="/dest", skip_embed=True))
 
         assert mock_copy2.call_args_list[1] == call(
             "/source/photos/IMG_1234.jpg.json", J("/dest", "IMG_1234.jpg") + ".json"
@@ -370,7 +371,7 @@ class TestApply:
             },
         ]
 
-        apply(manifest, {"destination": "/dest"})
+        apply(manifest, make_options(destination="/dest"))
 
         assert mock_copy2.call_count == 1
 
@@ -391,7 +392,7 @@ class TestApply:
             },
         ]
 
-        apply(manifest, {"destination": "/dest", "skip_embed": True})
+        apply(manifest, make_options(destination="/dest", skip_embed=True))
 
         expected_dest = J("/dest", "2023/20230501 - Vacation/20230515-120000.jpg")
         expected_dir = os.path.dirname(expected_dest)
@@ -419,7 +420,7 @@ class TestApply:
 
         mock_copy2.side_effect = copy_side_effect
 
-        apply(manifest, {"destination": "/dest", "skip_embed": True})
+        apply(manifest, make_options(destination="/dest", skip_embed=True))
 
         assert manifest[0]["apply"]["status"] == "error"
         assert manifest[0]["apply"]["reason"] == "ENOSPC: no space left"

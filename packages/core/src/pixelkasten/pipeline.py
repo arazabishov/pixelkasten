@@ -13,6 +13,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from pixelkasten.core.geocode import reverse_geocode
+from pixelkasten.core.options import PipelineOptions
 from pixelkasten.core.manifest import can_keep
 from pixelkasten.core.report import report
 from pixelkasten.stages.apply import apply
@@ -24,49 +25,28 @@ from pixelkasten.stages.scan import scan
 
 
 def run_pipeline(
-    options: dict,
+    options: PipelineOptions,
     hooks: dict | None = None,
 ) -> list[dict]:
     """
     Unified pipeline: linear flow with conditional stages.
 
-    Args:
-        options: Pipeline configuration with keys:
-            source (str): source directory path (required)
-            destination (str): destination directory (required unless dry_run)
-            takeout (bool): enable Google Takeout sidecar matching
-            catalog (bool): enable AI album discovery (propose stage)
-            workspace (str|Path|None): workspace directory for caching
-            rescan (bool): invalidate cached workspace, re-scan source
-            skip_dedupe (bool): skip SHA-256 deduplication
-            skip_embed (bool): skip metadata embedding (takeout only)
-            skip_rename (bool): skip rename stage
-            skip_caption (bool): skip VLM captioning (catalog only)
-            skip_refine (bool): skip temporal cluster refinement (catalog only)
-            dry_run (bool): compute plan without applying
-            prefer (str): "album" or "loose" for dedupe preference
-            fuzzy (bool): enable fuzzy matching in link stage
-            fuzzy_threshold (int): minimum name length for fuzzy matching
-        hooks: Optional callbacks fired after each stage.
-
-    Returns:
-        The manifest (list of dicts) after all stages have run.
+    Returns the manifest (list of dicts) after all stages have run.
     """
     hooks = hooks or {}
-    workspace = Path(options["workspace"]) if options.get("workspace") else None
-    progress = options.get("progress")
+    workspace = Path(options.workspace) if options.workspace else None
+    progress = options.progress
 
     # Try loading from workspace cache
     manifest = None
-    if workspace and not options.get("rescan"):
+    if workspace and not options.rescan:
         manifest = _load_workspace_manifest(workspace)
 
     if manifest is None:
-        # Scan (always full scan, both modes)
-        raw_collections = scan(options["source"])
-        _call_hook(hooks, "on_scan", raw_collections, options["source"])
+        raw_collections = scan(options.source)
+        _call_hook(hooks, "on_scan", raw_collections, options.source)
 
-        if options.get("takeout"):
+        if options.takeout:
             # Takeout: link sidecars → manifest
             result = link(raw_collections, options)
             _call_hook(hooks, "on_link", result)
@@ -80,14 +60,14 @@ def run_pipeline(
 
         # Dedupe runs before reconcile so reconcile can skip deleted entries
         # via can_keep(). Dedupe only needs mediaPath + source.type (from link).
-        if not options.get("skip_dedupe"):
+        if not options.skip_dedupe:
             with _progress_ctx(progress, "Hashing files", len(manifest)) as on_progress:
                 dedupe_hash(manifest, on_progress=on_progress)
             dedupe_resolve(manifest, options)
             _call_hook(hooks, "on_dedupe", manifest)
 
         # Reconcile: read EXIF from disk, compare with sidecar data
-        if not options.get("skip_embed") or not options.get("skip_rename"):
+        if not options.skip_embed or not options.skip_rename:
             with _progress_ctx(
                 progress, "Reading metadata", len(manifest)
             ) as on_progress:
@@ -101,18 +81,18 @@ def run_pipeline(
         if workspace:
             _save_workspace_manifest(workspace, manifest)
 
-    if options.get("catalog"):
+    if options.catalog:
         from pixelkasten.stages.catalog import run_catalog
 
         manifest = run_catalog(
             manifest, options, workspace=workspace, progress=progress
         )
 
-    if not options.get("skip_rename"):
+    if not options.skip_rename:
         rename(manifest, options)
         _call_hook(hooks, "on_rename", manifest)
 
-    if not options.get("dry_run"):
+    if not options.dry_run:
         n_keepers = sum(1 for e in manifest if can_keep(e))
         with _progress_ctx(progress, "Applying changes", n_keepers) as on_progress:
             apply(manifest, options, on_progress=on_progress)

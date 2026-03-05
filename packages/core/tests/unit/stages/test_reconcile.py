@@ -7,6 +7,7 @@ Mocks read_metadata (I/O) and read_sidecar (I/O). Uses real handlers
 
 from unittest.mock import patch
 
+from helpers import make_options
 from pixelkasten.stages.reconcile import reconcile
 
 
@@ -28,7 +29,7 @@ class TestReconcile:
         self, mock_sidecar, mock_metadata
     ):
         manifest = []
-        reconcile(manifest)
+        reconcile(manifest, make_options())
 
         # Verify no entries were added
         assert len(manifest) == 0
@@ -51,7 +52,7 @@ class TestReconcile:
             _entry("/tmp/delete.jpg", dedupe_status="delete"),
             _entry("/tmp/keep.jpg", "/tmp/keep.json"),
         ]
-        reconcile(manifest)
+        reconcile(manifest, make_options())
 
         # Only 1 batch call (just the keeper)
         assert mock_metadata.call_count == 1
@@ -72,7 +73,7 @@ class TestReconcile:
         }
 
         manifest = [_entry("/tmp/image.jpg", "/tmp/image.json")]
-        reconcile(manifest)
+        reconcile(manifest, make_options())
 
         # Verify no metadata changes were needed
         assert manifest[0]["metadata"]["status"] == "noop"
@@ -94,7 +95,7 @@ class TestReconcile:
         mock_sidecar.return_value = {"timestamp": "1672574400", "geo": None}
 
         manifest = [_entry("/tmp/image.jpg", "/tmp/image.json")]
-        reconcile(manifest)
+        reconcile(manifest, make_options())
 
         # Disk already has DateTimeOriginal -- noop
         assert manifest[0]["metadata"]["status"] == "noop"
@@ -112,7 +113,7 @@ class TestReconcile:
         mock_sidecar.return_value = {"timestamp": "1672574400", "geo": None}
 
         manifest = [_entry("/tmp/image.jpg", "/tmp/image.json")]
-        reconcile(manifest)
+        reconcile(manifest, make_options())
 
         # Verify entry was marked for processing
         assert manifest[0]["metadata"]["status"] == "processed"
@@ -138,7 +139,7 @@ class TestReconcile:
         }
 
         manifest = [_entry("/tmp/image.jpg", "/tmp/image.json")]
-        reconcile(manifest)
+        reconcile(manifest, make_options())
 
         # Verify entry was marked for processing
         assert manifest[0]["metadata"]["status"] == "processed"
@@ -158,7 +159,7 @@ class TestReconcile:
         }
 
         manifest = [_entry("/tmp/image.jpg", "/tmp/image.json")]
-        reconcile(manifest)
+        reconcile(manifest, make_options())
 
         # Verify entry was marked for processing
         assert manifest[0]["metadata"]["status"] == "processed"
@@ -183,7 +184,7 @@ class TestReconcile:
         # Create 1000 entries -- should result in 2 batches
         manifest = [_entry(f"/tmp/img_{i}.jpg") for i in range(1000)]
 
-        reconcile(manifest)
+        reconcile(manifest, make_options())
 
         # Verify metadata was read in exactly 2 batches
         assert mock_metadata.call_count == 2
@@ -202,7 +203,7 @@ class TestReconcile:
         mock_sidecar.return_value = None
 
         manifest = [_entry("/tmp/missing.jpg", "/tmp/missing.json")]
-        reconcile(manifest)
+        reconcile(manifest, make_options())
 
         # Verify error was recorded without throwing
         assert manifest[0]["metadata"]["status"] == "error"
@@ -214,7 +215,7 @@ class TestReconcile:
         mock_sidecar.return_value = None
 
         manifest = [_entry("/tmp/file.unknown")]
-        reconcile(manifest)
+        reconcile(manifest, make_options())
 
         # Verify unsupported file type was skipped
         assert manifest[0]["metadata"]["status"] == "skipped"
@@ -238,7 +239,7 @@ class TestReconcile:
         }
 
         manifest = [_entry("/tmp/image.jpg", "/tmp/image.json")]
-        reconcile(manifest, {"skip_embed": True})
+        reconcile(manifest, make_options(skip_embed=True))
 
         # No writeTags queued due to skip_embed
         assert manifest[0]["metadata"]["writeTags"] == []

@@ -8,6 +8,8 @@ All I/O-bound stages are mocked.
 import json
 from unittest.mock import MagicMock, patch
 
+from helpers import make_options
+
 PATCH_PREFIX = "pixelkasten.pipeline"
 
 
@@ -43,7 +45,7 @@ class TestTakeoutMode:
         }
         mock_link.return_value = {"manifest": [], "stats": {}}
 
-        self._run({"source": "/src", "destination": "/dest", "takeout": True})
+        self._run(make_options(takeout=True))
 
         mock_scan.assert_called_once()
         mock_link.assert_called_once()
@@ -72,14 +74,7 @@ class TestTakeoutMode:
         }
         mock_link.return_value = {"manifest": [], "stats": {}}
 
-        self._run(
-            {
-                "source": "/src",
-                "destination": "/dest",
-                "takeout": True,
-                "skip_dedupe": True,
-            }
-        )
+        self._run(make_options(takeout=True, skip_dedupe=True))
 
         mock_hash.assert_not_called()
         mock_resolve.assert_not_called()
@@ -102,15 +97,7 @@ class TestTakeoutMode:
         }
         mock_link.return_value = {"manifest": [], "stats": {}}
 
-        self._run(
-            {
-                "source": "/src",
-                "destination": "/dest",
-                "takeout": True,
-                "skip_embed": True,
-                "skip_rename": True,
-            }
-        )
+        self._run(make_options(takeout=True, skip_embed=True, skip_rename=True))
 
         mock_reconcile.assert_not_called()
         mock_rename.assert_not_called()
@@ -133,14 +120,7 @@ class TestTakeoutMode:
         }
         mock_link.return_value = {"manifest": [], "stats": {}}
 
-        self._run(
-            {
-                "source": "/src",
-                "destination": "/dest",
-                "takeout": True,
-                "dry_run": True,
-            }
-        )
+        self._run(make_options(takeout=True, dry_run=True))
 
         mock_apply.assert_not_called()
         mock_report.assert_not_called()
@@ -164,9 +144,7 @@ class TestTakeoutMode:
         expected = [{"mediaPath": "/src/photo.jpg"}]
         mock_link.return_value = {"manifest": expected, "stats": {}}
 
-        result = self._run(
-            {"source": "/src", "destination": "/dest", "takeout": True}
-        )
+        result = self._run(make_options(takeout=True))
 
         assert result is expected
 
@@ -197,7 +175,7 @@ class TestTakeoutMode:
             "on_apply": MagicMock(),
         }
 
-        self._run({"source": "/src", "destination": "/dest", "takeout": True}, hooks)
+        self._run(make_options(takeout=True), hooks)
 
         hooks["on_scan"].assert_called_once()
         hooks["on_link"].assert_called_once()
@@ -237,14 +215,7 @@ class TestWorkspaceCaching:
 
         from pixelkasten.pipeline import run_pipeline
 
-        run_pipeline(
-            {
-                "source": "/src",
-                "destination": "/dest",
-                "takeout": True,
-                "workspace": str(tmp_path),
-            }
-        )
+        run_pipeline(make_options(takeout=True, workspace=str(tmp_path)))
 
         # Manifest should be saved
         manifest_path = tmp_path / "manifest.json"
@@ -280,14 +251,7 @@ class TestWorkspaceCaching:
 
         from pixelkasten.pipeline import run_pipeline
 
-        result = run_pipeline(
-            {
-                "source": "/src",
-                "destination": "/dest",
-                "takeout": True,
-                "workspace": str(tmp_path),
-            }
-        )
+        result = run_pipeline(make_options(takeout=True, workspace=str(tmp_path)))
 
         # Scan and link should NOT be called (loaded from cache)
         mock_scan.assert_not_called()
@@ -332,13 +296,7 @@ class TestWorkspaceCaching:
         from pixelkasten.pipeline import run_pipeline
 
         result = run_pipeline(
-            {
-                "source": "/src",
-                "destination": "/dest",
-                "takeout": True,
-                "workspace": str(tmp_path),
-                "rescan": True,
-            }
+            make_options(takeout=True, workspace=str(tmp_path), rescan=True)
         )
 
         # Scan should be called despite cache existing

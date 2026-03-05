@@ -26,11 +26,12 @@ from pixelkasten.stages.catalog.embed import embed_images, embed_texts, load_mod
 from pixelkasten.stages.catalog.organize import propose_albums
 from pixelkasten.stages.catalog.refine import refine_clusters
 from pixelkasten.core.handlers import is_image
+from pixelkasten.core.options import PipelineOptions
 
 
 def run_catalog(
     manifest: list[dict],
-    options: dict,
+    options: PipelineOptions,
     workspace: Path | None = None,
     progress=None,
 ) -> list[dict]:
@@ -66,12 +67,12 @@ def run_catalog(
         return manifest
 
     # Load CLIP model once — used for both embedding and classification.
-    model_name = options.get("clip_model", "ViT-L-14")
+    model_name = options.clip_model
     model, preprocess, tokenizer, device = load_model(model_name=model_name)
 
     # Try loading cached embeddings
     embeddings = None
-    if workspace and not options.get("rescan"):
+    if workspace and not options.rescan:
         embeddings = _load_workspace_embeddings(workspace)
 
     if embeddings is None:
@@ -83,7 +84,7 @@ def run_catalog(
                 preprocess,
                 image_paths,
                 device,
-                batch_size=options.get("batch_size", 32),
+                batch_size=options.batch_size,
                 on_progress=on_progress,
             )
 
@@ -93,12 +94,12 @@ def run_catalog(
         failed_indices = []
 
     # Cluster
-    min_cluster_size = options.get("min_cluster_size", 5)
+    min_cluster_size = options.min_cluster_size
     labels = cluster_embeddings(embeddings, min_cluster_size=min_cluster_size)
     representatives = find_representatives(embeddings, labels)
 
     # Classify
-    threshold = options.get("threshold", 0.15)
+    threshold = options.classify_threshold
     prefixed_names, raw_labels = build_label_list(DEFAULT_LABEL_SETS)
     label_embeddings = embed_texts(model, tokenizer, raw_labels, device)
     all_tags = classify(
@@ -130,7 +131,7 @@ def run_catalog(
     }
 
     # Refine (optional)
-    if not options.get("skip_refine"):
+    if not options.skip_refine:
         new_labels, _ = refine_clusters(manifest_dict, embeddings)
         for i, entry in enumerate(image_entries):
             if i < len(new_labels):
@@ -143,8 +144,8 @@ def run_catalog(
         }
 
     # Caption (optional)
-    if not options.get("skip_caption"):
-        caption_model = options.get("caption_model", "llava")
+    if not options.skip_caption:
+        caption_model = options.caption_model
         n_reps = sum(
             1
             for e in manifest

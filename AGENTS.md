@@ -96,7 +96,7 @@ return {"timestamp": timestamp, "geo": geo}
 
 #### Type annotations and imports
 
-All public functions should have full type annotations. Imports for heavy dependencies (torch, sklearn, ollama) are deferred inside functions. This is not just about startup speed. A user running `--no-catalog` takeout processing should not need torch installed at all. Deferred imports make optional dependencies truly optional.
+All public functions should have full type annotations. Always use proper imports for type annotations — never use string annotations (e.g., `"PipelineOptions"`) as a workaround. If an import would cause a circular dependency, fix the dependency structure instead. Imports for heavy dependencies (torch, sklearn, ollama) are deferred inside functions. This is not just about startup speed. A user running `--no-catalog` takeout processing should not need torch installed at all. Deferred imports make optional dependencies truly optional.
 
 #### Comments and docstrings
 

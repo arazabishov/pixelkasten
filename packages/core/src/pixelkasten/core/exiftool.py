@@ -266,9 +266,7 @@ def _normalize_timestamp(raw_value) -> str | None:
     return normalize_disk_date(raw_str)
 
 
-def _validate_gps(
-    lat: float | None, lon: float | None
-) -> tuple[float, float] | None:
+def _validate_gps(lat: float | None, lon: float | None) -> tuple[float, float] | None:
     """
     Validate and parse GPS coordinates.
 

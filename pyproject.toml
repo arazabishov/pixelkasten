@@ -8,6 +8,7 @@ dev-dependencies = ["pytest>=8.0", "ruff>=0.9.0", "pyright>=1.1.0"]
 
 [tool.pytest.ini_options]
 testpaths = ["packages/core/tests"]
+pythonpath = ["packages/core/tests"]
 
 # Tell ruff where first-party source roots are so it sorts imports correctly.
 [tool.ruff]

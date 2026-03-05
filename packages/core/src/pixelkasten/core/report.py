@@ -7,8 +7,10 @@ Ported from packages/core/src/core/report.js. Uses Python stdlib csv module.
 import csv
 import os
 
+from pixelkasten.core.options import PipelineOptions
 
-def report(manifest: list[dict], options: dict | None = None) -> str:
+
+def report(manifest: list[dict], options: PipelineOptions) -> str:
     """
     Write a per-file CSV report to the destination directory.
 
@@ -17,9 +19,8 @@ def report(manifest: list[dict], options: dict | None = None) -> str:
 
     Returns the path to the written report file.
     """
-    options = options or {}
-    source = options.get("source", "")
-    destination = options.get("destination", "")
+    source = options.source
+    destination = options.destination or ""
 
     report_path = os.path.join(destination, "report.csv")
 
