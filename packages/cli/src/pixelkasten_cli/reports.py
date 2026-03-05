@@ -21,6 +21,7 @@ from rich.progress import (
 from rich.table import Column, Table
 
 from pixelkasten.core.manifest import can_keep
+from pixelkasten.core.types import ApplyResult, DedupeResult, ManifestEntry, Status
 
 # Shared width for tables and progress bars so they align visually.
 UI_WIDTH = 58
@@ -106,9 +107,8 @@ def render_link_table(console: Console, result: dict) -> None:
 
     confidence_counts = {3: 0, 2: 0, 1: 0}
     for entry in manifest:
-        json_info = entry.get("json")
-        if json_info and json_info.get("confidence"):
-            c = json_info["confidence"]
+        if entry.sidecar and entry.sidecar.confidence:
+            c = entry.sidecar.confidence
             if c in confidence_counts:
                 confidence_counts[c] += 1
 
@@ -130,14 +130,22 @@ def render_link_table(console: Console, result: dict) -> None:
     console.print()
 
 
-def render_reconcile_table(console: Console, manifest: list[dict]) -> None:
+def render_reconcile_table(console: Console, manifest: list[ManifestEntry]) -> None:
     """Render the reconcile stage summary table."""
     keepers = [e for e in manifest if can_keep(e)]
 
-    n_processed = sum(1 for e in keepers if e.get("metadata", {}).get("status") == "processed")
-    n_skipped = sum(1 for e in keepers if e.get("metadata", {}).get("status") == "skipped")
-    n_error = sum(1 for e in keepers if e.get("metadata", {}).get("status") == "error")
-    n_noop = sum(1 for e in keepers if e.get("metadata", {}).get("status") == "noop")
+    n_processed = sum(
+        1
+        for e in keepers
+        if e.metadata and e.metadata.status == Status.PROCESSED and e.metadata.write_tags
+    )
+    n_skipped = sum(1 for e in keepers if e.metadata and e.metadata.status == Status.SKIPPED)
+    n_error = sum(1 for e in keepers if e.metadata and e.metadata.status == Status.ERROR)
+    n_noop = sum(
+        1
+        for e in keepers
+        if e.metadata and e.metadata.status == Status.PROCESSED and not e.metadata.write_tags
+    )
 
     table = _make_table("Reconcile", "Action")
     table.add_row("To update", str(n_processed))
@@ -151,11 +159,11 @@ def render_reconcile_table(console: Console, manifest: list[dict]) -> None:
     console.print()
 
 
-def render_dedupe_table(console: Console, manifest: list[dict]) -> None:
+def render_dedupe_table(console: Console, manifest: list[ManifestEntry]) -> None:
     """Render the dedupe stage summary table."""
-    n_delete = sum(1 for e in manifest if e.get("dedupe", {}).get("status") == "delete")
-    n_keep = sum(1 for e in manifest if e.get("dedupe", {}).get("status") == "keep")
-    n_error = sum(1 for e in manifest if e.get("dedupe", {}).get("status") == "error")
+    n_delete = sum(1 for e in manifest if e.dedupe and e.dedupe.result == DedupeResult.DELETE)
+    n_keep = sum(1 for e in manifest if e.dedupe and e.dedupe.result == DedupeResult.KEEP)
+    n_error = sum(1 for e in manifest if e.dedupe and e.dedupe.status == Status.ERROR)
 
     table = _make_table("Dedupe")
     table.add_row("To keep", str(n_keep))
@@ -168,13 +176,13 @@ def render_dedupe_table(console: Console, manifest: list[dict]) -> None:
     console.print()
 
 
-def render_rename_table(console: Console, manifest: list[dict]) -> None:
+def render_rename_table(console: Console, manifest: list[ManifestEntry]) -> None:
     """Render the rename stage summary table."""
     keepers = [e for e in manifest if can_keep(e)]
 
-    n_processed = sum(1 for e in keepers if e.get("rename", {}).get("status") == "processed")
-    n_skipped = sum(1 for e in keepers if "rename" not in e)
-    n_error = sum(1 for e in keepers if e.get("rename", {}).get("status") == "error")
+    n_processed = sum(1 for e in keepers if e.rename and e.rename.status == Status.PROCESSED)
+    n_skipped = sum(1 for e in keepers if e.rename is None)
+    n_error = sum(1 for e in keepers if e.rename and e.rename.status == Status.ERROR)
 
     table = _make_table("Rename", "Action")
     table.add_row("To rename", str(n_processed))
@@ -187,12 +195,12 @@ def render_rename_table(console: Console, manifest: list[dict]) -> None:
     console.print()
 
 
-def render_apply_table(console: Console, manifest: list[dict]) -> None:
+def render_apply_table(console: Console, manifest: list[ManifestEntry]) -> None:
     """Render the apply stage summary table."""
-    n_skipped = sum(1 for e in manifest if e.get("dedupe", {}).get("status") == "delete")
-    n_copied = sum(1 for e in manifest if e.get("apply", {}).get("status") == "copied")
-    n_embedded = sum(1 for e in manifest if e.get("apply", {}).get("status") == "embedded")
-    n_error = sum(1 for e in manifest if e.get("apply", {}).get("status") == "error")
+    n_skipped = sum(1 for e in manifest if e.dedupe and e.dedupe.result == DedupeResult.DELETE)
+    n_copied = sum(1 for e in manifest if e.apply and e.apply.result == ApplyResult.COPIED)
+    n_embedded = sum(1 for e in manifest if e.apply and e.apply.result == ApplyResult.EMBEDDED)
+    n_error = sum(1 for e in manifest if e.apply and e.apply.status == Status.ERROR)
 
     table = _make_table("Apply", "Action")
     table.add_row("Embedded", str(n_embedded))
@@ -206,29 +214,24 @@ def render_apply_table(console: Console, manifest: list[dict]) -> None:
     console.print()
 
 
-def render_error_table(console: Console, manifest: list[dict]) -> None:
+def render_error_table(console: Console, manifest: list[ManifestEntry]) -> None:
     """Render a table of all files that encountered errors across all stages."""
     errors: list[tuple[str, str, str]] = []
 
     for entry in manifest:
-        path = entry.get("mediaPath", "unknown")
-        filename = os.path.basename(path)
+        filename = os.path.basename(entry.media_path)
 
-        dedupe = entry.get("dedupe", {})
-        if dedupe.get("status") == "error":
-            errors.append((filename, "Hash", dedupe.get("reason", "unknown")))
+        if entry.dedupe and entry.dedupe.status == Status.ERROR:
+            errors.append((filename, "Hash", entry.dedupe.error or "unknown"))
 
-        metadata = entry.get("metadata", {})
-        if metadata.get("status") == "error":
-            errors.append((filename, "Reconcile", metadata.get("reason", "unknown")))
+        if entry.metadata and entry.metadata.status == Status.ERROR:
+            errors.append((filename, "Reconcile", entry.metadata.error or "unknown"))
 
-        rename_info = entry.get("rename", {})
-        if rename_info.get("status") == "error":
-            errors.append((filename, "Rename", rename_info.get("reason", "unknown")))
+        if entry.rename and entry.rename.status == Status.ERROR:
+            errors.append((filename, "Rename", entry.rename.error or "unknown"))
 
-        apply_info = entry.get("apply", {})
-        if apply_info.get("status") == "error":
-            reason = apply_info.get("reason", "unknown")
+        if entry.apply and entry.apply.status == Status.ERROR:
+            reason = entry.apply.error or "unknown"
             # Strip long file paths from exiftool error messages.
             if " - /" in reason:
                 reason = reason[: reason.index(" - /")]

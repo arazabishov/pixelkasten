@@ -10,11 +10,12 @@ from collections.abc import Callable
 
 from pixelkasten.core.exiftool import write_metadata
 from pixelkasten.core.manifest import can_keep
+from pixelkasten.core.types import Apply, ApplyResult, ManifestEntry, Status
 from pixelkasten.options import PipelineOptions
 
 
 def apply(
-    manifest: list[dict],
+    manifest: list[ManifestEntry],
     options: PipelineOptions,
     on_progress: Callable[[int], None] | None = None,
 ) -> None:
@@ -27,7 +28,7 @@ def apply(
 
     The source directory is never modified.
 
-    Mutates entries in-place, adding entry["apply"] with status and targetPath.
+    Mutates entries in-place, setting entry.apply.
     """
     if options.destination is None:
         raise ValueError("destination is required for apply")
@@ -39,9 +40,9 @@ def apply(
 
     for i, entry in enumerate(keepers):
         try:
-            # Resolve destination path: use rename targetPath or fall back to original filename
-            target_path = entry.get("rename", {}).get("targetPath") or os.path.basename(
-                entry["mediaPath"]
+            # Resolve destination path: use rename target_path or fall back to original filename
+            target_path = (entry.rename.target_path if entry.rename else None) or os.path.basename(
+                entry.media_path
             )
             dest_path = os.path.join(destination, target_path)
 
@@ -49,30 +50,29 @@ def apply(
             os.makedirs(os.path.dirname(dest_path), exist_ok=True)
 
             # Copy file to destination
-            shutil.copy2(entry["mediaPath"], dest_path)
+            shutil.copy2(entry.media_path, dest_path)
 
             # Embed metadata if write_tags exist
-            write_tags = entry.get("metadata", {}).get("writeTags", [])
+            write_tags = entry.metadata.write_tags if entry.metadata else []
             if write_tags:
                 write_metadata(dest_path, write_tags)
-                entry["apply"] = {
-                    "status": "embedded",
-                    "targetPath": dest_path,
-                }
+                entry.apply = Apply(
+                    status=Status.PROCESSED,
+                    result=ApplyResult.EMBEDDED,
+                    target_path=dest_path,
+                )
             else:
-                entry["apply"] = {
-                    "status": "copied",
-                    "targetPath": dest_path,
-                }
+                entry.apply = Apply(
+                    status=Status.PROCESSED,
+                    result=ApplyResult.COPIED,
+                    target_path=dest_path,
+                )
 
             # Copy sidecar when embedding is skipped and a sidecar exists
-            if options.skip_embed and entry.get("json", {}).get("path"):
-                shutil.copy2(entry["json"]["path"], dest_path + ".json")
+            if options.skip_embed and entry.sidecar:
+                shutil.copy2(entry.sidecar.path, dest_path + ".json")
 
         except Exception as e:
-            entry["apply"] = {
-                "status": "error",
-                "reason": str(e),
-            }
+            entry.apply = Apply(status=Status.ERROR, error=str(e))
         if on_progress is not None:
             on_progress(i + 1)

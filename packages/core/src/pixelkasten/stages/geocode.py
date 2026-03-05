@@ -6,16 +6,15 @@ No API calls, no rate limits. Batch-resolves all unique coordinates in
 a single call for efficiency.
 """
 
-from pixelkasten.core.manifest import LocationInfo
+from pixelkasten.core.types import Location, ManifestEntry
 
 
-def reverse_geocode(manifest: list[dict]) -> None:
+def reverse_geocode(manifest: list[ManifestEntry]) -> None:
     """
     Resolve GPS coordinates on manifest entries to location names.
 
-    Reads GPS from entry["metadata"]["geo"] (set by reconcile) and writes:
-        entry["location"]["name"]   — "San Francisco, California, US"
-        entry["location"]["region"] — "California, US"
+    Reads GPS from entry.metadata.geo (set by reconcile) and writes
+    entry.location with name, region, and country.
 
     Mutates entries in-place. Entries without GPS are skipped.
     Deduplicates coordinates (rounded to 2 decimals) so the geocoder
@@ -24,11 +23,11 @@ def reverse_geocode(manifest: list[dict]) -> None:
     import reverse_geocoder as rg
 
     # Collect unique coordinates → list of entries at each location.
-    coord_to_entries: dict[tuple[float, float], list[dict]] = {}
+    coord_to_entries: dict[tuple[float, float], list[ManifestEntry]] = {}
     for entry in manifest:
-        geo = entry.get("metadata", {}).get("geo")
-        if not geo:
+        if entry.metadata is None or entry.metadata.geo is None:
             continue
+        geo = entry.metadata.geo
         lat, lon = geo.get("latitude"), geo.get("longitude")
         if lat is None or lon is None:
             continue
@@ -51,11 +50,11 @@ def reverse_geocode(manifest: list[dict]) -> None:
         display_name = ", ".join(parts)
         region_display = ", ".join([p for p in [region, country] if p])
 
-        location = LocationInfo(
+        location = Location(
             name=display_name,
             region=region_display,
             country=country,
         )
 
         for entry in coord_to_entries[coord]:
-            entry["location"] = location
+            entry.location = location

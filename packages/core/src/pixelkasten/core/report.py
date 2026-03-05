@@ -7,10 +7,11 @@ Ported from packages/core/src/core/report.js. Uses Python stdlib csv module.
 import csv
 import os
 
+from pixelkasten.core.types import ApplyResult, DedupeResult, ManifestEntry, Status
 from pixelkasten.options import PipelineOptions
 
 
-def report(manifest: list[dict], options: PipelineOptions) -> str:
+def report(manifest: list[ManifestEntry], options: PipelineOptions) -> str:
     """
     Write a per-file CSV report to the destination directory.
 
@@ -30,16 +31,15 @@ def report(manifest: list[dict], options: PipelineOptions) -> str:
 
         for entry in manifest:
             # Use forward slashes in CSV output (portable, matches Node.js behavior)
-            media = os.path.relpath(entry["mediaPath"], options.source).replace("\\", "/")
+            media = os.path.relpath(entry.media_path, options.source).replace("\\", "/")
 
             metadata = ""
-            json_info = entry.get("json")
-            if json_info and json_info.get("path"):
-                metadata = os.path.relpath(json_info["path"], options.source).replace("\\", "/")
+            if entry.sidecar and entry.sidecar.path:
+                metadata = os.path.relpath(entry.sidecar.path, options.source).replace("\\", "/")
 
             confidence = ""
-            if json_info and json_info.get("confidence") is not None:
-                confidence = str(json_info["confidence"])
+            if entry.sidecar and entry.sidecar.confidence is not None:
+                confidence = str(entry.sidecar.confidence)
 
             status_info = resolve_status(entry)
 
@@ -56,45 +56,37 @@ def report(manifest: list[dict], options: PipelineOptions) -> str:
     return report_path
 
 
-def resolve_status(entry: dict) -> dict:
+def resolve_status(entry: ManifestEntry) -> dict:
     """
     Walk the entry's stage properties to find its terminal status.
 
     Priority order:
-    1. apply.status == "embedded"
-    2. apply.status == "copied"
-    3. apply.status == "error"
-    4. metadata.status == "skipped"
-    5. dedupe.status == "delete"
-    6. dedupe.status == "error"
+    1. apply.result == EMBEDDED
+    2. apply.result == COPIED
+    3. apply.status == ERROR
+    4. metadata.status == SKIPPED
+    5. dedupe.result == DELETE
+    6. dedupe.status == ERROR
     7. Fallback: error/unknown
     """
-    apply_status = entry.get("apply", {}).get("status")
+    if entry.apply is not None:
+        if entry.apply.result == ApplyResult.EMBEDDED:
+            return {"status": "embedded", "reason": ""}
 
-    if apply_status == "embedded":
-        return {"status": "embedded", "reason": ""}
+        if entry.apply.result == ApplyResult.COPIED:
+            return {"status": "copied", "reason": ""}
 
-    if apply_status == "copied":
-        return {"status": "copied", "reason": ""}
+        if entry.apply.status == Status.ERROR:
+            return {"status": "error", "reason": entry.apply.error or ""}
 
-    if apply_status == "error":
-        return {"status": "error", "reason": entry.get("apply", {}).get("reason", "")}
+    if entry.metadata is not None and entry.metadata.status == Status.SKIPPED:
+        return {"status": "skipped", "reason": entry.metadata.error or ""}
 
-    if entry.get("metadata", {}).get("status") == "skipped":
-        return {
-            "status": "skipped",
-            "reason": entry.get("metadata", {}).get("reason", ""),
-        }
+    if entry.dedupe is not None:
+        if entry.dedupe.result == DedupeResult.DELETE:
+            return {"status": "deleted", "reason": ""}
 
-    dedupe_status = entry.get("dedupe", {}).get("status")
-
-    if dedupe_status == "delete":
-        return {"status": "deleted", "reason": ""}
-
-    if dedupe_status == "error":
-        return {
-            "status": "error",
-            "reason": entry.get("dedupe", {}).get("reason", ""),
-        }
+        if entry.dedupe.status == Status.ERROR:
+            return {"status": "error", "reason": entry.dedupe.error or ""}
 
     return {"status": "error", "reason": "Unknown state"}

@@ -8,6 +8,7 @@ All I/O-bound stages are mocked.
 from unittest.mock import MagicMock, patch
 
 from helpers import make_options
+from pixelkasten.core.types import ManifestEntry, Source
 
 PATCH_PREFIX = "pixelkasten.pipeline"
 
@@ -140,7 +141,7 @@ class TestTakeoutMode:
             "files_metadata": [],
             "files_metadata_albums": [],
         }
-        expected = [{"mediaPath": "/src/photo.jpg"}]
+        expected = [ManifestEntry(media_path="/src/photo.jpg", source=Source(type="loose"))]
         mock_link.return_value = {"manifest": expected, "stats": {}}
 
         result = self._run(make_options(takeout=True))

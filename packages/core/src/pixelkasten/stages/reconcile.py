@@ -3,7 +3,7 @@ Metadata reconciliation -- compare disk EXIF with sidecar data.
 
 Ported from packages/core/src/stages/reconcile.js. For each manifest entry,
 reads the disk EXIF via exiftool and compares with sidecar data. Queues
-writeTags for any metadata missing from disk.
+write_tags for any metadata missing from disk.
 """
 
 import os
@@ -11,8 +11,9 @@ from collections.abc import Callable
 
 from pixelkasten.core.datetime import parse_photo_taken_time
 from pixelkasten.core.exiftool import read_metadata
-from pixelkasten.handlers import handlers
 from pixelkasten.core.manifest import can_keep
+from pixelkasten.core.types import ManifestEntry, Metadata, Status
+from pixelkasten.handlers import handlers
 from pixelkasten.options import PipelineOptions
 from pixelkasten.core.sidecar import read_sidecar
 
@@ -20,19 +21,14 @@ BATCH_SIZE = 512
 
 
 def reconcile(
-    manifest: list[dict],
+    manifest: list[ManifestEntry],
     options: PipelineOptions,
     on_progress: Callable[[int], None] | None = None,
 ) -> None:
     """
-    Compare disk EXIF with sidecar data, queue writeTags for missing metadata.
+    Compare disk EXIF with sidecar data, queue write_tags for missing metadata.
 
-    Mutates manifest entries in-place by adding 'metadata' dict with:
-        status: "noop" | "processed" | "skipped" | "error"
-        writeTags: list[str] -- exiftool tag=value pairs
-        dates: list[str] -- ISO 8601 timestamps
-        reason: str -- (only for skipped/error)
-
+    Mutates manifest entries in-place by setting entry.metadata.
     Processes entries in batches of 512 for efficient exiftool invocation.
     """
     keepers = [e for e in manifest if can_keep(e)]
@@ -45,25 +41,18 @@ def reconcile(
     # Process in batches to prevent OOM with large manifests.
     for offset in range(0, len(keepers), BATCH_SIZE):
         batch = keepers[offset : offset + BATCH_SIZE]
-        batch_paths = [e["mediaPath"] for e in batch]
+        batch_paths = [e.media_path for e in batch]
 
         raw_metadata = read_metadata(batch_paths, all_tags)
 
         for entry in batch:
-            raw_disk_tags = raw_metadata.get(entry["mediaPath"])
-            json_path = None
-            if entry.get("json"):
-                json_path = entry["json"].get("path")
+            raw_disk_tags = raw_metadata.get(entry.media_path)
+            json_path = entry.sidecar.path if entry.sidecar else None
 
             try:
-                entry["metadata"] = _resolve(entry["mediaPath"], json_path, raw_disk_tags, options)
+                entry.metadata = _resolve(entry.media_path, json_path, raw_disk_tags, options)
             except Exception as e:
-                entry["metadata"] = {
-                    "status": "error",
-                    "reason": str(e),
-                    "writeTags": [],
-                    "dates": [],
-                }
+                entry.metadata = Metadata(status=Status.ERROR, error=str(e))
 
         if on_progress is not None:
             on_progress(min(offset + BATCH_SIZE, len(keepers)))
@@ -74,19 +63,17 @@ def _resolve(
     json_path: str | None,
     raw_disk_tags: dict | None,
     options: PipelineOptions,
-) -> dict:
+) -> Metadata:
     """Resolve metadata for a single entry."""
     ext = os.path.splitext(media_path)[1].lower()
     handler = handlers.get(ext)
 
     # If there is no handler for a file type, skip it.
     if not handler:
-        return {
-            "status": "skipped",
-            "reason": f"No metadata handler for {ext}",
-            "writeTags": [],
-            "dates": [],
-        }
+        return Metadata(
+            status=Status.SKIPPED,
+            error=f"No metadata handler for {ext}",
+        )
 
     # If exiftool has not reported on a file, something went wrong.
     if raw_disk_tags is None:
@@ -95,40 +82,39 @@ def _resolve(
     # Normalize raw, file-type-specific tags to a common shape.
     disk_data = handler.parse(raw_disk_tags)
 
-    metadata: dict = {
-        "status": "noop",
-        "writeTags": [],
-        "dates": list(disk_data.dates),
-        "geo": disk_data.geo,
-    }
+    write_tags: list[str] = []
+    dates = list(disk_data.dates)
+    geo = disk_data.geo
 
     # Retrieve and parse sidecar data.
     sidecar_data = read_sidecar(json_path)
 
-    # If there is no sidecar data, there is nothing to resolve.
-    if not sidecar_data:
-        return metadata
+    # If there is sidecar data, resolve missing metadata.
+    if sidecar_data:
+        # If there is no primary timestamp on disk, use the value from sidecar.
+        if not disk_data.timestamp and sidecar_data.get("timestamp"):
+            ptt = parse_photo_taken_time(sidecar_data["timestamp"])
 
-    # If there is no primary timestamp on disk, use the value from sidecar.
-    if not disk_data.timestamp and sidecar_data.get("timestamp"):
-        ptt = parse_photo_taken_time(sidecar_data["timestamp"])
+            # Queue timestamp for writing if embedding is enabled.
+            if not options.skip_embed:
+                write_tags.extend(handler.timestamp(ptt["exif"]))
 
-        # Queue timestamp for writing if embedding is enabled.
-        if not options.skip_embed:
-            metadata["writeTags"].extend(handler.timestamp(ptt["exif"]))
+            # Make sure that timestamp is stored as the primary date (needed for rename).
+            dates.insert(0, ptt["iso"])
 
-        # Make sure that timestamp is stored as the primary date (needed for rename).
-        metadata["dates"].insert(0, ptt["iso"])
+        # Queue geo data for writing if embedding is enabled.
+        if not options.skip_embed and not disk_data.geo and sidecar_data.get("geo"):
+            write_tags.extend(handler.geo(sidecar_data["geo"]))
 
-    # Queue geo data for writing if embedding is enabled.
-    if not options.skip_embed and not disk_data.geo and sidecar_data.get("geo"):
-        metadata["writeTags"].extend(handler.geo(sidecar_data["geo"]))
+        # Use sidecar geo if disk has none (for downstream geocoding).
+        if not geo and sidecar_data.get("geo"):
+            geo = sidecar_data["geo"]
 
-    # Use sidecar geo if disk has none (for downstream geocoding).
-    if not metadata["geo"] and sidecar_data.get("geo"):
-        metadata["geo"] = sidecar_data["geo"]
+    status = Status.PROCESSED if write_tags else Status.PROCESSED
 
-    if metadata["writeTags"]:
-        metadata["status"] = "processed"
-
-    return metadata
+    return Metadata(
+        status=status,
+        write_tags=write_tags,
+        dates=dates,
+        geo=geo,
+    )
