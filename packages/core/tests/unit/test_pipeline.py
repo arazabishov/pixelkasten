@@ -1,7 +1,7 @@
 """
 Tests for the unified pipeline orchestrator.
 
-Tests stage sequencing, skip flags, dry-run, hooks, mode dispatch, and workspace caching.
+Tests stage sequencing, skip flags, dry-run, hooks, takeout dispatch, and workspace caching.
 All I/O-bound stages are mocked.
 """
 
@@ -43,7 +43,7 @@ class TestTakeoutMode:
         }
         mock_link.return_value = {"manifest": [], "stats": {}}
 
-        self._run({"source": "/src", "destination": "/dest", "mode": "takeout"})
+        self._run({"source": "/src", "destination": "/dest", "takeout": True})
 
         mock_scan.assert_called_once()
         mock_link.assert_called_once()
@@ -76,7 +76,7 @@ class TestTakeoutMode:
             {
                 "source": "/src",
                 "destination": "/dest",
-                "mode": "takeout",
+                "takeout": True,
                 "skip_dedupe": True,
             }
         )
@@ -106,7 +106,7 @@ class TestTakeoutMode:
             {
                 "source": "/src",
                 "destination": "/dest",
-                "mode": "takeout",
+                "takeout": True,
                 "skip_embed": True,
                 "skip_rename": True,
             }
@@ -137,7 +137,7 @@ class TestTakeoutMode:
             {
                 "source": "/src",
                 "destination": "/dest",
-                "mode": "takeout",
+                "takeout": True,
                 "dry_run": True,
             }
         )
@@ -165,7 +165,7 @@ class TestTakeoutMode:
         mock_link.return_value = {"manifest": expected, "stats": {}}
 
         result = self._run(
-            {"source": "/src", "destination": "/dest", "mode": "takeout"}
+            {"source": "/src", "destination": "/dest", "takeout": True}
         )
 
         assert result is expected
@@ -197,7 +197,7 @@ class TestTakeoutMode:
             "on_apply": MagicMock(),
         }
 
-        self._run({"source": "/src", "destination": "/dest", "mode": "takeout"}, hooks)
+        self._run({"source": "/src", "destination": "/dest", "takeout": True}, hooks)
 
         hooks["on_scan"].assert_called_once()
         hooks["on_link"].assert_called_once()
@@ -241,7 +241,7 @@ class TestWorkspaceCaching:
             {
                 "source": "/src",
                 "destination": "/dest",
-                "mode": "takeout",
+                "takeout": True,
                 "workspace": str(tmp_path),
             }
         )
@@ -284,7 +284,7 @@ class TestWorkspaceCaching:
             {
                 "source": "/src",
                 "destination": "/dest",
-                "mode": "takeout",
+                "takeout": True,
                 "workspace": str(tmp_path),
             }
         )
@@ -335,7 +335,7 @@ class TestWorkspaceCaching:
             {
                 "source": "/src",
                 "destination": "/dest",
-                "mode": "takeout",
+                "takeout": True,
                 "workspace": str(tmp_path),
                 "rescan": True,
             }

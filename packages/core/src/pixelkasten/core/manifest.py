@@ -12,7 +12,7 @@ from typing import Literal, NotRequired, TypedDict
 
 
 class SourceInfo(TypedDict):
-    """Source classification — set by the link stage (or pipeline for archive mode)."""
+    """Source classification — set by the link stage (or scan for non-takeout runs)."""
 
     type: Literal["album", "loose"]
     name: NotRequired[str]
@@ -85,8 +85,8 @@ class TagInfo(TypedDict):
 class ManifestEntry(TypedDict):
     """A single file tracked through the pipeline.
 
-    Required fields (mediaPath, source) are set at entry creation (link or
-    archive mode). All other fields are added by downstream stages and marked
+    Required fields (mediaPath, source) are set at entry creation (link stage
+    for takeout, scan for plain archives). All other fields are added by downstream stages and marked
     NotRequired. Fields are ordered by pipeline stage:
 
       link → dedupe → reconcile → geocode → catalog → rename → apply
