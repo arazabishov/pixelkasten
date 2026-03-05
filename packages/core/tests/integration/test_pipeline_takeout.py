@@ -174,7 +174,7 @@ class TestTakeoutPipeline:
         )
 
         run_pipeline(
-            make_options(source=str(source), destination=str(dest), takeout=True, skip_dedupe=True),
+            make_options(source=str(source), destination=str(dest), skip_dedupe=True),
             hooks=Hooks(),
             progress=_noop_progress,
         )
@@ -303,7 +303,7 @@ class TestTakeoutPipeline:
         )
 
         run_pipeline(
-            make_options(source=str(source), destination=str(dest), takeout=True),
+            make_options(source=str(source), destination=str(dest)),
             hooks=Hooks(),
             progress=_noop_progress,
         )
@@ -366,7 +366,7 @@ class TestTakeoutPipeline:
         )
 
         run_pipeline(
-            make_options(source=str(source), destination=str(dest), takeout=True, skip_embed=True),
+            make_options(source=str(source), destination=str(dest), skip_embed=True),
             hooks=Hooks(),
             progress=_noop_progress,
         )
@@ -422,7 +422,7 @@ class TestTakeoutPipeline:
         )
 
         run_pipeline(
-            make_options(source=str(source), destination=str(dest), takeout=True, dry_run=True),
+            make_options(source=str(source), destination=str(dest), dry_run=True),
             hooks=Hooks(),
             progress=_noop_progress,
         )
@@ -480,7 +480,7 @@ class TestTakeoutPipeline:
         (avi_dir / "video.avi.supplemental-metadata.json").write_text(json.dumps(avi_sidecar))
 
         run_pipeline(
-            make_options(source=str(source), destination=str(dest), takeout=True, skip_dedupe=True),
+            make_options(source=str(source), destination=str(dest), skip_dedupe=True),
             hooks=Hooks(),
             progress=_noop_progress,
         )

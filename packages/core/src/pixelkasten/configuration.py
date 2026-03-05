@@ -29,7 +29,6 @@ class CatalogOptions:
 class Options:
     source: str
     destination: str | None
-    takeout: bool
     dry_run: bool
     skip_dedupe: bool
     skip_embed: bool

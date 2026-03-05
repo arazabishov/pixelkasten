@@ -1,7 +1,7 @@
 """
 Tests for the unified pipeline orchestrator.
 
-Tests stage sequencing, skip flags, dry-run, hooks, and takeout dispatch.
+Tests stage sequencing, skip flags, dry-run, and hooks.
 All I/O-bound stages are mocked.
 """
 
@@ -22,13 +22,13 @@ PATCH_PREFIX = "pixelkasten.pipeline"
 @patch(f"{PATCH_PREFIX}.reconcile")
 @patch(f"{PATCH_PREFIX}.link")
 @patch(f"{PATCH_PREFIX}.scan")
-class TestTakeoutMode:
+class TestPipeline:
     def _run(self, options, hooks=None):
         from pixelkasten.pipeline import run_pipeline
 
         return run_pipeline(options, hooks or Hooks(), progress=_noop_progress)
 
-    def test_runs_all_takeout_stages(
+    def test_runs_all_stages(
         self,
         mock_scan,
         mock_link,
@@ -46,7 +46,7 @@ class TestTakeoutMode:
         }
         mock_link.return_value = {"manifest": [], "stats": {}}
 
-        self._run(make_options(takeout=True))
+        self._run(make_options())
 
         mock_scan.assert_called_once()
         mock_link.assert_called_once()
@@ -75,7 +75,7 @@ class TestTakeoutMode:
         }
         mock_link.return_value = {"manifest": [], "stats": {}}
 
-        self._run(make_options(takeout=True, skip_dedupe=True))
+        self._run(make_options(skip_dedupe=True))
 
         mock_hash.assert_not_called()
         mock_resolve.assert_not_called()
@@ -98,7 +98,7 @@ class TestTakeoutMode:
         }
         mock_link.return_value = {"manifest": [], "stats": {}}
 
-        self._run(make_options(takeout=True, skip_embed=True, skip_rename=True))
+        self._run(make_options(skip_embed=True, skip_rename=True))
 
         mock_reconcile.assert_not_called()
         mock_rename.assert_not_called()
@@ -121,7 +121,7 @@ class TestTakeoutMode:
         }
         mock_link.return_value = {"manifest": [], "stats": {}}
 
-        self._run(make_options(takeout=True, dry_run=True))
+        self._run(make_options(dry_run=True))
 
         mock_apply.assert_not_called()
         mock_report.assert_not_called()
@@ -145,7 +145,7 @@ class TestTakeoutMode:
         expected = [ManifestEntry(media_path="/src/photo.jpg", source=Source(type="loose"))]
         mock_link.return_value = {"manifest": expected, "stats": {}}
 
-        result = self._run(make_options(takeout=True))
+        result = self._run(make_options())
 
         assert result is expected
 
@@ -176,7 +176,7 @@ class TestTakeoutMode:
             on_apply=MagicMock(),
         )
 
-        self._run(make_options(takeout=True), hooks)
+        self._run(make_options(), hooks)
 
         hooks.on_scan.assert_called_once()
         hooks.on_link.assert_called_once()

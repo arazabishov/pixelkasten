@@ -41,11 +41,6 @@ def main(
         help="Destination directory for organized output.",
         resolve_path=True,
     ),
-    takeout: bool = typer.Option(
-        False,
-        "--takeout",
-        help="Enable Google Takeout sidecar matching.",
-    ),
     catalog: bool = typer.Option(
         False,
         "--catalog",
@@ -131,8 +126,8 @@ def main(
     """
     Organize a photo library.
 
-    By default, processes a plain photo archive. Use --takeout for Google Takeout
-    exports with sidecar matching. Add --catalog for AI-powered album discovery.
+    Organize a photo library. Sidecar matching runs automatically when JSON
+    metadata is present. Add --catalog for AI-powered album discovery.
     """
     # If a subcommand was invoked, let it handle things
     if ctx.invoked_subcommand is not None:
@@ -175,7 +170,6 @@ def main(
     options = Options(
         source=str(source),
         destination=str(destination) if destination else None,
-        takeout=takeout,
         dry_run=dry_run,
         skip_dedupe=skip_dedupe,
         skip_embed=skip_embed,

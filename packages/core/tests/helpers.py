@@ -8,7 +8,6 @@ def make_options(**overrides) -> Options:
     defaults = {
         "source": "/src",
         "destination": "/dest",
-        "takeout": False,
         "dry_run": False,
         "skip_dedupe": False,
         "skip_embed": False,
