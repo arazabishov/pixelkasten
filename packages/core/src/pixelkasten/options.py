@@ -27,6 +27,4 @@ class PipelineOptions:
     prefer: str
     fuzzy: bool
     fuzzy_threshold: int
-    rescan: bool
-    workspace: str | None
     catalog: CatalogOptions | None
