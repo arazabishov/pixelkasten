@@ -9,6 +9,7 @@ Workspace caching (-w) persists init data + embeddings between runs.
 """
 
 import json
+from collections.abc import Callable
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -27,6 +28,7 @@ from pixelkasten.stages.scan import scan
 def run_pipeline(
     options: PipelineOptions,
     hooks: dict | None = None,
+    progress: Callable | None = None,
 ) -> list[dict]:
     """
     Unified pipeline: linear flow with conditional stages.
@@ -35,7 +37,6 @@ def run_pipeline(
     """
     hooks = hooks or {}
     workspace = Path(options.workspace) if options.workspace else None
-    progress = options.progress
 
     # Try loading from workspace cache
     manifest = None

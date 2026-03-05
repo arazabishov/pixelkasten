@@ -200,7 +200,6 @@ def main(
         rescan=rescan,
         workspace=str(workspace) if workspace else None,
         catalog=catalog_opts,
-        progress=progress,
     )
 
     console.print(f"\n[bold]Processing photos from {source}...[/bold]")
@@ -208,7 +207,7 @@ def main(
         console.print("  [cyan]AI album discovery enabled[/cyan]")
     console.print()
 
-    manifest = run_pipeline(options, hooks)
+    manifest = run_pipeline(options, hooks, progress)
 
     # Final summary
     if dry_run:

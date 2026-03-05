@@ -1,6 +1,5 @@
 """Pipeline configuration — single source of truth for all pipeline options."""
 
-from collections.abc import Callable
 from dataclasses import dataclass
 
 
@@ -31,5 +30,3 @@ class PipelineOptions:
     rescan: bool
     workspace: str | None
     catalog: CatalogOptions | None
-    # UI callback — not part of pipeline logic
-    progress: Callable | None
