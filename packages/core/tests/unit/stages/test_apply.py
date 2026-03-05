@@ -141,7 +141,7 @@ class TestApply:
             },
         ]
 
-        apply(manifest, make_options(destination="/dest", skip_embed=False))
+        apply(manifest, make_options(destination="/dest"))
 
         mock_write_metadata.assert_not_called()
         assert manifest[0]["apply"]["status"] == "copied"
@@ -313,7 +313,7 @@ class TestApply:
             },
         ]
 
-        apply(manifest, make_options(destination="/dest", skip_embed=False))
+        apply(manifest, make_options(destination="/dest"))
 
         assert mock_copy2.call_count == 1
 

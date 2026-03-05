@@ -25,8 +25,8 @@ from pixelkasten.stages.catalog.cluster import (
 from pixelkasten.stages.catalog.embed import embed_images, embed_texts, load_model
 from pixelkasten.stages.catalog.organize import propose_albums
 from pixelkasten.stages.catalog.refine import refine_clusters
-from pixelkasten.core.handlers import is_image
-from pixelkasten.core.options import PipelineOptions
+from pixelkasten.handlers import is_image
+from pixelkasten.options import PipelineOptions
 
 
 def run_catalog(
@@ -67,8 +67,11 @@ def run_catalog(
         return manifest
 
     # Load CLIP model once — used for both embedding and classification.
-    model_name = options.clip_model
-    model, preprocess, tokenizer, device = load_model(model_name=model_name)
+    if options.catalog is None:
+        raise ValueError("catalog options are required for run_catalog")
+    catalog_options = options.catalog
+
+    model, preprocess, tokenizer, device = load_model(model_name=catalog_options.clip_model)
 
     # Try loading cached embeddings
     embeddings = None
@@ -84,7 +87,7 @@ def run_catalog(
                 preprocess,
                 image_paths,
                 device,
-                batch_size=options.batch_size,
+                batch_size=catalog_options.batch_size,
                 on_progress=on_progress,
             )
 
@@ -94,16 +97,14 @@ def run_catalog(
         failed_indices = []
 
     # Cluster
-    min_cluster_size = options.min_cluster_size
-    labels = cluster_embeddings(embeddings, min_cluster_size=min_cluster_size)
+    labels = cluster_embeddings(embeddings, min_cluster_size=catalog_options.min_cluster_size)
     representatives = find_representatives(embeddings, labels)
 
     # Classify
-    threshold = options.classify_threshold
     prefixed_names, raw_labels = build_label_list(DEFAULT_LABEL_SETS)
     label_embeddings = embed_texts(model, tokenizer, raw_labels, device)
     all_tags = classify(
-        embeddings, label_embeddings, prefixed_names, threshold=threshold
+        embeddings, label_embeddings, prefixed_names, threshold=catalog_options.classify_threshold
     )
 
     # Write cluster info + tags onto manifest entries
@@ -131,7 +132,7 @@ def run_catalog(
     }
 
     # Refine (optional)
-    if not options.skip_refine:
+    if not catalog_options.skip_refine:
         new_labels, _ = refine_clusters(manifest_dict, embeddings)
         for i, entry in enumerate(image_entries):
             if i < len(new_labels):
@@ -144,8 +145,7 @@ def run_catalog(
         }
 
     # Caption (optional)
-    if not options.skip_caption:
-        caption_model = options.caption_model
+    if not catalog_options.skip_caption:
         n_reps = sum(
             1
             for e in manifest
@@ -154,7 +154,7 @@ def run_catalog(
         with _progress_ctx(progress, "Captioning images", n_reps) as on_progress:
             captions = caption_representatives(
                 manifest_dict,
-                caption_model,
+                catalog_options.caption_model,
                 "Describe this photo briefly.",
                 on_progress=on_progress,
             )
@@ -165,7 +165,7 @@ def run_catalog(
 
     # Propose albums (requires Ollama)
     with _progress_ctx(progress, "Proposing albums", 1) as on_progress:
-        propose_albums(manifest_dict, options)
+        propose_albums(manifest_dict, catalog_options)
         if on_progress:
             on_progress(1)
 

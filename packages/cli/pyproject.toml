@@ -5,16 +5,18 @@ version = "0.1.0"
 description = "CLI interface for pixelkasten photo library organizer"
 requires-python = ">=3.12"
 dependencies = [
-    "pixelkasten-core",
-    "typer>=0.15.0",
-    "rich>=13.0.0",
+  "pixelkasten-core",
+  "typer>=0.15.0",
+  "rich>=13.0.0",
 ]
 
 [project.scripts]
 pixelkasten = "pixelkasten_cli.cli:app"
 
 [build-system]
-requires = ["hatchling"]
+requires = [
+  "hatchling",
+]
 build-backend = "hatchling.build"
 
 # Resolve from the sibling workspace package, not PyPI

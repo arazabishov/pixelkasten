@@ -11,9 +11,9 @@ from collections.abc import Callable
 
 from pixelkasten.core.datetime import parse_photo_taken_time
 from pixelkasten.core.exiftool import read_metadata
-from pixelkasten.core.handlers import handlers
+from pixelkasten.handlers import handlers
 from pixelkasten.core.manifest import can_keep
-from pixelkasten.core.options import PipelineOptions
+from pixelkasten.options import PipelineOptions
 from pixelkasten.core.sidecar import read_sidecar
 
 BATCH_SIZE = 512

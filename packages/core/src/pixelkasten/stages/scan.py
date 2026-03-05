@@ -8,7 +8,7 @@ This unified scan is used by both takeout and archive modes.
 
 import os
 
-from pixelkasten.core.handlers import ALL_KNOWN_MEDIA_EXTENSIONS
+from pixelkasten.handlers import ALL_KNOWN_MEDIA_EXTENSIONS
 
 
 def scan(source_path: str) -> dict:

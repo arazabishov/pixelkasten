@@ -7,7 +7,7 @@ Ported from packages/core/src/core/report.js. Uses Python stdlib csv module.
 import csv
 import os
 
-from pixelkasten.core.options import PipelineOptions
+from pixelkasten.options import PipelineOptions
 
 
 def report(manifest: list[dict], options: PipelineOptions) -> str:
@@ -19,10 +19,10 @@ def report(manifest: list[dict], options: PipelineOptions) -> str:
 
     Returns the path to the written report file.
     """
-    source = options.source
-    destination = options.destination or ""
+    if options.destination is None:
+        raise ValueError("destination is required for report")
 
-    report_path = os.path.join(destination, "report.csv")
+    report_path = os.path.join(options.destination, "report.csv")
 
     with open(report_path, "w", newline="") as f:
         writer = csv.writer(f)
@@ -30,12 +30,12 @@ def report(manifest: list[dict], options: PipelineOptions) -> str:
 
         for entry in manifest:
             # Use forward slashes in CSV output (portable, matches Node.js behavior)
-            media = os.path.relpath(entry["mediaPath"], source).replace("\\", "/")
+            media = os.path.relpath(entry["mediaPath"], options.source).replace("\\", "/")
 
             metadata = ""
             json_info = entry.get("json")
             if json_info and json_info.get("path"):
-                metadata = os.path.relpath(json_info["path"], source).replace("\\", "/")
+                metadata = os.path.relpath(json_info["path"], options.source).replace("\\", "/")
 
             confidence = ""
             if json_info and json_info.get("confidence") is not None:
