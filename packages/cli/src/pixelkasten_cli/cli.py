@@ -3,9 +3,8 @@ CLI entry point — unified pipeline for photo library organization.
 
 Usage:
     uv run pixelkasten -s <source> -d <destination>                    # default
-    uv run pixelkasten -s <source> -d <destination> --takeout          # Google Takeout
     uv run pixelkasten -s <source> -d <destination> --dry-run          # preview
-    uv run pixelkasten -s <source> -d <destination> --catalog          # AI albums
+    uv run pixelkasten -s <source> -d <destination> --discover         # AI albums
 """
 
 import typer
@@ -41,9 +40,9 @@ def main(
         help="Destination directory for organized output.",
         resolve_path=True,
     ),
-    catalog: bool = typer.Option(
+    discover: bool = typer.Option(
         False,
-        "--catalog",
+        "--discover",
         help="Enable AI-powered album discovery.",
     ),
     dry_run: bool = typer.Option(
@@ -64,12 +63,12 @@ def main(
     skip_caption: bool = typer.Option(
         False,
         "--skip-caption",
-        help="Skip VLM captioning (catalog only).",
+        help="Skip VLM captioning (--discover only).",
     ),
     skip_refine: bool = typer.Option(
         False,
         "--skip-refine",
-        help="Skip temporal cluster refinement (catalog only).",
+        help="Skip temporal cluster refinement (--discover only).",
     ),
     skip_rename: bool = typer.Option(
         False,
@@ -91,7 +90,7 @@ def main(
         "--prefer",
         help="When deduplicating, prefer 'album' or 'loose' copies.",
     ),
-    # Catalog-specific options
+    # Discovery-specific options
     clip_model: str = typer.Option(
         "ViT-L-14",
         "--clip-model",
@@ -127,7 +126,7 @@ def main(
     Organize a photo library.
 
     Organize a photo library. Sidecar matching runs automatically when JSON
-    metadata is present. Add --catalog for AI-powered album discovery.
+    metadata is present. Add --discover for AI-powered album discovery.
     """
     # If a subcommand was invoked, let it handle things
     if ctx.invoked_subcommand is not None:
@@ -137,7 +136,7 @@ def main(
         console.print("[red]--destination is required (unless --dry-run is set)[/red]")
         raise typer.Exit(code=1)
 
-    from pixelkasten.configuration import Options, CatalogOptions
+    from pixelkasten.configuration import Options, DiscoveryOptions
     from pixelkasten.pipeline import run_pipeline
 
     # Check exiftool if embedding or renaming is needed (mirrors pipeline gate)
@@ -152,8 +151,8 @@ def main(
 
     progress, hooks = _build_pipeline_ui(console)
 
-    catalog_opts = (
-        CatalogOptions(
+    discovery_opts = (
+        DiscoveryOptions(
             clip_model=clip_model,
             batch_size=batch_size,
             min_cluster_size=min_cluster_size,
@@ -163,7 +162,7 @@ def main(
             skip_caption=skip_caption,
             skip_refine=skip_refine,
         )
-        if catalog
+        if discover
         else None
     )
 
@@ -177,11 +176,11 @@ def main(
         prefer=prefer,
         fuzzy=fuzzy,
         fuzzy_threshold=fuzzy_threshold,
-        catalog=catalog_opts,
+        discovery=discovery_opts,
     )
 
     console.print(f"\n[bold]Processing photos from {source}...[/bold]")
-    if catalog:
+    if discover:
         console.print("  [cyan]AI album discovery enabled[/cyan]")
     console.print()
 

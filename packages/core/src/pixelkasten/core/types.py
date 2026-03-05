@@ -4,7 +4,7 @@ Manifest types for the unified pipeline.
 Each stage enriches ManifestEntry in-place; downstream stages consume what
 upstream stages wrote. Types are grouped by pipeline stage:
 
-  link → dedupe → reconcile → geocode → catalog → rename → apply
+  link → dedupe → reconcile → [discover] → rename → apply
 """
 
 from dataclasses import dataclass, field
@@ -72,22 +72,6 @@ class Location:
 
 
 @dataclass
-class Tag:
-    name: str
-    score: float
-
-
-@dataclass
-class Catalog:
-    status: Status
-    cluster: int | None = None
-    is_representative: bool = False
-    tags: list[Tag] = field(default_factory=list)
-    caption: str | None = None
-    error: str | None = None
-
-
-@dataclass
 class Rename:
     status: Status
     target_path: str | None = None
@@ -110,6 +94,5 @@ class ManifestEntry:
     dedupe: Dedupe | None = None
     metadata: Metadata | None = None
     location: Location | None = None
-    catalog: Catalog | None = None
     rename: Rename | None = None
     apply: Apply | None = None

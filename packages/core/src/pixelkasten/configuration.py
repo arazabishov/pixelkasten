@@ -14,7 +14,7 @@ def _noop_progress(label: str, total: int):
 
 
 @dataclass
-class CatalogOptions:
+class DiscoveryOptions:
     clip_model: str
     batch_size: int
     min_cluster_size: int
@@ -36,7 +36,7 @@ class Options:
     prefer: str
     fuzzy: bool
     fuzzy_threshold: int
-    catalog: CatalogOptions | None
+    discovery: DiscoveryOptions | None
 
 
 @dataclass

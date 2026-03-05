@@ -1,15 +1,8 @@
 import numpy as np
 import pytest
 
-from pixelkasten.core.types import (
-    Catalog,
-    Location,
-    ManifestEntry,
-    Metadata,
-    Source,
-    Status,
-    Tag,
-)
+from pixelkasten.core.types import Location, ManifestEntry, Metadata, Source, Status
+from pixelkasten.stages.discovery.types import DiscoveryEntry, Tag
 
 
 def _entry(
@@ -23,14 +16,7 @@ def _entry(
     is_representative=False,
     failed=False,
 ):
-    """Helper to build a ManifestEntry for catalog test fixtures."""
-    catalog = Catalog(
-        status=Status.ERROR if failed else Status.PROCESSED,
-        cluster=cluster,
-        is_representative=is_representative,
-        tags=[Tag(name=t["name"], score=t["score"]) for t in tags],
-        caption=caption,
-    )
+    """Helper to build a DiscoveryEntry for discovery test fixtures."""
     metadata = (
         Metadata(
             status=Status.PROCESSED,
@@ -41,12 +27,20 @@ def _entry(
         else None
     )
 
-    return ManifestEntry(
+    manifest_entry = ManifestEntry(
         media_path=media_path,
         source=Source(type="loose"),
         metadata=metadata,
         location=location,
-        catalog=catalog,
+    )
+
+    return DiscoveryEntry(
+        entry=manifest_entry,
+        status=Status.ERROR if failed else Status.PROCESSED,
+        cluster=cluster,
+        is_representative=is_representative,
+        tags=[Tag(name=t["name"], score=t["score"]) for t in tags],
+        caption=caption,
     )
 
 

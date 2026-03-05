@@ -1,6 +1,6 @@
 import numpy as np
 
-from pixelkasten.stages.catalog.classify import classify, build_label_list
+from pixelkasten.stages.discovery.classify import classify, build_label_list
 
 
 class TestClassify:

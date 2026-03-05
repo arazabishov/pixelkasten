@@ -3,7 +3,7 @@
 import numpy as np
 from datetime import datetime
 
-from pixelkasten.stages.catalog.refine import (
+from pixelkasten.stages.discovery.refine import (
     _parse_timestamp,
     _eject_metadataless,
     _split_by_temporal_gaps,

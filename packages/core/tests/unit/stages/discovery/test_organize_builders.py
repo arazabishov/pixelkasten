@@ -6,7 +6,7 @@ Unit tests for the organize module's pure logic functions:
 
 import pytest
 
-from pixelkasten.stages.catalog.organize import (
+from pixelkasten.stages.discovery.organize import (
     _parse_llm_response,
     build_cluster_summary_text,
 )

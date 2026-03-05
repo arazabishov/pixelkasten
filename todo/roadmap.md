@@ -4,7 +4,7 @@ Future work not yet implemented.
 
 ## Video Support
 
-Extend the catalog pipeline to handle videos:
+Extend album discovery to handle videos:
 
 1. **Frame sampling** — extract keyframes via ffmpeg (one every 5-10 seconds, or scene-change detection). 3-5 frames per 30s clip is enough.
 2. **Embedding** — run CLIP on sampled frames, average vectors. Videos and photos of the same scene cluster together naturally.
@@ -16,7 +16,7 @@ Extend the catalog pipeline to handle videos:
 
 ### Phase 3a: CLI (done)
 
-Python CLI via typer + rich. Handles both takeout and catalog workflows.
+Python CLI via typer + rich. Handles both takeout and discovery workflows.
 
 ### Phase 3b: Local Web UI
 
