@@ -12,8 +12,8 @@ import json
 from contextlib import contextmanager
 from pathlib import Path
 
-from pixelkasten.core.geocode import reverse_geocode
-from pixelkasten.core.options import PipelineOptions
+from pixelkasten.options import PipelineOptions
+from pixelkasten.stages.geocode import reverse_geocode
 from pixelkasten.core.manifest import can_keep
 from pixelkasten.core.report import report
 from pixelkasten.stages.apply import apply
@@ -89,7 +89,7 @@ def run_pipeline(
         )
 
     if not options.skip_rename:
-        rename(manifest, options)
+        rename(manifest)
         _call_hook(hooks, "on_rename", manifest)
 
     if not options.dry_run:

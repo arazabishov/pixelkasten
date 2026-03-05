@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from pixelkasten.core.handlers import is_image, is_video
+from pixelkasten.handlers import is_image, is_video
 from pixelkasten.stages.scan import scan
 
 

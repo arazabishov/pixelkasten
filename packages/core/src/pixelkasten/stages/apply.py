@@ -10,7 +10,7 @@ from collections.abc import Callable
 
 from pixelkasten.core.exiftool import write_metadata
 from pixelkasten.core.manifest import can_keep
-from pixelkasten.core.options import PipelineOptions
+from pixelkasten.options import PipelineOptions
 
 
 def apply(
@@ -29,6 +29,8 @@ def apply(
 
     Mutates entries in-place, adding entry["apply"] with status and targetPath.
     """
+    if options.destination is None:
+        raise ValueError("destination is required for apply")
     destination = options.destination
 
     keepers = [e for e in manifest if can_keep(e)]

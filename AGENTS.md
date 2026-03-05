@@ -68,10 +68,10 @@ uv run pixelkasten --help
 uv run pytest -v
 
 # Lint
-uv run ruff check src/
+uv run ruff check packages/
 
 # Format check
-uv run ruff format --check src/
+uv run ruff format --check packages/
 ```
 
 ## Code conventions
@@ -101,6 +101,14 @@ All public functions should have full type annotations. Always use proper import
 #### Comments and docstrings
 
 Comments should explain *why*, not *what*. Don't restate what the code already says. Keep comments as single-line inline comments above the relevant line. Docstrings should focus on design intent, invariants, and non-obvious constraints — not mechanical parameter/return descriptions that duplicate the type annotations.
+
+#### None handling
+
+Never coerce `None` to a default value with `or` (e.g., `destination = options.destination or ""`). Handle `None` explicitly — either check and branch, or assert non-`None` when the pipeline guarantees the value is set.
+
+#### pathlib vs os.path
+
+Use `pathlib` by default. Use `os.path` only when pathlib's normalization would corrupt data (e.g., link stage's Takeout filename parsing with double extensions like `.MP.jpg`). Document the reason in the file header when using `os.path`.
 
 #### Typing at boundaries
 

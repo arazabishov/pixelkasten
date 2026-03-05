@@ -28,9 +28,9 @@ jobs:
         run: choco install exiftool -y
       - run: uv sync
       - name: Unit tests
-        run: uv run pytest test/unit/ -v
+        run: uv run pytest packages/core/tests/unit/ -v
       - name: Integration tests
-        run: uv run pytest test/integration/ -v
+        run: uv run pytest packages/core/tests/integration/ -v
 
   lint:
     runs-on: ubuntu-latest
@@ -44,6 +44,8 @@ jobs:
           python-version: "3.12"
       - run: uv sync
       - name: Ruff check
-        run: uv run ruff check src/
+        run: uv run ruff check packages/
       - name: Ruff format check
-        run: uv run ruff format --check src/
+        run: uv run ruff format --check packages/
+      - name: Type check
+        run: uv run pyright

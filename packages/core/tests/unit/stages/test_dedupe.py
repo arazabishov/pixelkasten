@@ -24,7 +24,7 @@ class TestDedupeResolve:
                 _entry("/tmp/p2.jpg", "album", "Vacation", hash_val="hash2"),
                 _entry("/tmp/p3.jpg", "loose", hash_val="hash3"),
             ]
-            dedupe_resolve(manifest)
+            dedupe_resolve(manifest, make_options())
             assert all(e["dedupe"]["status"] == "keep" for e in manifest)
 
         def test_marks_unique_regardless_of_preference(self):
@@ -137,12 +137,12 @@ class TestDedupeResolve:
     class TestEdgeCases:
         def test_handles_empty_manifest(self):
             manifest = []
-            dedupe_resolve(manifest)
+            dedupe_resolve(manifest, make_options())
             assert len(manifest) == 0
 
         def test_handles_single_file(self):
             manifest = [_entry("/tmp/p.jpg", "loose")]
-            dedupe_resolve(manifest)
+            dedupe_resolve(manifest, make_options())
             assert manifest[0]["dedupe"]["status"] == "keep"
 
 

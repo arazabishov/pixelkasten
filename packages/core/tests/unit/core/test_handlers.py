@@ -7,15 +7,15 @@ functions are pure and fast. Test expectations use normalized ISO strings.
 
 import pytest
 
-from pixelkasten.core.handlers import (
+from pixelkasten.handlers import (
     ALL_KNOWN_MEDIA_EXTENSIONS,
     SUPPORTED_EXTENSIONS,
     UNSUPPORTED_MEDIA_EXTENSIONS,
     exif_handler,
     handlers,
-    parse_composite_geo,
     quicktime_handler,
 )
+from pixelkasten.handlers.shared import parse_composite_geo
 
 
 class TestParseCompositeGeo:

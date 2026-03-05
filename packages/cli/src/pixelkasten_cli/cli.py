@@ -156,7 +156,7 @@ def main(
         console.print("[red]--destination is required (unless --dry-run is set)[/red]")
         raise typer.Exit(code=1)
 
-    from pixelkasten.core.options import PipelineOptions
+    from pixelkasten.options import PipelineOptions, CatalogOptions
     from pixelkasten.pipeline import run_pipeline
 
     # Check exiftool if embedding or renaming is needed (mirrors pipeline gate)
@@ -171,28 +171,35 @@ def main(
 
     progress, hooks = _build_pipeline_ui(console)
 
+    catalog_opts = (
+        CatalogOptions(
+            clip_model=clip_model,
+            batch_size=batch_size,
+            min_cluster_size=min_cluster_size,
+            classify_threshold=classify_threshold,
+            caption_model=caption_model,
+            organize_model=organize_model,
+            skip_caption=skip_caption,
+            skip_refine=skip_refine,
+        )
+        if catalog
+        else None
+    )
+
     options = PipelineOptions(
         source=str(source),
         destination=str(destination) if destination else None,
         takeout=takeout,
-        catalog=catalog,
         dry_run=dry_run,
         skip_dedupe=skip_dedupe,
         skip_embed=skip_embed,
         skip_rename=skip_rename,
-        skip_caption=skip_caption,
-        skip_refine=skip_refine,
         prefer=prefer,
         fuzzy=fuzzy,
         fuzzy_threshold=fuzzy_threshold,
         rescan=rescan,
         workspace=str(workspace) if workspace else None,
-        clip_model=clip_model,
-        batch_size=batch_size,
-        min_cluster_size=min_cluster_size,
-        classify_threshold=classify_threshold,
-        caption_model=caption_model,
-        organize_model=organize_model,
+        catalog=catalog_opts,
         progress=progress,
     )
 
