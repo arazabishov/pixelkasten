@@ -8,7 +8,7 @@ import hashlib
 from collections.abc import Callable
 
 from pixelkasten.core.types import Dedupe, DedupeResult, ManifestEntry, Status
-from pixelkasten.options import PipelineOptions
+from pixelkasten.configuration import Options
 
 
 def dedupe_hash(
@@ -31,7 +31,7 @@ def dedupe_hash(
             on_progress(i + 1)
 
 
-def dedupe_resolve(manifest: list[ManifestEntry], options: PipelineOptions) -> None:
+def dedupe_resolve(manifest: list[ManifestEntry], options: Options) -> None:
     """
     Resolve duplicates: prefer album over loose (or vice versa), keep same-type dupes.
 

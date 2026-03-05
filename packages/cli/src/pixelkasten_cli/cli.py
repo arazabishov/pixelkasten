@@ -142,7 +142,7 @@ def main(
         console.print("[red]--destination is required (unless --dry-run is set)[/red]")
         raise typer.Exit(code=1)
 
-    from pixelkasten.options import PipelineOptions, CatalogOptions
+    from pixelkasten.configuration import Options, CatalogOptions
     from pixelkasten.pipeline import run_pipeline
 
     # Check exiftool if embedding or renaming is needed (mirrors pipeline gate)
@@ -172,7 +172,7 @@ def main(
         else None
     )
 
-    options = PipelineOptions(
+    options = Options(
         source=str(source),
         destination=str(destination) if destination else None,
         takeout=takeout,
@@ -217,14 +217,16 @@ def _build_pipeline_ui(console):
 
     progress = build_progress_factory(console)
 
-    hooks = {
-        "on_scan": partial(render_scan_table, console),
-        "on_link": partial(render_link_table, console),
-        "on_reconcile": partial(render_reconcile_table, console),
-        "on_dedupe": partial(render_dedupe_table, console),
-        "on_rename": partial(render_rename_table, console),
-        "on_apply": partial(render_apply_table, console),
-        "on_errors": partial(render_error_table, console),
-    }
+    from pixelkasten.configuration import Hooks
+
+    hooks = Hooks(
+        on_scan=partial(render_scan_table, console),
+        on_link=partial(render_link_table, console),
+        on_reconcile=partial(render_reconcile_table, console),
+        on_dedupe=partial(render_dedupe_table, console),
+        on_rename=partial(render_rename_table, console),
+        on_apply=partial(render_apply_table, console),
+        on_errors=partial(render_error_table, console),
+    )
 
     return progress, hooks

@@ -11,12 +11,12 @@ from collections.abc import Callable
 from pixelkasten.core.exiftool import write_metadata
 from pixelkasten.core.manifest import can_keep
 from pixelkasten.core.types import Apply, ApplyResult, ManifestEntry, Status
-from pixelkasten.options import PipelineOptions
+from pixelkasten.configuration import Options
 
 
 def apply(
     manifest: list[ManifestEntry],
-    options: PipelineOptions,
+    options: Options,
     on_progress: Callable[[int], None] | None = None,
 ) -> None:
     """

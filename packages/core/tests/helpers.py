@@ -1,10 +1,10 @@
 """Shared test utilities."""
 
-from pixelkasten.options import CatalogOptions, PipelineOptions
+from pixelkasten.configuration import CatalogOptions, Options
 
 
-def make_options(**overrides) -> PipelineOptions:
-    """Build PipelineOptions with test defaults. Override any field via kwargs."""
+def make_options(**overrides) -> Options:
+    """Build Options with test defaults. Override any field via kwargs."""
     defaults = {
         "source": "/src",
         "destination": "/dest",
@@ -19,7 +19,7 @@ def make_options(**overrides) -> PipelineOptions:
         "catalog": None,
     }
     defaults.update(overrides)
-    return PipelineOptions(**defaults)
+    return Options(**defaults)
 
 
 def make_catalog_options(**overrides) -> CatalogOptions:

@@ -8,10 +8,10 @@ import csv
 import os
 
 from pixelkasten.core.types import ApplyResult, DedupeResult, ManifestEntry, Status
-from pixelkasten.options import PipelineOptions
+from pixelkasten.configuration import Options
 
 
-def report(manifest: list[ManifestEntry], options: PipelineOptions) -> str:
+def report(manifest: list[ManifestEntry], options: Options) -> str:
     """
     Write a per-file CSV report to the destination directory.
 
