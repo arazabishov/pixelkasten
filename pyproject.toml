@@ -4,7 +4,7 @@ members = ["packages/*"]
 
 # Dev dependencies are shared across all workspace members.
 [tool.uv]
-dev-dependencies = ["pytest>=8.0", "ruff>=0.9.0"]
+dev-dependencies = ["pytest>=8.0", "ruff>=0.9.0", "pyright>=1.1.0"]
 
 [tool.pytest.ini_options]
 testpaths = ["packages/core/tests"]
@@ -12,3 +12,7 @@ testpaths = ["packages/core/tests"]
 # Tell ruff where first-party source roots are so it sorts imports correctly.
 [tool.ruff]
 src = ["packages/core/src", "packages/cli/src"]
+
+[tool.pyright]
+pythonVersion = "3.12"
+include = ["packages/core/src", "packages/cli/src"]

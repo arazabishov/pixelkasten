@@ -15,7 +15,7 @@ import os
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TypedDict
+from typing import Any, TypedDict
 
 from pixelkasten.core.datetime import normalize_disk_date
 
@@ -193,7 +193,7 @@ def read_exif(file_paths: list[Path]) -> dict[str, ExifData]:
     return parsed
 
 
-def _parse_exiftool_entry(raw: dict) -> ExifData:
+def _parse_exiftool_entry(raw: dict[str, Any]) -> ExifData:
     """
     Parse a single exiftool JSON entry into our normalized ExifData shape.
 
@@ -219,10 +219,12 @@ def _parse_exiftool_entry(raw: dict) -> ExifData:
     gps = None
     lat = raw.get("Composite:GPSLatitude")
     lon = raw.get("Composite:GPSLongitude")
-    if _validate_gps(lat, lon):
+
+    validated = _validate_gps(lat, lon)
+    if validated is not None:
         gps = GpsData(
-            latitude=float(lat),
-            longitude=float(lon),
+            latitude=validated[0],
+            longitude=validated[1],
             altitude=_safe_float(raw.get("Composite:GPSAltitude")),
         )
 
@@ -264,26 +266,29 @@ def _normalize_timestamp(raw_value) -> str | None:
     return normalize_disk_date(raw_str)
 
 
-def _validate_gps(lat, lon) -> bool:
+def _validate_gps(
+    lat: float | None, lon: float | None
+) -> tuple[float, float] | None:
     """
-    Validate GPS coordinates. Returns False for missing or zero-zero data.
+    Validate and parse GPS coordinates.
 
+    Returns (lat, lon) as floats if valid, None otherwise.
     Per the project's guiding principle: if latitude or longitude are
     0, 0.0, null, or undefined, skip geo data entirely.
     """
     if lat is None or lon is None:
-        return False
+        return None
 
     try:
         lat_f = float(lat)
         lon_f = float(lon)
     except (ValueError, TypeError):
-        return False
+        return None
 
     if lat_f == 0.0 and lon_f == 0.0:
-        return False
+        return None
 
-    return True
+    return (lat_f, lon_f)
 
 
 def _safe_float(value) -> float | None:

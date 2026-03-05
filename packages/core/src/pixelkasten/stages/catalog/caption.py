@@ -40,12 +40,13 @@ def check_ollama(model: str) -> None:
 
     # Ollama model names may include a `:latest` tag. Match against both
     # the full name and the base name (without tag).
-    base_names = [n.split(":")[0] for n in model_names]
+    base_names = [n.split(":")[0] for n in model_names if n is not None]
 
     if model not in model_names and model not in base_names:
+        available = ", ".join(n for n in model_names if n is not None) or "(none)"
         raise RuntimeError(
             f"Model '{model}' not found. Run: ollama pull {model}\n"
-            f"Available models: {', '.join(model_names) or '(none)'}"
+            f"Available models: {available}"
         )
 
 
@@ -67,7 +68,8 @@ def caption_image(model: str, image_path: Path, prompt: str) -> str | None:
                 },
             ],
         )
-        return response.message.content.strip()
+        content = response.message.content
+        return content.strip() if content else None
     except Exception:
         return None
 

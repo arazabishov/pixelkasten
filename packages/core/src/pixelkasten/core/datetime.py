@@ -19,7 +19,7 @@ _DISK_DATE_RE = re.compile(
 )
 
 
-def normalize_disk_date(date: str) -> str | None:
+def normalize_disk_date(date: str | None) -> str | None:
     """
     Normalize raw ExifTool date strings to ISO format (YYYY-MM-DDTHH:MM:SS).
 

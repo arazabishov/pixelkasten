@@ -42,21 +42,21 @@ class TestNormalizeTimestamp:
 
 
 class TestValidateGps:
-    def test_valid_coordinates_returns_true(self):
-        assert _validate_gps(37.8, -122.4) is True
+    def test_valid_coordinates_returns_parsed_floats(self):
+        assert _validate_gps(37.8, -122.4) == (37.8, -122.4)
 
-    def test_both_zero_returns_false(self):
-        assert _validate_gps(0.0, 0.0) is False
+    def test_both_zero_returns_none(self):
+        assert _validate_gps(0.0, 0.0) is None
 
-    def test_none_values_returns_false(self):
-        assert _validate_gps(None, None) is False
+    def test_none_values_returns_none(self):
+        assert _validate_gps(None, None) is None
 
-    def test_non_numeric_strings_returns_false(self):
-        assert _validate_gps("abc", "xyz") is False
+    def test_non_numeric_strings_returns_none(self):
+        assert _validate_gps("abc", "xyz") is None
 
-    def test_one_zero_one_nonzero_returns_true(self):
+    def test_one_zero_one_nonzero_returns_parsed_floats(self):
         # Latitude zero is the equator -- perfectly valid.
-        assert _validate_gps(0, 122.4) is True
+        assert _validate_gps(0, 122.4) == (0.0, 122.4)
 
 
 class TestSafeFloat:
