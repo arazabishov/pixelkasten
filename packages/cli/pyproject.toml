@@ -1,5 +1,4 @@
-# CLI frontend — typer + rich UI over the core library.
-# Import namespace: pixelkasten_cli.* (separate to avoid colliding with core)
+# Separate import namespace (pixelkasten_cli) so it doesn't shadow the core package
 [project]
 name = "pixelkasten-cli"
 version = "0.1.0"
@@ -11,7 +10,6 @@ dependencies = [
     "rich>=13.0.0",
 ]
 
-# Registers `uv run pixelkasten` as a shell command pointing at the typer app.
 [project.scripts]
 pixelkasten = "pixelkasten_cli.cli:app"
 
@@ -19,6 +17,6 @@ pixelkasten = "pixelkasten_cli.cli:app"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-# Resolve "pixelkasten" from the sibling workspace package, not PyPI.
+# Resolve from the sibling workspace package, not PyPI
 [tool.uv.sources]
 pixelkasten-core = { workspace = true }
