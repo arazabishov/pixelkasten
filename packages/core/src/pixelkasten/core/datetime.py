@@ -14,9 +14,7 @@ from datetime import datetime, timezone
 # Regex to capture: YYYY[:/-]MM[:/-]DD <space> HH:MM:SS
 # No $ anchor — subseconds (.123) and timezone (+02:00) after seconds
 # are naturally ignored by only capturing up to the 6th group.
-_DISK_DATE_RE = re.compile(
-    r"^(\d{4})[:/-](\d{2})[:/-](\d{2})\s+(\d{2}):(\d{2}):(\d{2})"
-)
+_DISK_DATE_RE = re.compile(r"^(\d{4})[:/-](\d{2})[:/-](\d{2})\s+(\d{2}):(\d{2}):(\d{2})")
 
 
 def normalize_disk_date(date: str | None) -> str | None:

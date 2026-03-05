@@ -261,9 +261,7 @@ class TestApply:
     @patch("pixelkasten.stages.apply.write_metadata")
     @patch("pixelkasten.stages.apply.shutil.copy2")
     @patch("pixelkasten.stages.apply.os.makedirs")
-    def test_stores_dest_path_in_apply_object(
-        self, mock_makedirs, mock_copy2, mock_write_metadata
-    ):
+    def test_stores_dest_path_in_apply_object(self, mock_makedirs, mock_copy2, mock_write_metadata):
         manifest = [
             {
                 "mediaPath": "/source/photo.jpg",
@@ -378,9 +376,7 @@ class TestApply:
     @patch("pixelkasten.stages.apply.write_metadata")
     @patch("pixelkasten.stages.apply.shutil.copy2")
     @patch("pixelkasten.stages.apply.os.makedirs")
-    def test_handles_nested_album_paths(
-        self, mock_makedirs, mock_copy2, mock_write_metadata
-    ):
+    def test_handles_nested_album_paths(self, mock_makedirs, mock_copy2, mock_write_metadata):
         manifest = [
             {
                 "mediaPath": "/source/photo.jpg",

@@ -23,9 +23,7 @@ def rename(manifest: list[dict]) -> None:
     """
     # Filter to candidates: keepable and not skipped by reconcile
     candidates = [
-        e
-        for e in manifest
-        if can_keep(e) and e.get("metadata", {}).get("status") != "skipped"
+        e for e in manifest if can_keep(e) and e.get("metadata", {}).get("status") != "skipped"
     ]
 
     if not candidates:

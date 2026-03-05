@@ -56,9 +56,7 @@ def reconcile(
                 json_path = entry["json"].get("path")
 
             try:
-                entry["metadata"] = _resolve(
-                    entry["mediaPath"], json_path, raw_disk_tags, options
-                )
+                entry["metadata"] = _resolve(entry["mediaPath"], json_path, raw_disk_tags, options)
             except Exception as e:
                 entry["metadata"] = {
                     "status": "error",

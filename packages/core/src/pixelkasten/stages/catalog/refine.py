@@ -234,15 +234,9 @@ def _absorb_noise_by_location(
 
         dt = _parse_timestamp(timestamps.get(idx))
         if dt is not None:
-            if (
-                cluster_info[cid]["min_time"] is None
-                or dt < cluster_info[cid]["min_time"]
-            ):
+            if cluster_info[cid]["min_time"] is None or dt < cluster_info[cid]["min_time"]:
                 cluster_info[cid]["min_time"] = dt
-            if (
-                cluster_info[cid]["max_time"] is None
-                or dt > cluster_info[cid]["max_time"]
-            ):
+            if cluster_info[cid]["max_time"] is None or dt > cluster_info[cid]["max_time"]:
                 cluster_info[cid]["max_time"] = dt
 
         loc = locations.get(idx)
@@ -562,9 +556,7 @@ def _merge_similar_clusters(
                 # If clusters share a location, use the lower threshold.
                 shares_location = bool(info_a["locations"] & info_b["locations"])
                 effective_threshold = (
-                    location_similarity_threshold
-                    if shares_location
-                    else similarity_threshold
+                    location_similarity_threshold if shares_location else similarity_threshold
                 )
 
                 # Check visual similarity.
@@ -610,10 +602,7 @@ def _temporally_close(info_a: dict, info_b: dict, threshold_seconds: float) -> b
         return False
 
     # Check if ranges overlap.
-    if (
-        info_a["min_time"] <= info_b["max_time"]
-        and info_b["min_time"] <= info_a["max_time"]
-    ):
+    if info_a["min_time"] <= info_b["max_time"] and info_b["min_time"] <= info_a["max_time"]:
         return True
 
     # Check gap between ranges.

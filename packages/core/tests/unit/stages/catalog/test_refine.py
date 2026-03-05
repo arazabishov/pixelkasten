@@ -1,7 +1,6 @@
 """Unit tests for the refine module — cluster refinement using EXIF timestamps."""
 
 import numpy as np
-import pytest
 from datetime import datetime
 
 from pixelkasten.stages.catalog.refine import (
@@ -82,9 +81,7 @@ class TestSplitByTemporalGaps:
             3: "2019-07-20T14:00:00",
         }
 
-        new_labels, split_count = _split_by_temporal_gaps(
-            labels, timestamps, gap_hours=48.0
-        )
+        new_labels, split_count = _split_by_temporal_gaps(labels, timestamps, gap_hours=48.0)
 
         # First two images stay in original cluster, last two get a new cluster.
         assert new_labels[0] == new_labels[1]
@@ -101,9 +98,7 @@ class TestSplitByTemporalGaps:
             2: "2019-07-16T08:00:00",
         }
 
-        new_labels, split_count = _split_by_temporal_gaps(
-            labels, timestamps, gap_hours=48.0
-        )
+        new_labels, split_count = _split_by_temporal_gaps(labels, timestamps, gap_hours=48.0)
 
         # All stay in same cluster.
         assert len(set(new_labels)) == 1
@@ -113,9 +108,7 @@ class TestSplitByTemporalGaps:
         labels = np.array([0, 0])
         timestamps = {}  # No timestamps at all.
 
-        new_labels, split_count = _split_by_temporal_gaps(
-            labels, timestamps, gap_hours=48.0
-        )
+        new_labels, split_count = _split_by_temporal_gaps(labels, timestamps, gap_hours=48.0)
 
         # Nothing to split without timestamps.
         assert list(new_labels) == [0, 0]
@@ -133,9 +126,7 @@ class TestSplitByTemporalGaps:
             5: "2019-07-20T12:00:00",
         }
 
-        new_labels, split_count = _split_by_temporal_gaps(
-            labels, timestamps, gap_hours=48.0
-        )
+        new_labels, split_count = _split_by_temporal_gaps(labels, timestamps, gap_hours=48.0)
 
         # Should produce 3 distinct clusters (2 splits).
         assert len(set(new_labels)) == 3

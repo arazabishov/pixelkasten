@@ -69,9 +69,7 @@ def run_pipeline(
 
         # Reconcile: read EXIF from disk, compare with sidecar data
         if not options.skip_embed or not options.skip_rename:
-            with _progress_ctx(
-                progress, "Reading metadata", len(manifest)
-            ) as on_progress:
+            with _progress_ctx(progress, "Reading metadata", len(manifest)) as on_progress:
                 reconcile(manifest, options, on_progress=on_progress)
             _call_hook(hooks, "on_reconcile", manifest)
 
@@ -85,9 +83,7 @@ def run_pipeline(
     if options.catalog:
         from pixelkasten.stages.catalog import run_catalog
 
-        manifest = run_catalog(
-            manifest, options, workspace=workspace, progress=progress
-        )
+        manifest = run_catalog(manifest, options, workspace=workspace, progress=progress)
 
     if not options.skip_rename:
         rename(manifest)

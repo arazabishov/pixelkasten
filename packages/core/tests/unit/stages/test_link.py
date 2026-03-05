@@ -39,50 +39,34 @@ class TestMetadataNormalizationAndMatching:
     def test_matches_suppl_json(self):
         m, _ = _link_and_map(self.RAW)
         entry = m["/tmp/3D06C8D1-7637-4625-BEBE-C3D916AEF50D.jpg"]
-        assert (
-            entry["json"]["path"]
-            == "/tmp/3D06C8D1-7637-4625-BEBE-C3D916AEF50D.jpg.suppl.json"
-        )
+        assert entry["json"]["path"] == "/tmp/3D06C8D1-7637-4625-BEBE-C3D916AEF50D.jpg.suppl.json"
 
     def test_matches_supplemental_metada_json(self):
         m, _ = _link_and_map(self.RAW)
         entry = m["/tmp/PXL_20241231_114900266.jpg"]
-        assert (
-            entry["json"]["path"]
-            == "/tmp/PXL_20241231_114900266.jpg.supplemental-metada.json"
-        )
+        assert entry["json"]["path"] == "/tmp/PXL_20241231_114900266.jpg.supplemental-metada.json"
 
     def test_matches_supplemental_met_with_double_extension(self):
         m, _ = _link_and_map(self.RAW)
         entry = m["/tmp/PXL_20241231_114910784.MP.jpg"]
-        assert (
-            entry["json"]["path"]
-            == "/tmp/PXL_20241231_114910784.MP.jpg.supplemental-met.json"
-        )
+        assert entry["json"]["path"] == "/tmp/PXL_20241231_114910784.MP.jpg.supplemental-met.json"
 
     def test_matches_supplemental_metadata_with_duplicate_marker(self):
         m, _ = _link_and_map(self.RAW)
         entry = m["/tmp/camphoto_33463914(4).jpg"]
-        assert (
-            entry["json"]["path"]
-            == "/tmp/camphoto_33463914.jpg.supplemental-metadata(4).json"
-        )
+        assert entry["json"]["path"] == "/tmp/camphoto_33463914.jpg.supplemental-metadata(4).json"
 
     def test_matches_supplemental_metadata_with_duplicate_and_double_ext(self):
         m, _ = _link_and_map(self.RAW)
         entry = m["/tmp/camphoto_33463914.MP(4).jpg"]
         assert (
-            entry["json"]["path"]
-            == "/tmp/camphoto_33463914.MP.jpg.supplemental-metadata(4).json"
+            entry["json"]["path"] == "/tmp/camphoto_33463914.MP.jpg.supplemental-metadata(4).json"
         )
 
     def test_matches_filename_without_extension(self):
         m, _ = _link_and_map(self.RAW)
         entry = m["/tmp/29407C9C-7528-4FF1-AD5F-08EAA7F9738E-98855-000"]
-        assert (
-            entry["json"]["path"]
-            == "/tmp/29407C9C-7528-4FF1-AD5F-08EAA7F9738E-98855-000.json"
-        )
+        assert entry["json"]["path"] == "/tmp/29407C9C-7528-4FF1-AD5F-08EAA7F9738E-98855-000.json"
 
 
 class TestExactMatching:
@@ -103,23 +87,18 @@ class TestExactMatching:
     def test_matches_png(self):
         m, _ = _link_and_map(self.RAW)
         assert (
-            m["/tmp/IMG_0076.PNG"]["json"]["path"]
-            == "/tmp/IMG_0076.PNG.supplemental-metadata.json"
+            m["/tmp/IMG_0076.PNG"]["json"]["path"] == "/tmp/IMG_0076.PNG.supplemental-metadata.json"
         )
 
     def test_matches_mov(self):
         m, _ = _link_and_map(self.RAW)
         assert (
-            m["/tmp/IMG_0784.MOV"]["json"]["path"]
-            == "/tmp/IMG_0784.MOV.supplemental-metadata.json"
+            m["/tmp/IMG_0784.MOV"]["json"]["path"] == "/tmp/IMG_0784.MOV.supplemental-metadata.json"
         )
 
     def test_matches_double_dot_extension(self):
         m, _ = _link_and_map(self.RAW)
-        assert (
-            m["/tmp/FA79581F10E4.jpeg"]["json"]["path"]
-            == "/tmp/FA79581F10E4.jpeg..json"
-        )
+        assert m["/tmp/FA79581F10E4.jpeg"]["json"]["path"] == "/tmp/FA79581F10E4.jpeg..json"
 
 
 class TestTruncatedFilenamesFuzzyMatching:
@@ -159,10 +138,7 @@ class TestTruncatedFilenamesFuzzyMatching:
 
     def test_matches_truncated_jpg(self):
         m, _ = _link_and_map(self.RAW, fuzzy_threshold=0)
-        assert (
-            m["/tmp/C3D916AEF50.jpg"]["json"]["path"]
-            == "/tmp/C3D916AEF50D.jpg.suppl.json"
-        )
+        assert m["/tmp/C3D916AEF50.jpg"]["json"]["path"] == "/tmp/C3D916AEF50D.jpg.suppl.json"
 
     def test_matches_systematic_truncation_cases(self):
         m, _ = _link_and_map(self.RAW, fuzzy_threshold=0)
@@ -359,10 +335,7 @@ class TestComplexExtensionsAndCollisions:
 
     def test_matches_prefix_collision(self):
         m, _ = _link_and_map(self.RAW)
-        assert (
-            m["/tmp/11491078.MP"]["json"]["path"]
-            == "/tmp/11491078.MP.jpg.supplemental-met.json"
-        )
+        assert m["/tmp/11491078.MP"]["json"]["path"] == "/tmp/11491078.MP.jpg.supplemental-met.json"
 
     def test_matches_live_photo_heic(self):
         m, _ = _link_and_map(self.RAW)
@@ -451,38 +424,26 @@ class TestExtensionSpecificMatching:
     def test_jpg_matches_jpg_not_heic(self):
         m, _ = _link_and_map(self.RAW)
         assert (
-            m["/tmp/IMG_0267.JPG"]["json"]["path"]
-            == "/tmp/IMG_0267.JPG.supplemental-metadata.json"
+            m["/tmp/IMG_0267.JPG"]["json"]["path"] == "/tmp/IMG_0267.JPG.supplemental-metadata.json"
         )
 
     def test_mov_matches_mov_not_heic(self):
         m, _ = _link_and_map(self.RAW)
         assert (
-            m["/tmp/IMG_0523.MOV"]["json"]["path"]
-            == "/tmp/IMG_0523.MOV.supplemental-metadata.json"
+            m["/tmp/IMG_0523.MOV"]["json"]["path"] == "/tmp/IMG_0523.MOV.supplemental-metadata.json"
         )
 
     def test_png_matches_png_not_heic(self):
         m, _ = _link_and_map(self.RAW)
         assert (
-            m["/tmp/IMG_0525.PNG"]["json"]["path"]
-            == "/tmp/IMG_0525.PNG.supplemental-metadata.json"
+            m["/tmp/IMG_0525.PNG"]["json"]["path"] == "/tmp/IMG_0525.PNG.supplemental-metadata.json"
         )
 
     def test_heic_metadata_left_unmatched(self):
         _, stats = _link_and_map(self.RAW)
-        assert (
-            "/tmp/IMG_0267.HEIC.supplemental-metadata.json"
-            in stats["unmatched_metadata_files"]
-        )
-        assert (
-            "/tmp/IMG_0523.HEIC.supplemental-metadata.json"
-            in stats["unmatched_metadata_files"]
-        )
-        assert (
-            "/tmp/IMG_0525.HEIC.supplemental-metadata.json"
-            in stats["unmatched_metadata_files"]
-        )
+        assert "/tmp/IMG_0267.HEIC.supplemental-metadata.json" in stats["unmatched_metadata_files"]
+        assert "/tmp/IMG_0523.HEIC.supplemental-metadata.json" in stats["unmatched_metadata_files"]
+        assert "/tmp/IMG_0525.HEIC.supplemental-metadata.json" in stats["unmatched_metadata_files"]
         assert len(stats["unmatched_metadata_files"]) == 3
 
 
@@ -539,10 +500,7 @@ class TestTruncatedEditedSuffixes:
 
     def test_matches_edited_with_embedded_extension(self):
         m, _ = _link_and_map(self.RAW)
-        assert (
-            m["/tmp/IMG_500.MP-edited.jpg"]["json"]["path"]
-            == "/tmp/IMG_500.MP.jpg.json"
-        )
+        assert m["/tmp/IMG_500.MP-edited.jpg"]["json"]["path"] == "/tmp/IMG_500.MP.jpg.json"
 
 
 class TestTruncatedLivePhotoWithSharedSidecar:
@@ -609,17 +567,11 @@ class TestExtensionCaseInsensitivity:
 
     def test_png_case_insensitive(self):
         m, _ = _link_and_map(self.RAW)
-        assert (
-            m["/tmp/photo.PNG"]["json"]["path"]
-            == "/tmp/photo.png.supplemental-metadata.json"
-        )
+        assert m["/tmp/photo.PNG"]["json"]["path"] == "/tmp/photo.png.supplemental-metadata.json"
 
     def test_mov_case_insensitive(self):
         m, _ = _link_and_map(self.RAW)
-        assert (
-            m["/tmp/VIDEO.MOV"]["json"]["path"]
-            == "/tmp/VIDEO.mov.supplemental-metadata.json"
-        )
+        assert m["/tmp/VIDEO.MOV"]["json"]["path"] == "/tmp/VIDEO.mov.supplemental-metadata.json"
 
 
 class TestOsPathPreservesFilenames:

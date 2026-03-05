@@ -79,9 +79,7 @@ def _make_table(title: str, header_left: str = "Category") -> Table:
     return table
 
 
-def render_scan_table(
-    console: Console, raw_collections: dict, source_path: str
-) -> None:
+def render_scan_table(console: Console, raw_collections: dict, source_path: str) -> None:
     """Render the scan stage summary table."""
     albums = raw_collections.get("files_metadata_albums", [])
     media = raw_collections.get("files_media", [])
@@ -136,12 +134,8 @@ def render_reconcile_table(console: Console, manifest: list[dict]) -> None:
     """Render the reconcile stage summary table."""
     keepers = [e for e in manifest if can_keep(e)]
 
-    n_processed = sum(
-        1 for e in keepers if e.get("metadata", {}).get("status") == "processed"
-    )
-    n_skipped = sum(
-        1 for e in keepers if e.get("metadata", {}).get("status") == "skipped"
-    )
+    n_processed = sum(1 for e in keepers if e.get("metadata", {}).get("status") == "processed")
+    n_skipped = sum(1 for e in keepers if e.get("metadata", {}).get("status") == "skipped")
     n_error = sum(1 for e in keepers if e.get("metadata", {}).get("status") == "error")
     n_noop = sum(1 for e in keepers if e.get("metadata", {}).get("status") == "noop")
 
@@ -178,9 +172,7 @@ def render_rename_table(console: Console, manifest: list[dict]) -> None:
     """Render the rename stage summary table."""
     keepers = [e for e in manifest if can_keep(e)]
 
-    n_processed = sum(
-        1 for e in keepers if e.get("rename", {}).get("status") == "processed"
-    )
+    n_processed = sum(1 for e in keepers if e.get("rename", {}).get("status") == "processed")
     n_skipped = sum(1 for e in keepers if "rename" not in e)
     n_error = sum(1 for e in keepers if e.get("rename", {}).get("status") == "error")
 
@@ -197,13 +189,9 @@ def render_rename_table(console: Console, manifest: list[dict]) -> None:
 
 def render_apply_table(console: Console, manifest: list[dict]) -> None:
     """Render the apply stage summary table."""
-    n_skipped = sum(
-        1 for e in manifest if e.get("dedupe", {}).get("status") == "delete"
-    )
+    n_skipped = sum(1 for e in manifest if e.get("dedupe", {}).get("status") == "delete")
     n_copied = sum(1 for e in manifest if e.get("apply", {}).get("status") == "copied")
-    n_embedded = sum(
-        1 for e in manifest if e.get("apply", {}).get("status") == "embedded"
-    )
+    n_embedded = sum(1 for e in manifest if e.get("apply", {}).get("status") == "embedded")
     n_error = sum(1 for e in manifest if e.get("apply", {}).get("status") == "error")
 
     table = _make_table("Apply", "Action")

@@ -14,9 +14,7 @@ from pixelkasten.handlers.quicktime import QuickTimeHandler
 
 IMAGE_EXTENSIONS: frozenset[str] = frozenset({".jpg", ".jpeg", ".heic", ".png"})
 VIDEO_EXTENSIONS: frozenset[str] = frozenset({".mp4", ".mov"})
-UNSUPPORTED_MEDIA_EXTENSIONS: frozenset[str] = frozenset(
-    {".avi", ".mkv", ".wmv", ".flv"}
-)
+UNSUPPORTED_MEDIA_EXTENSIONS: frozenset[str] = frozenset({".avi", ".mkv", ".wmv", ".flv"})
 
 exif_handler = ExifHandler()
 quicktime_handler = QuickTimeHandler()
@@ -32,9 +30,7 @@ handlers: dict[str, ExifHandler | QuickTimeHandler] = {
 }
 
 SUPPORTED_EXTENSIONS: frozenset[str] = frozenset(handlers.keys())
-ALL_KNOWN_MEDIA_EXTENSIONS: frozenset[str] = (
-    SUPPORTED_EXTENSIONS | UNSUPPORTED_MEDIA_EXTENSIONS
-)
+ALL_KNOWN_MEDIA_EXTENSIONS: frozenset[str] = SUPPORTED_EXTENSIONS | UNSUPPORTED_MEDIA_EXTENSIONS
 
 
 def is_image(path: Path) -> bool:

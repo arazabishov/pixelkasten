@@ -32,9 +32,7 @@ class QuickTimeHandler:
 
     def parse(self, raw: dict) -> ParsedMetadata:
         dates = [
-            d
-            for d in (normalize_disk_date(raw.get(k)) for k in self._DATE_KEYS)
-            if d is not None
+            d for d in (normalize_disk_date(raw.get(k)) for k in self._DATE_KEYS) if d is not None
         ]
 
         return ParsedMetadata(
@@ -47,6 +45,4 @@ class QuickTimeHandler:
         return [f"CreationDate={data}"]
 
     def geo(self, data: dict) -> list[str]:
-        return [
-            f"Keys:GPSCoordinates={data['latitude']}, {data['longitude']}, {data['altitude']}"
-        ]
+        return [f"Keys:GPSCoordinates={data['latitude']}, {data['longitude']}, {data['altitude']}"]

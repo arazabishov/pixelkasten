@@ -25,9 +25,7 @@ def _entry(media_path, json_path=None, dedupe_status="keep"):
 class TestReconcile:
     @patch("pixelkasten.stages.reconcile.read_metadata")
     @patch("pixelkasten.stages.reconcile.read_sidecar")
-    def test_does_not_perform_disk_ops_when_manifest_is_empty(
-        self, mock_sidecar, mock_metadata
-    ):
+    def test_does_not_perform_disk_ops_when_manifest_is_empty(self, mock_sidecar, mock_metadata):
         manifest = []
         reconcile(manifest, make_options())
 
@@ -86,9 +84,7 @@ class TestReconcile:
 
     @patch("pixelkasten.stages.reconcile.read_metadata")
     @patch("pixelkasten.stages.reconcile.read_sidecar")
-    def test_does_not_queue_writes_when_disk_already_has_data(
-        self, mock_sidecar, mock_metadata
-    ):
+    def test_does_not_queue_writes_when_disk_already_has_data(self, mock_sidecar, mock_metadata):
         mock_metadata.return_value = {
             "/tmp/image.jpg": {"EXIF:DateTimeOriginal": "2023:01:01 12:00:00"},
         }
@@ -105,9 +101,7 @@ class TestReconcile:
 
     @patch("pixelkasten.stages.reconcile.read_metadata")
     @patch("pixelkasten.stages.reconcile.read_sidecar")
-    def test_queues_timestamp_write_when_missing_from_disk(
-        self, mock_sidecar, mock_metadata
-    ):
+    def test_queues_timestamp_write_when_missing_from_disk(self, mock_sidecar, mock_metadata):
         # Disk has no timestamp
         mock_metadata.return_value = {"/tmp/image.jpg": {}}
         mock_sidecar.return_value = {"timestamp": "1672574400", "geo": None}
@@ -122,9 +116,7 @@ class TestReconcile:
         assert len(manifest[0]["metadata"]["writeTags"]) >= 1
 
         # Verify the EXIF timestamp tag format is correct
-        assert manifest[0]["metadata"]["writeTags"][0].startswith(
-            "SubSecDateTimeOriginal="
-        )
+        assert manifest[0]["metadata"]["writeTags"][0].startswith("SubSecDateTimeOriginal=")
 
         # Verify timestamp was prepended to dates
         assert manifest[0]["metadata"]["dates"][0] == "2023-01-01T12:00:00"
@@ -149,9 +141,7 @@ class TestReconcile:
 
     @patch("pixelkasten.stages.reconcile.read_metadata")
     @patch("pixelkasten.stages.reconcile.read_sidecar")
-    def test_queues_both_timestamp_and_geo_when_both_missing(
-        self, mock_sidecar, mock_metadata
-    ):
+    def test_queues_both_timestamp_and_geo_when_both_missing(self, mock_sidecar, mock_metadata):
         mock_metadata.return_value = {"/tmp/image.jpg": {}}
         mock_sidecar.return_value = {
             "timestamp": "1672574400",
@@ -229,9 +219,7 @@ class TestReconcile:
 
     @patch("pixelkasten.stages.reconcile.read_metadata")
     @patch("pixelkasten.stages.reconcile.read_sidecar")
-    def test_does_not_queue_writeTags_when_skip_embed(
-        self, mock_sidecar, mock_metadata
-    ):
+    def test_does_not_queue_writeTags_when_skip_embed(self, mock_sidecar, mock_metadata):
         mock_metadata.return_value = {"/tmp/image.jpg": {}}
         mock_sidecar.return_value = {
             "timestamp": "1672574400",

@@ -5,8 +5,6 @@ Tests run end-to-end (no mocking of normalize_disk_date) since the
 functions are pure and fast. Test expectations use normalized ISO strings.
 """
 
-import pytest
-
 from pixelkasten.handlers import (
     ALL_KNOWN_MEDIA_EXTENSIONS,
     SUPPORTED_EXTENSIONS,
@@ -341,7 +339,4 @@ class TestHandlerRegistry:
             assert ext not in handlers
 
     def test_all_known_is_union_of_supported_and_unsupported(self):
-        assert (
-            ALL_KNOWN_MEDIA_EXTENSIONS
-            == SUPPORTED_EXTENSIONS | UNSUPPORTED_MEDIA_EXTENSIONS
-        )
+        assert ALL_KNOWN_MEDIA_EXTENSIONS == SUPPORTED_EXTENSIONS | UNSUPPORTED_MEDIA_EXTENSIONS

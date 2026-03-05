@@ -32,9 +32,7 @@ class ExifHandler:
 
     def parse(self, raw: dict) -> ParsedMetadata:
         dates = [
-            d
-            for d in (normalize_disk_date(raw.get(k)) for k in self._DATE_KEYS)
-            if d is not None
+            d for d in (normalize_disk_date(raw.get(k)) for k in self._DATE_KEYS) if d is not None
         ]
 
         return ParsedMetadata(

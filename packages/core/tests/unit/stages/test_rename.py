@@ -282,14 +282,8 @@ class TestRenameAlbums:
         rename(manifest)
 
         # Both use earliest date (March 18) for folder
-        assert (
-            manifest[0]["rename"]["targetPath"]
-            == "2024/20240318 - Vacation/20240320-150000.jpg"
-        )
-        assert (
-            manifest[1]["rename"]["targetPath"]
-            == "2024/20240318 - Vacation/20240318-090000.jpg"
-        )
+        assert manifest[0]["rename"]["targetPath"] == "2024/20240318 - Vacation/20240320-150000.jpg"
+        assert manifest[1]["rename"]["targetPath"] == "2024/20240318 - Vacation/20240318-090000.jpg"
 
     def test_cross_month_album_uses_earliest_month(self):
         manifest = [
@@ -331,10 +325,7 @@ class TestRenameAlbums:
         ]
         rename(manifest)
 
-        assert (
-            manifest[0]["rename"]["targetPath"]
-            == "2024/20240510 - Birthday/20240510-140000.jpg"
-        )
+        assert manifest[0]["rename"]["targetPath"] == "2024/20240510 - Birthday/20240510-140000.jpg"
         assert manifest[1]["rename"]["targetPath"] == "2024/20240510-143000.jpg"
 
     def test_handles_collisions_within_album(self):
@@ -352,11 +343,5 @@ class TestRenameAlbums:
         ]
         rename(manifest)
 
-        assert (
-            manifest[0]["rename"]["targetPath"]
-            == "2024/20240601 - Party/20240601-200000.jpg"
-        )
-        assert (
-            manifest[1]["rename"]["targetPath"]
-            == "2024/20240601 - Party/20240601-200000-1.jpg"
-        )
+        assert manifest[0]["rename"]["targetPath"] == "2024/20240601 - Party/20240601-200000.jpg"
+        assert manifest[1]["rename"]["targetPath"] == "2024/20240601 - Party/20240601-200000-1.jpg"

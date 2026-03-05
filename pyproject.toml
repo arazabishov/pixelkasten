@@ -22,6 +22,7 @@ pythonpath = [
 
 # Tell ruff where first-party source roots are so it sorts imports correctly.
 [tool.ruff]
+line-length = 100
 src = [
   "packages/core/src",
   "packages/cli/src",
