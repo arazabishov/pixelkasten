@@ -1,10 +1,10 @@
 """
-Unified pipeline orchestrator — supports both takeout and archive modes.
+Unified pipeline orchestrator.
 
 Linear flow with conditional stages:
-  scan → link → dedupe → reconcile → geocode → [catalog] → rename → apply
+  scan → link → dedupe → reconcile → [catalog] → rename → apply
 
-The --takeout flag enables sidecar matching, --catalog enables AI album discovery.
+Link matches sidecars automatically when present, --catalog enables AI album discovery.
 """
 
 from collections.abc import Callable
@@ -12,10 +12,9 @@ from collections.abc import Callable
 from pixelkasten.configuration import Hooks, Options
 from pixelkasten.core.manifest import can_keep
 from pixelkasten.core.report import report
-from pixelkasten.core.types import ManifestEntry, Source
+from pixelkasten.core.types import ManifestEntry
 from pixelkasten.stages.apply import apply
 from pixelkasten.stages.dedupe import dedupe_hash, dedupe_resolve
-from pixelkasten.stages.geocode import reverse_geocode
 from pixelkasten.stages.link import link
 from pixelkasten.stages.reconcile import reconcile
 from pixelkasten.stages.rename import rename
@@ -32,6 +31,7 @@ def run_pipeline(options: Options, hooks: Hooks, progress: Callable) -> list[Man
     manifest = _init_manifest(options, hooks, progress)
 
     if options.catalog:
+        # Deferred import — catalog pulls in torch/CLIP which are optional deps
         from pixelkasten.stages.catalog import run_catalog
 
         manifest = run_catalog(manifest, options, progress=progress)
@@ -58,30 +58,22 @@ def _init_manifest(options: Options, hooks: Hooks, progress: Callable) -> list[M
     raw_collections = scan(options.source)
     hooks.on_scan(raw_collections, options.source)
 
-    if options.takeout:
-        result = link(raw_collections, options)
-        hooks.on_link(result)
+    result = link(raw_collections, options)
+    hooks.on_link(result)
 
-        manifest = result["manifest"]
-    else:
-        manifest = [
-            ManifestEntry(media_path=p, source=Source(type="loose"))
-            for p in raw_collections["files_media"]
-        ]
+    manifest = result["manifest"]
 
-    # Dedupe runs before reconcile so reconcile can skip deleted entries
-    # via can_keep(). Dedupe only needs media_path + source.type (from link).
+    # Dedupe runs before reconcile so it can skip deleted entries
     if not options.skip_dedupe:
         with progress("Hashing files", len(manifest)) as tick:
             dedupe_hash(manifest, on_progress=tick)
         dedupe_resolve(manifest, options)
         hooks.on_dedupe(manifest)
 
+    # Rename needs disk timestamps to build date-based paths
     if not options.skip_embed or not options.skip_rename:
         with progress("Reading metadata", len(manifest)) as tick:
             reconcile(manifest, options, on_progress=tick)
         hooks.on_reconcile(manifest)
-
-    reverse_geocode(manifest)
 
     return manifest

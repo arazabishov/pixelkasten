@@ -97,6 +97,11 @@ def run_catalog(
         "clusters": {str(k): {"size": v} for k, v in summary.get("cluster_sizes", {}).items()},
     }
 
+    # Resolve GPS → location names (used by refine and organize).
+    from pixelkasten.stages.catalog.geocode import reverse_geocode
+
+    reverse_geocode(manifest)
+
     # Refine (optional)
     if not catalog_options.skip_refine:
         new_labels, _ = refine_clusters(manifest_dict, embeddings)

@@ -397,6 +397,34 @@ class TestStatisticsAndReporting:
         assert len(stats["unmatched_metadata_files"]) == 1
 
 
+class TestNoSidecars:
+    RAW = {
+        "files_media": ["/tmp/photo.jpg", "/tmp/vacation.png", "/tmp/video.mov"],
+        "files_metadata": [],
+        "files_metadata_albums": [],
+    }
+
+    def test_produces_loose_entries_when_no_sidecars_exist(self):
+        m, _ = _link_and_map(self.RAW)
+
+        # All files should be in the manifest
+        assert len(m) == 3
+
+        # Every entry should be loose with no sidecar
+        for path, entry in m.items():
+            assert entry.source.type == "loose", f"{path} should be loose"
+            assert entry.sidecar is None, f"{path} should have no sidecar"
+
+    def test_reports_all_media_as_unmatched_when_no_sidecars_exist(self):
+        _, stats = _link_and_map(self.RAW)
+
+        # All media files should be unmatched
+        assert stats["unmatched_media_files"] == set(self.RAW["files_media"])
+
+        # No unmatched metadata (there was none to begin with)
+        assert len(stats["unmatched_metadata_files"]) == 0
+
+
 class TestExtensionSpecificMatching:
     RAW = {
         "files_media": ["/tmp/IMG_0267.JPG", "/tmp/IMG_0523.MOV", "/tmp/IMG_0525.PNG"],
