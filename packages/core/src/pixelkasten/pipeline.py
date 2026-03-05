@@ -21,10 +21,8 @@ from pixelkasten.stages.reconcile import reconcile
 from pixelkasten.stages.rename import rename
 from pixelkasten.stages.scan import scan
 
-Manifest = list[ManifestEntry]
 
-
-def run_pipeline(options: Options, hooks: Hooks, progress: Callable) -> Manifest:
+def run_pipeline(options: Options, hooks: Hooks, progress: Callable) -> list[ManifestEntry]:
     """
     Unified pipeline: linear flow with conditional stages.
 
@@ -54,7 +52,7 @@ def run_pipeline(options: Options, hooks: Hooks, progress: Callable) -> Manifest
     return manifest
 
 
-def _init_manifest(options: Options, hooks: Hooks, progress: Callable) -> Manifest:
+def _init_manifest(options: Options, hooks: Hooks, progress: Callable) -> list[ManifestEntry]:
     """Build the manifest from source files."""
 
     raw_collections = scan(options.source)
