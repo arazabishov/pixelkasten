@@ -4,8 +4,7 @@ Unified pipeline orchestrator — supports both takeout and archive modes.
 Linear flow with conditional stages:
   scan → link → dedupe → reconcile → geocode → [catalog] → rename → apply
 
-Mode is set explicitly via options["mode"] ("takeout" or "archive").
-The --catalog flag enables AI album discovery.
+The --takeout flag enables sidecar matching, --catalog enables AI album discovery.
 Workspace caching (-w) persists init data + embeddings between runs.
 """
 
@@ -29,13 +28,13 @@ def run_pipeline(
     hooks: dict | None = None,
 ) -> list[dict]:
     """
-    Unified pipeline: linear flow with conditional stages based on mode.
+    Unified pipeline: linear flow with conditional stages.
 
     Args:
         options: Pipeline configuration with keys:
             source (str): source directory path (required)
             destination (str): destination directory (required unless dry_run)
-            mode (str): "takeout" (default) or "archive"
+            takeout (bool): enable Google Takeout sidecar matching
             catalog (bool): enable AI album discovery (propose stage)
             workspace (str|Path|None): workspace directory for caching
             rescan (bool): invalidate cached workspace, re-scan source
@@ -54,7 +53,6 @@ def run_pipeline(
         The manifest (list of dicts) after all stages have run.
     """
     hooks = hooks or {}
-    mode = options.get("mode", "takeout")
     workspace = Path(options["workspace"]) if options.get("workspace") else None
     progress = options.get("progress")
 
@@ -68,7 +66,7 @@ def run_pipeline(
         raw_collections = scan(options["source"])
         _call_hook(hooks, "on_scan", raw_collections, options["source"])
 
-        if mode == "takeout":
+        if options.get("takeout"):
             # Takeout: link sidecars → manifest
             result = link(raw_collections, options)
             _call_hook(hooks, "on_link", result)

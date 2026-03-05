@@ -177,7 +177,7 @@ class TestTakeoutPipeline:
             {
                 "source": str(source),
                 "destination": str(dest),
-                "mode": "takeout",
+                "takeout": True,
                 "prefer": "album",
                 "fuzzy": True,
                 "skip_dedupe": True,
@@ -313,7 +313,7 @@ class TestTakeoutPipeline:
             {
                 "source": str(source),
                 "destination": str(dest),
-                "mode": "takeout",
+                "takeout": True,
                 "prefer": "album",
                 "fuzzy": True,
             }
@@ -384,7 +384,7 @@ class TestTakeoutPipeline:
             {
                 "source": str(source),
                 "destination": str(dest),
-                "mode": "takeout",
+                "takeout": True,
                 "prefer": "album",
                 "fuzzy": True,
                 "skip_embed": True,
@@ -422,7 +422,7 @@ class TestTakeoutPipeline:
 
     def test_dry_run_produces_no_output(self, tmp_path):
         """
-        In dry-run mode, the pipeline should compute the plan but not write
+        With dry-run, the pipeline should compute the plan but not write
         any files to the destination directory.
         """
         source = tmp_path / "source"
@@ -447,7 +447,7 @@ class TestTakeoutPipeline:
             {
                 "source": str(source),
                 "destination": str(dest),
-                "mode": "takeout",
+                "takeout": True,
                 "prefer": "album",
                 "fuzzy": True,
                 "dry_run": True,
@@ -456,7 +456,7 @@ class TestTakeoutPipeline:
 
         # Verify destination is empty (dry run writes nothing).
         dest_entries = list(dest.iterdir())
-        assert len(dest_entries) == 0, "Destination should be empty in dry-run mode"
+        assert len(dest_entries) == 0, "Destination should be empty during dry-run"
 
     def test_copies_unsupported_formats_without_embedding(self, tmp_path):
         """
@@ -512,7 +512,7 @@ class TestTakeoutPipeline:
             {
                 "source": str(source),
                 "destination": str(dest),
-                "mode": "takeout",
+                "takeout": True,
                 "prefer": "album",
                 "fuzzy": True,
                 "skip_dedupe": True,

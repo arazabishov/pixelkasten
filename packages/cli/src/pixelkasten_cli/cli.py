@@ -2,14 +2,16 @@
 CLI entry point — unified pipeline for photo library organization.
 
 Usage:
-    uv run pixelkasten -s <source> -d <destination>                    # takeout (default)
+    uv run pixelkasten -s <source> -d <destination>                    # archive (default)
+    uv run pixelkasten -s <source> -d <destination> --takeout          # Google Takeout
     uv run pixelkasten -s <source> -d <destination> --dry-run          # preview
-    uv run pixelkasten -s <source> -d <destination> --no-takeout --catalog  # archive + AI
+    uv run pixelkasten -s <source> -d <destination> --catalog          # archive + AI
     uv run pixelkasten -s <source> -d <destination> -w ./workspace     # with caching
     uv run pixelkasten status -w ./workspace                           # inspect workspace
 """
 
 import typer
+from functools import partial
 from pathlib import Path
 from rich.console import Console
 
@@ -26,7 +28,7 @@ console = Console()
 def main(
     ctx: typer.Context,
     source: Path = typer.Option(
-        None,
+        ...,
         "--source",
         "-s",
         help="Source directory containing photos.",
@@ -34,7 +36,7 @@ def main(
         file_okay=False,
         resolve_path=True,
     ),
-    destination: Path = typer.Option(
+    destination: Path | None = typer.Option(
         None,
         "--destination",
         "-d",
@@ -42,9 +44,9 @@ def main(
         resolve_path=True,
     ),
     takeout: bool = typer.Option(
-        True,
-        "--takeout/--no-takeout",
-        help="Takeout mode (default) or archive mode.",
+        False,
+        "--takeout",
+        help="Enable Google Takeout sidecar matching.",
     ),
     catalog: bool = typer.Option(
         False,
@@ -112,16 +114,11 @@ def main(
     """
     Organize a photo library.
 
-    By default, processes a Google Takeout export (--takeout). Use --no-takeout
-    for plain photo archives. Add --catalog for AI-powered album discovery.
+    By default, processes a plain photo archive. Use --takeout for Google Takeout
+    exports with sidecar matching. Add --catalog for AI-powered album discovery.
     """
     # If a subcommand was invoked, let it handle things
     if ctx.invoked_subcommand is not None:
-        return
-
-    # If no source provided, show help
-    if source is None:
-        console.print(ctx.get_help())
         return
 
     if destination is None and not dry_run:
@@ -130,8 +127,8 @@ def main(
 
     from pixelkasten.pipeline import run_pipeline
 
-    # Check exiftool if embedding is needed
-    if not skip_embed and takeout:
+    # Check exiftool if embedding or renaming is needed (mirrors pipeline gate)
+    if not skip_embed or not skip_rename:
         from pixelkasten.core.exiftool import check_exiftool
 
         try:
@@ -142,8 +139,8 @@ def main(
 
     options = {
         "source": str(source),
-        "destination": str(destination) if destination else "",
-        "mode": "takeout" if takeout else "archive",
+        "destination": str(destination) if destination else None,
+        "takeout": takeout,
         "catalog": catalog,
         "dry_run": dry_run,
         "skip_dedupe": skip_dedupe,
@@ -194,13 +191,13 @@ def _build_pipeline_ui(console):
     progress = build_progress_factory(console)
 
     hooks = {
-        "on_scan": lambda raw, src: render_scan_table(console, raw, src),
-        "on_link": lambda result: render_link_table(console, result),
-        "on_reconcile": lambda manifest: render_reconcile_table(console, manifest),
-        "on_dedupe": lambda manifest: render_dedupe_table(console, manifest),
-        "on_rename": lambda manifest: render_rename_table(console, manifest),
-        "on_apply": lambda manifest: render_apply_table(console, manifest),
-        "on_errors": lambda manifest: render_error_table(console, manifest),
+        "on_scan": partial(render_scan_table, console),
+        "on_link": partial(render_link_table, console),
+        "on_reconcile": partial(render_reconcile_table, console),
+        "on_dedupe": partial(render_dedupe_table, console),
+        "on_rename": partial(render_rename_table, console),
+        "on_apply": partial(render_apply_table, console),
+        "on_errors": partial(render_error_table, console),
     }
 
     return progress, hooks
