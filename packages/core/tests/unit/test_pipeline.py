@@ -295,9 +295,7 @@ class TestWorkspaceCaching:
 
         from pixelkasten.pipeline import run_pipeline
 
-        result = run_pipeline(
-            make_options(takeout=True, workspace=str(tmp_path), rescan=True)
-        )
+        result = run_pipeline(make_options(takeout=True, workspace=str(tmp_path), rescan=True))
 
         # Scan should be called despite cache existing
         mock_scan.assert_called_once()

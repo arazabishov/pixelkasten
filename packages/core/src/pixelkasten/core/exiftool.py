@@ -50,9 +50,7 @@ def check_exiftool() -> None:
                 "exiftool is installed but returned an error. Check your installation."
             )
     except FileNotFoundError:
-        raise RuntimeError(
-            "exiftool is not installed. Install it with: brew install exiftool"
-        )
+        raise RuntimeError("exiftool is not installed. Install it with: brew install exiftool")
 
 
 def read_metadata(

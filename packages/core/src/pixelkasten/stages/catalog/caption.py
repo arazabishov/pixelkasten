@@ -45,8 +45,7 @@ def check_ollama(model: str) -> None:
     if model not in model_names and model not in base_names:
         available = ", ".join(n for n in model_names if n is not None) or "(none)"
         raise RuntimeError(
-            f"Model '{model}' not found. Run: ollama pull {model}\n"
-            f"Available models: {available}"
+            f"Model '{model}' not found. Run: ollama pull {model}\nAvailable models: {available}"
         )
 
 

@@ -24,11 +24,7 @@ class TestParseLlmResponse:
         assert result == {"0": "Beach Vacation"}
 
     def test_json_with_surrounding_explanation_text(self):
-        raw = (
-            "Here is the proposed structure:\n"
-            '{"5": "Christmas Dinner"}\n'
-            "I hope this helps!"
-        )
+        raw = 'Here is the proposed structure:\n{"5": "Christmas Dinner"}\nI hope this helps!'
         result = _parse_llm_response(raw)
         assert result == {"5": "Christmas Dinner"}
 

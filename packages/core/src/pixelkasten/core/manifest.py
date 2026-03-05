@@ -86,8 +86,8 @@ class ManifestEntry(TypedDict):
     """A single file tracked through the pipeline.
 
     Required fields (mediaPath, source) are set at entry creation (link stage
-    for takeout, scan for plain archives). All other fields are added by downstream stages and marked
-    NotRequired. Fields are ordered by pipeline stage:
+    for takeout, scan for plain archives). All other fields are added by downstream
+    stages and marked NotRequired. Fields are ordered by pipeline stage:
 
       link → dedupe → reconcile → geocode → catalog → rename → apply
     """

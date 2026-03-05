@@ -35,9 +35,7 @@ def read_sidecar(json_path: str | Path | None) -> dict | None:
         geo = get_geo_data(geo_data_exif, geo_data)
 
         return {
-            "timestamp": photo_taken_time.get("timestamp")
-            if photo_taken_time
-            else None,
+            "timestamp": photo_taken_time.get("timestamp") if photo_taken_time else None,
             "geo": geo,
         }
     except Exception as e:

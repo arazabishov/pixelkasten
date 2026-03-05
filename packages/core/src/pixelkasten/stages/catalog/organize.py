@@ -237,9 +237,7 @@ def _parse_llm_response(raw: str) -> dict[str, str]:
         start = cleaned.find("{")
         end = cleaned.rfind("}") + 1
         if start == -1 or end == 0:
-            raise ValueError(
-                f"LLM did not return valid JSON. Raw response:\n{raw[:500]}"
-            )
+            raise ValueError(f"LLM did not return valid JSON. Raw response:\n{raw[:500]}")
         result = json.loads(cleaned[start:end])
 
     if not isinstance(result, dict):

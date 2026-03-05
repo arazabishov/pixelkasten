@@ -109,9 +109,7 @@ def link(raw_collections: dict, options: PipelineOptions) -> dict:
         candidates = metadata_by_dir.get(dir_path, [])
 
         source = (
-            {"type": "album", "name": albums[dir_path]}
-            if dir_path in albums
-            else {"type": "loose"}
+            {"type": "album", "name": albums[dir_path]} if dir_path in albums else {"type": "loose"}
         )
 
         manifest.append(
@@ -233,9 +231,7 @@ def _match(media_parsed: dict, candidates: list[dict], options: PipelineOptions)
     return {"path": best_match["path"], "confidence": confidence}
 
 
-def _match_score(
-    media_parsed: dict, metadata_parsed: dict, options: PipelineOptions
-) -> int:
+def _match_score(media_parsed: dict, metadata_parsed: dict, options: PipelineOptions) -> int:
     """
     Calculate match score between a media file and a metadata file.
 

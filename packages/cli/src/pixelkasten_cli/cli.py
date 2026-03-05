@@ -2,10 +2,10 @@
 CLI entry point — unified pipeline for photo library organization.
 
 Usage:
-    uv run pixelkasten -s <source> -d <destination>                    # archive (default)
+    uv run pixelkasten -s <source> -d <destination>                    # default
     uv run pixelkasten -s <source> -d <destination> --takeout          # Google Takeout
     uv run pixelkasten -s <source> -d <destination> --dry-run          # preview
-    uv run pixelkasten -s <source> -d <destination> --catalog          # archive + AI
+    uv run pixelkasten -s <source> -d <destination> --catalog          # AI albums
     uv run pixelkasten -s <source> -d <destination> -w ./workspace     # with caching
     uv run pixelkasten status -w ./workspace                           # inspect workspace
 """

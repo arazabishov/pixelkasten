@@ -233,9 +233,7 @@ class TestReadSidecar:
         path = tmp_path / "broken.json"
         path.write_text("{ not valid json")
 
-        with pytest.raises(
-            RuntimeError, match=re.escape(f"Failed to read sidecar file at {path}")
-        ):
+        with pytest.raises(RuntimeError, match=re.escape(f"Failed to read sidecar file at {path}")):
             read_sidecar(path)
 
     def test_raises_for_missing_file(self):

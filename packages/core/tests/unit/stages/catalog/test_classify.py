@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from pixelkasten.stages.catalog.classify import classify, build_label_list
 

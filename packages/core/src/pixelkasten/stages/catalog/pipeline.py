@@ -79,9 +79,7 @@ def run_catalog(
         embeddings = _load_workspace_embeddings(workspace)
 
     if embeddings is None:
-        with _progress_ctx(
-            progress, "Embedding images", len(image_paths)
-        ) as on_progress:
+        with _progress_ctx(progress, "Embedding images", len(image_paths)) as on_progress:
             embeddings, failed_indices = embed_images(
                 model,
                 preprocess,
@@ -116,8 +114,7 @@ def run_catalog(
             entry["status"] = "ok"
             entry["is_representative"] = ok_indices[i] in reps_flat
             entry["tags"] = [
-                {"name": name, "score": round(score, 3)}
-                for name, score in all_tags[ok_indices[i]]
+                {"name": name, "score": round(score, 3)} for name, score in all_tags[ok_indices[i]]
             ]
         else:
             entry["status"] = "failed"
@@ -126,9 +123,7 @@ def run_catalog(
     summary = cluster_summary(labels)
     manifest_dict = {
         "entries": manifest,
-        "clusters": {
-            str(k): {"size": v} for k, v in summary.get("cluster_sizes", {}).items()
-        },
+        "clusters": {str(k): {"size": v} for k, v in summary.get("cluster_sizes", {}).items()},
     }
 
     # Refine (optional)
@@ -146,11 +141,7 @@ def run_catalog(
 
     # Caption (optional)
     if not catalog_options.skip_caption:
-        n_reps = sum(
-            1
-            for e in manifest
-            if e.get("is_representative") and e.get("status") == "ok"
-        )
+        n_reps = sum(1 for e in manifest if e.get("is_representative") and e.get("status") == "ok")
         with _progress_ctx(progress, "Captioning images", n_reps) as on_progress:
             captions = caption_representatives(
                 manifest_dict,

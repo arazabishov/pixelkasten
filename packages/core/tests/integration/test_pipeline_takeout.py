@@ -71,9 +71,7 @@ def build_takeout(base_dir: Path, structure: dict) -> None:
 
                 if entry.get("sidecar"):
                     sidecar = _build_sidecar(entry["name"], entry["sidecar"])
-                    sidecar_path = (
-                        folder_path / f"{entry['name']}.supplemental-metadata.json"
-                    )
+                    sidecar_path = folder_path / f"{entry['name']}.supplemental-metadata.json"
                     sidecar_path.write_text(json.dumps(sidecar))
 
 
@@ -174,7 +172,7 @@ class TestTakeoutPipeline:
             },
         )
 
-        manifest = run_pipeline(
+        run_pipeline(
             make_options(
                 source=str(source),
                 destination=str(dest),
@@ -258,9 +256,7 @@ class TestTakeoutPipeline:
 
         # Partial-EXIF file was embedded (GPS written from sidecar).
         partial_exif_row = next(r for r in report_rows if "IMG_003.jpg" in r)
-        assert "embedded" in partial_exif_row, (
-            "Partial-EXIF file should have 'embedded' status"
-        )
+        assert "embedded" in partial_exif_row, "Partial-EXIF file should have 'embedded' status"
 
     def test_deduplicates_album_over_loose(self, tmp_path):
         """
@@ -308,7 +304,7 @@ class TestTakeoutPipeline:
             },
         )
 
-        manifest = run_pipeline(
+        run_pipeline(
             make_options(
                 source=str(source),
                 destination=str(dest),
@@ -330,12 +326,8 @@ class TestTakeoutPipeline:
 
         # Verify the loose copy was removed by dedup (no JPEGs directly in year folder).
         year_folder = dest / "2024"
-        loose_jpegs = [
-            f for f in year_folder.iterdir() if f.is_file() and f.suffix == ".jpg"
-        ]
-        assert len(loose_jpegs) == 0, (
-            "No loose JPEGs should exist directly in the year folder"
-        )
+        loose_jpegs = [f for f in year_folder.iterdir() if f.is_file() and f.suffix == ".jpg"]
+        assert len(loose_jpegs) == 0, "No loose JPEGs should exist directly in the year folder"
 
         # Verify report: one embedded (album winner), one deleted (loose duplicate).
         report_content = (dest / "report.csv").read_text()
@@ -377,7 +369,7 @@ class TestTakeoutPipeline:
             },
         )
 
-        manifest = run_pipeline(
+        run_pipeline(
             make_options(
                 source=str(source),
                 destination=str(dest),
@@ -406,9 +398,7 @@ class TestTakeoutPipeline:
 
         # Verify the sidecar JSON was copied alongside the media file.
         copied_sidecar_path = dest / "2024" / "20240321-102410.jpg.json"
-        assert copied_sidecar_path.exists(), (
-            "Sidecar JSON should be copied alongside media"
-        )
+        assert copied_sidecar_path.exists(), "Sidecar JSON should be copied alongside media"
 
         copied_sidecar = json.loads(copied_sidecar_path.read_text())
         assert copied_sidecar["photoTakenTime"]["timestamp"] == "1711016650", (
@@ -438,7 +428,7 @@ class TestTakeoutPipeline:
             },
         )
 
-        manifest = run_pipeline(
+        run_pipeline(
             make_options(
                 source=str(source),
                 destination=str(dest),
@@ -497,11 +487,9 @@ class TestTakeoutPipeline:
                 "longitudeSpan": 0.0,
             },
         }
-        (avi_dir / "video.avi.supplemental-metadata.json").write_text(
-            json.dumps(avi_sidecar)
-        )
+        (avi_dir / "video.avi.supplemental-metadata.json").write_text(json.dumps(avi_sidecar))
 
-        manifest = run_pipeline(
+        run_pipeline(
             make_options(
                 source=str(source),
                 destination=str(dest),
@@ -513,9 +501,7 @@ class TestTakeoutPipeline:
         # Verify the JPEG was renamed and embedded as usual.
         jpeg_file = str(dest / "2024" / "20240321-102410.jpg")
         jpeg_metadata = read_metadata([jpeg_file], VERIFY_TAGS)
-        assert jpeg_metadata.get(jpeg_file) is not None, (
-            "JPEG should be in renamed output path"
-        )
+        assert jpeg_metadata.get(jpeg_file) is not None, "JPEG should be in renamed output path"
 
         # Verify the .avi was copied with its original filename (unsupported formats skip rename).
         avi_file = dest / "video.avi"
