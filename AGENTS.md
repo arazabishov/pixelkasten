@@ -38,7 +38,7 @@ User data must never leave the device. All processing, including AI-powered cate
 
 ## Architecture
 
-The project is a uv workspaces monorepo: `packages/core` contains pipeline logic, stages, and AI catalog with no UI dependencies, while `packages/cli` is a thin typer + rich consumer that wires up progress, hooks, and reporting.
+The project is a uv workspaces monorepo: `packages/core` contains pipeline logic, stages, and AI album discovery with no UI dependencies, while `packages/cli` is a thin typer + rich consumer that wires up progress, hooks, and reporting.
 
 A simple `core/` and `cli/` directory split inside one package would not be enough. uv workspaces enforce the dependency boundary at install time, so core can never accidentally import typer or rich. This matters because the CLI should not be the only frontend. A web UI or desktop app should be able to import core directly without pulling in CLI dependencies.
 
@@ -46,9 +46,9 @@ A simple `core/` and `cli/` directory split inside one package would not be enou
 
 Processing photos requires multiple steps (scanning, matching sidecars, deduplicating, writing metadata, etc.) that must happen in order, where each step builds on the results of the previous one. The pipeline tracks all work in a single in-memory manifest that each stage reads from and enriches. Stages are decoupled: each reads fields that upstream stages wrote, without needing to know about the stages themselves. No stage performs side effects. File copies and metadata writes are deferred to the final apply stage. This is what makes `--dry-run` possible (just skip apply), makes the pipeline safe to retry (a failed stage leaves disk untouched), and keeps tests simple (assert on manifest state, no filesystem mocking).
 
-The pipeline is a linear sequence where flags control which stages run. `--takeout` enables sidecar matching, `--catalog` enables AI album discovery, and both can be combined. Workspace caching (`-w`) persists `manifest.json` after init stages and `embeddings.npy` after CLIP embedding, the two most expensive operations. Caching them lets you iterate on downstream stages (clustering parameters, LLM prompts) without re-doing the slow work. For the exact execution sequence and stage wiring, see `pipeline.py`.
+The pipeline is a linear sequence where flags control which stages run. Sidecar matching runs automatically when JSON metadata is present. `--discover` enables AI album discovery. Workspace caching (`-w`) persists `manifest.json` after init stages and `embeddings.npy` after CLIP embedding, the two most expensive operations. Caching them lets you iterate on downstream stages (clustering parameters, LLM prompts) without re-doing the slow work. For the exact execution sequence and stage wiring, see `pipeline.py`.
 
-Two areas are complex enough to have their own documentation. The link stage (sidecar matching) deals with Google Takeout's unpredictable filename truncation, collision markers, and edited variants; see `docs/takeout.md` for the full breakdown. The catalog is effectively a sub-pipeline with its own stages (embedding, clustering, classification, captioning, album naming) orchestrated by `stages/catalog/`.
+Two areas are complex enough to have their own documentation. The link stage (sidecar matching) deals with Google Takeout's unpredictable filename truncation, collision markers, and edited variants; see `docs/takeout.md` for the full breakdown. Album discovery is effectively a sub-pipeline with its own stages (embedding, clustering, classification, captioning, album naming) orchestrated by `stages/discovery/`.
 
 ### Handlers
 
@@ -56,7 +56,7 @@ Different media formats store metadata in incompatible ways: EXIF tags for image
 
 ## Dependencies
 
-Python 3.12+ and uv are required to run the project. exiftool must be installed separately for metadata read/write operations. Ollama with vision and text models is only needed when running with `--catalog`. All Python dependencies, including ruff and pytest, are managed by uv. Run `uv sync` to install them.
+Python 3.12+ and uv are required to run the project. exiftool must be installed separately for metadata read/write operations. Ollama with vision and text models is only needed when running with `--discover`. All Python dependencies, including ruff and pytest, are managed by uv. Run `uv sync` to install them.
 
 ## Useful commands
 
@@ -96,7 +96,7 @@ return {"timestamp": timestamp, "geo": geo}
 
 #### Type annotations and imports
 
-All public functions should have full type annotations. Always use proper imports for type annotations — never use string annotations (e.g., `"PipelineOptions"`) as a workaround. If an import would cause a circular dependency, fix the dependency structure instead. Imports for heavy dependencies (torch, sklearn, ollama) are deferred inside functions. This is not just about startup speed. A user running `--no-catalog` takeout processing should not need torch installed at all. Deferred imports make optional dependencies truly optional.
+All public functions should have full type annotations. Always use proper imports for type annotations — never use string annotations (e.g., `"PipelineOptions"`) as a workaround. If an import would cause a circular dependency, fix the dependency structure instead. Imports for heavy dependencies (torch, sklearn, ollama) are deferred inside functions. This is not just about startup speed. A user running without `--discover` should not need torch installed at all. Deferred imports make optional dependencies truly optional.
 
 #### Comments and docstrings
 

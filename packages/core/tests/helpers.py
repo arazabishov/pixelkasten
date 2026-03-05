@@ -1,6 +1,6 @@
 """Shared test utilities."""
 
-from pixelkasten.configuration import CatalogOptions, Options
+from pixelkasten.configuration import DiscoveryOptions, Options
 
 
 def make_options(**overrides) -> Options:
@@ -15,14 +15,14 @@ def make_options(**overrides) -> Options:
         "prefer": "album",
         "fuzzy": True,
         "fuzzy_threshold": 40,
-        "catalog": None,
+        "discovery": None,
     }
     defaults.update(overrides)
     return Options(**defaults)
 
 
-def make_catalog_options(**overrides) -> CatalogOptions:
-    """Build CatalogOptions with test defaults."""
+def make_discovery_options(**overrides) -> DiscoveryOptions:
+    """Build DiscoveryOptions with test defaults."""
     defaults = {
         "clip_model": "ViT-L-14",
         "batch_size": 32,
@@ -34,4 +34,4 @@ def make_catalog_options(**overrides) -> CatalogOptions:
         "skip_refine": False,
     }
     defaults.update(overrides)
-    return CatalogOptions(**defaults)
+    return DiscoveryOptions(**defaults)

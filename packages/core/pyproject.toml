@@ -1,4 +1,4 @@
-# Core library — pipeline logic, stages, handlers, AI catalog.
+# Core library — pipeline logic, stages, handlers, AI album discovery.
 # Import namespace: pixelkasten.*
 [project]
 name = "pixelkasten-core"

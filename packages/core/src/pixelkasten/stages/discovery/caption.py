@@ -95,19 +95,15 @@ def caption_representatives(
     Returns:
         Dict of {image_path: caption} for successfully captioned images.
     """
-    from pixelkasten.core.types import Status
+    from pixelkasten.stages.discovery.types import Status
 
     representatives = [
-        entry
-        for entry in manifest["entries"]
-        if entry.catalog
-        and entry.catalog.is_representative
-        and entry.catalog.status == Status.PROCESSED
+        de for de in manifest["entries"] if de.is_representative and de.status == Status.PROCESSED
     ]
 
     captions = {}
-    for i, entry in enumerate(representatives):
-        image_path = entry.media_path
+    for i, de in enumerate(representatives):
+        image_path = de.entry.media_path
         caption = caption_image(model, Path(image_path), prompt)
 
         if caption is not None:

@@ -62,21 +62,21 @@ def refine_clusters(
     #
     # Timestamps come from metadata.dates (populated by reconcile).
     # Locations come from entry["location"]["region"] (populated by reverse_geocode).
-    from pixelkasten.core.types import Status
+    from pixelkasten.stages.discovery.types import Status
 
     timestamps = {}
     regions = {}
     has_metadata = {}
     embed_index = 0
-    for entry in manifest["entries"]:
-        if not entry.catalog or entry.catalog.status != Status.PROCESSED:
+    for de in manifest["entries"]:
+        if de.status != Status.PROCESSED:
             continue
-        dates = entry.metadata.dates if entry.metadata else []
+        dates = de.entry.metadata.dates if de.entry.metadata else []
         has_metadata[embed_index] = bool(dates)
         if dates:
             timestamps[embed_index] = dates[0]
-        if entry.location and entry.location.region:
-            regions[embed_index] = entry.location.region
+        if de.entry.location and de.entry.location.region:
+            regions[embed_index] = de.entry.location.region
         embed_index += 1
 
     # Extract current labels from manifest.
@@ -135,14 +135,13 @@ def refine_clusters(
 
 def _extract_labels(manifest: dict) -> np.ndarray:
     """Extract cluster labels from manifest entries into an array matching embeddings shape."""
-    from pixelkasten.core.types import Status
+    from pixelkasten.stages.discovery.types import Status
 
     labels = []
-    for entry in manifest["entries"]:
-        if not entry.catalog or entry.catalog.status != Status.PROCESSED:
+    for de in manifest["entries"]:
+        if de.status != Status.PROCESSED:
             continue
-        cluster = entry.catalog.cluster
-        labels.append(cluster if cluster is not None else -1)
+        labels.append(de.cluster if de.cluster is not None else -1)
     return np.array(labels, dtype=int)
 
 

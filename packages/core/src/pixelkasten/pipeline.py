@@ -2,9 +2,9 @@
 Unified pipeline orchestrator.
 
 Linear flow with conditional stages:
-  scan → link → dedupe → reconcile → [catalog] → rename → apply
+  scan → link → dedupe → reconcile → [discover] → rename → apply
 
-Link matches sidecars automatically when present, --catalog enables AI album discovery.
+Link matches sidecars automatically when present, --discover enables AI album discovery.
 """
 
 from collections.abc import Callable
@@ -30,11 +30,11 @@ def run_pipeline(options: Options, hooks: Hooks, progress: Callable) -> list[Man
 
     manifest = _init_manifest(options, hooks, progress)
 
-    if options.catalog:
-        # Deferred import — catalog pulls in torch/CLIP which are optional deps
-        from pixelkasten.stages.catalog import run_catalog
+    if options.discovery:
+        # Deferred import — discovery pulls in torch/CLIP which are optional deps
+        from pixelkasten.stages.discovery import run_discovery
 
-        manifest = run_catalog(manifest, options, progress=progress)
+        manifest = run_discovery(manifest, options, progress=progress)
 
     if not options.skip_rename:
         rename(manifest)

@@ -18,7 +18,7 @@ pixelkasten -s ~/takeout -d ~/photos
 pixelkasten -s ~/takeout -d ~/photos --dry-run
 
 # Organize a plain photo archive with AI album discovery
-pixelkasten -s ~/photos -d ~/organized --no-takeout --catalog
+pixelkasten -s ~/photos -d ~/organized --discover
 ```
 
 ## What it does
@@ -67,21 +67,21 @@ Files are named by their timestamp. Album files get grouped into subdirectories 
 
 ### AI album discovery
 
-For unstructured photo archives, or even Takeout exports where you want smarter organization, the `--catalog` flag enables AI-powered album discovery. It runs entirely locally using CLIP embeddings for visual grouping, HDBSCAN for clustering, and an LLM (via Ollama) for naming the albums it finds.
+For unstructured photo archives, or even Takeout exports where you want smarter organization, the `--discover` flag enables AI-powered album discovery. It runs entirely locally using CLIP embeddings for visual grouping, HDBSCAN for clustering, and an LLM (via Ollama) for naming the albums it finds.
 
 ```bash
 # Plain archive with AI albums
-pixelkasten -s ~/photos -d ~/organized --no-takeout --catalog
+pixelkasten -s ~/photos -d ~/organized --discover
 
 # Takeout processing + AI albums combined
-pixelkasten -s ~/takeout -d ~/photos --catalog
+pixelkasten -s ~/takeout -d ~/photos --discover
 ```
 
 This requires [Ollama](https://ollama.com/) with vision and text models installed locally. No data leaves your device.
 
 ## Prerequisites
 
-Python 3.12+ and [uv](https://docs.astral.sh/uv/) are required. [exiftool](https://exiftool.org/) must be installed separately for metadata embedding. [Ollama](https://ollama.com/) with vision and text models is only needed when running with `--catalog`.
+Python 3.12+ and [uv](https://docs.astral.sh/uv/) are required. [exiftool](https://exiftool.org/) must be installed separately for metadata embedding. [Ollama](https://ollama.com/) with vision and text models is only needed when running with `--discover`.
 
 ## Installation
 

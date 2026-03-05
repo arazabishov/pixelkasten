@@ -17,7 +17,7 @@ from typing import Callable
 
 import ollama as ollama_client
 
-from pixelkasten.configuration import CatalogOptions
+from pixelkasten.configuration import DiscoveryOptions
 
 DEFAULT_MODEL = "qwen3.5:35b"
 
@@ -68,10 +68,10 @@ def build_cluster_summary_text(manifest: dict) -> str:
 
     # Group entries by cluster for efficient single-pass aggregation.
     entries_by_cluster: dict[str, list] = {}
-    for entry in entries:
-        cid = str(entry.catalog.cluster if entry.catalog else -1)
+    for de in entries:
+        cid = str(de.cluster if de.cluster is not None else -1)
         if cid in clusters:
-            entries_by_cluster.setdefault(cid, []).append(entry)
+            entries_by_cluster.setdefault(cid, []).append(de)
 
     lines = []
     for cluster_id in sorted(clusters.keys(), key=lambda x: int(x)):
@@ -82,7 +82,7 @@ def build_cluster_summary_text(manifest: dict) -> str:
         cluster_entries = entries_by_cluster.get(cluster_id, [])
 
         # Captions from representative images.
-        captions = [e.catalog.caption for e in cluster_entries if e.catalog and e.catalog.caption]
+        captions = [de.caption for de in cluster_entries if de.caption]
         if captions:
             lines.append("  Captions:")
             for cap in captions:
@@ -90,18 +90,17 @@ def build_cluster_summary_text(manifest: dict) -> str:
 
         # Tags aggregated from all entries in the cluster.
         tag_counts: Counter = Counter()
-        for entry in cluster_entries:
-            if entry.catalog:
-                for tag in entry.catalog.tags:
-                    tag_counts[tag.name] += 1
+        for de in cluster_entries:
+            for tag in de.tags:
+                tag_counts[tag.name] += 1
         if tag_counts:
             top_tags = [name for name, _ in tag_counts.most_common(5)]
             lines.append(f"  Top tags: {', '.join(top_tags)}")
 
         # Date range from metadata timestamps (populated by reconcile).
         timestamps = []
-        for e in cluster_entries:
-            dates = e.metadata.dates if e.metadata else []
+        for de in cluster_entries:
+            dates = de.entry.metadata.dates if de.entry.metadata else []
             if dates:
                 timestamps.append(dates[0])
         if timestamps:
@@ -113,14 +112,14 @@ def build_cluster_summary_text(manifest: dict) -> str:
         # transit or metadata errors gets ignored.
         city_counts: Counter = Counter()
         region_counts: Counter = Counter()
-        for entry in cluster_entries:
-            if not entry.location:
+        for de in cluster_entries:
+            if not de.entry.location:
                 continue
-            if entry.location.name:
-                city = entry.location.name.split(",")[0].strip()
+            if de.entry.location.name:
+                city = de.entry.location.name.split(",")[0].strip()
                 city_counts[city] += 1
-            if entry.location.region:
-                region_counts[entry.location.region] += 1
+            if de.entry.location.region:
+                region_counts[de.entry.location.region] += 1
 
         total_geotagged = sum(region_counts.values())
         if total_geotagged > 0:
@@ -128,11 +127,15 @@ def build_cluster_summary_text(manifest: dict) -> str:
                 r for r, c in region_counts.items() if c / total_geotagged >= 0.1
             ]
             significant_cities = []
-            for entry in cluster_entries:
-                if not entry.location:
+            for de in cluster_entries:
+                if not de.entry.location:
                     continue
-                if entry.location.region in significant_regions:
-                    city = entry.location.name.split(",")[0].strip() if entry.location.name else ""
+                if de.entry.location.region in significant_regions:
+                    city = (
+                        de.entry.location.name.split(",")[0].strip()
+                        if de.entry.location.name
+                        else ""
+                    )
                     if city and city not in significant_cities:
                         significant_cities.append(city)
 
@@ -146,7 +149,7 @@ def build_cluster_summary_text(manifest: dict) -> str:
     return "\n".join(lines)
 
 
-def propose_albums(manifest: dict, options: CatalogOptions) -> None:
+def propose_albums(manifest: dict, options: DiscoveryOptions) -> None:
     """
     Call LLM to propose album names, then mutate manifest entries.
 
@@ -164,15 +167,15 @@ def propose_albums(manifest: dict, options: CatalogOptions) -> None:
 
     from pixelkasten.core.types import Source
 
-    for entry in manifest.get("entries", []):
-        cluster_id = str(entry.catalog.cluster if entry.catalog else -1)
+    for de in manifest.get("entries", []):
+        cluster_id = str(de.cluster if de.cluster is not None else -1)
 
         if cluster_id not in album_names or cluster_id == "-1":
             continue
 
         name = album_names[cluster_id]
         if name:
-            entry.source = Source(type="album", name=name)
+            de.entry.source = Source(type="album", name=name)
 
 
 def _propose_organization(
