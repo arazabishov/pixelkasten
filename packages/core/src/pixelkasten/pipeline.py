@@ -28,33 +28,6 @@ def run_pipeline(options: Options, hooks: Hooks, progress: Callable) -> list[Man
     Returns the manifest after all stages have run.
     """
 
-    manifest = _init_manifest(options, hooks, progress)
-
-    if options.discovery:
-        # Deferred import — discovery pulls in torch/CLIP which are optional deps
-        from pixelkasten.stages.discovery import run_discovery
-
-        manifest = run_discovery(manifest, options, progress=progress)
-
-    if not options.skip_rename:
-        rename(manifest)
-        hooks.on_rename(manifest)
-
-    if not options.dry_run:
-        count = sum(1 for e in manifest if can_keep(e))
-        with progress("Applying changes", count) as tick:
-            apply(manifest, options, on_progress=tick)
-        hooks.on_apply(manifest)
-        report(manifest, options)
-
-    hooks.on_errors(manifest)
-
-    return manifest
-
-
-def _init_manifest(options: Options, hooks: Hooks, progress: Callable) -> list[ManifestEntry]:
-    """Build the manifest from source files."""
-
     raw_collections = scan(options.source)
     hooks.on_scan(raw_collections, options.source)
 
@@ -75,5 +48,24 @@ def _init_manifest(options: Options, hooks: Hooks, progress: Callable) -> list[M
         with progress("Reading metadata", len(manifest)) as tick:
             reconcile(manifest, options, on_progress=tick)
         hooks.on_reconcile(manifest)
+
+    # Deferred import — discovery pulls in torch/CLIP which are optional deps
+    if options.discovery:
+        from pixelkasten.stages.discovery import run_discovery
+
+        manifest = run_discovery(manifest, options, progress=progress)
+
+    if not options.skip_rename:
+        rename(manifest)
+        hooks.on_rename(manifest)
+
+    if not options.dry_run:
+        count = sum(1 for e in manifest if can_keep(e))
+        with progress("Applying changes", count) as tick:
+            apply(manifest, options, on_progress=tick)
+        hooks.on_apply(manifest)
+        report(manifest, options)
+
+    hooks.on_errors(manifest)
 
     return manifest
