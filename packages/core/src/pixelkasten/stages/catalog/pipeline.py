@@ -11,6 +11,7 @@ manifest but don't get cluster labels, captions, or album assignments.
 from contextlib import contextmanager
 from pathlib import Path
 
+
 from pixelkasten.stages.catalog.caption import caption_representatives
 from pixelkasten.stages.catalog.classify import (
     DEFAULT_LABEL_SETS,
@@ -32,7 +33,6 @@ from pixelkasten.options import PipelineOptions
 def run_catalog(
     manifest: list[dict],
     options: PipelineOptions,
-    workspace: Path | None = None,
     progress=None,
 ) -> list[dict]:
     """
@@ -40,24 +40,6 @@ def run_catalog(
 
     Mutates manifest in-place, adding cluster labels, captions, and album
     assignments to embeddable image entries. Non-image entries are ignored.
-
-    Args:
-        manifest: The pipeline manifest (list of entry dicts).
-        options: Pipeline options. Relevant keys:
-            clip_model (str): CLIP model name (default "ViT-L-14")
-            batch_size (int): embedding batch size (default 32)
-            min_cluster_size (int): HDBSCAN min cluster size (default 5)
-            threshold (float): classification threshold (default 0.15)
-            skip_refine (bool): skip temporal cluster refinement
-            skip_caption (bool): skip VLM captioning
-            caption_model (str): Ollama vision model (default "llava")
-            rescan (bool): ignore cached embeddings
-        workspace: Optional workspace directory for embedding cache.
-        progress: Optional progress factory (label, total) -> context manager
-            yielding an on_progress(completed) callback.
-
-    Returns:
-        The manifest (same list, mutated in-place).
     """
     # Filter to embeddable images — catalog ignores videos etc.
     image_entries = [e for e in manifest if is_image(Path(e["mediaPath"]))]
@@ -73,26 +55,15 @@ def run_catalog(
 
     model, preprocess, tokenizer, device = load_model(model_name=catalog_options.clip_model)
 
-    # Try loading cached embeddings
-    embeddings = None
-    if workspace and not options.rescan:
-        embeddings = _load_workspace_embeddings(workspace)
-
-    if embeddings is None:
-        with _progress_ctx(progress, "Embedding images", len(image_paths)) as on_progress:
-            embeddings, failed_indices = embed_images(
-                model,
-                preprocess,
-                image_paths,
-                device,
-                batch_size=catalog_options.batch_size,
-                on_progress=on_progress,
-            )
-
-        if workspace:
-            _save_workspace_embeddings(workspace, embeddings)
-    else:
-        failed_indices = []
+    with _progress_ctx(progress, "Embedding images", len(image_paths)) as on_progress:
+        embeddings, failed_indices = embed_images(
+            model,
+            preprocess,
+            image_paths,
+            device,
+            batch_size=catalog_options.batch_size,
+            on_progress=on_progress,
+        )
 
     # Cluster
     labels = cluster_embeddings(embeddings, min_cluster_size=catalog_options.min_cluster_size)
@@ -161,25 +132,6 @@ def run_catalog(
             on_progress(1)
 
     return manifest
-
-
-def _load_workspace_embeddings(workspace: Path):
-    """Load cached embeddings from workspace, or None if not found."""
-    import numpy as np
-
-    embeddings_path = workspace / "embeddings.npy"
-    if embeddings_path.exists():
-        return np.load(str(embeddings_path))
-    return None
-
-
-def _save_workspace_embeddings(workspace: Path, embeddings) -> None:
-    """Save embeddings to workspace."""
-    import numpy as np
-
-    workspace.mkdir(parents=True, exist_ok=True)
-    embeddings_path = workspace / "embeddings.npy"
-    np.save(str(embeddings_path), embeddings)
 
 
 def _progress_ctx(factory, label: str, total: int):

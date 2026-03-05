@@ -6,8 +6,6 @@ Usage:
     uv run pixelkasten -s <source> -d <destination> --takeout          # Google Takeout
     uv run pixelkasten -s <source> -d <destination> --dry-run          # preview
     uv run pixelkasten -s <source> -d <destination> --catalog          # AI albums
-    uv run pixelkasten -s <source> -d <destination> -w ./workspace     # with caching
-    uv run pixelkasten status -w ./workspace                           # inspect workspace
 """
 
 import typer
@@ -92,18 +90,6 @@ def main(
         40,
         "--fuzzy-threshold",
         help="Minimum filename length for fuzzy sidecar matching.",
-    ),
-    workspace: Path = typer.Option(
-        None,
-        "--workspace",
-        "-w",
-        help="Workspace directory for caching init data and embeddings.",
-        resolve_path=True,
-    ),
-    rescan: bool = typer.Option(
-        False,
-        "--rescan",
-        help="Invalidate workspace cache, re-scan source.",
     ),
     prefer: str = typer.Option(
         "album",
@@ -197,8 +183,6 @@ def main(
         prefer=prefer,
         fuzzy=fuzzy,
         fuzzy_threshold=fuzzy_threshold,
-        rescan=rescan,
-        workspace=str(workspace) if workspace else None,
         catalog=catalog_opts,
     )
 
@@ -244,42 +228,3 @@ def _build_pipeline_ui(console):
     }
 
     return progress, hooks
-
-
-@app.command()
-def status(
-    workspace: Path = typer.Option(
-        ...,
-        "--workspace",
-        "-w",
-        help="Path to a workspace directory.",
-        exists=True,
-        file_okay=False,
-        resolve_path=True,
-    ),
-):
-    """Inspect a workspace manifest."""
-    import json as json_mod
-
-    manifest_path = workspace / "manifest.json"
-    if not manifest_path.exists():
-        console.print(f"[red]No manifest found in {workspace}[/red]")
-        raise typer.Exit(code=1)
-
-    with open(manifest_path) as f:
-        manifest = json_mod.load(f)
-
-    n_total = len(manifest)
-    n_with_json = sum(1 for e in manifest if e.get("json"))
-    n_with_dates = sum(1 for e in manifest if e.get("metadata", {}).get("dates"))
-
-    console.print(f"\n[bold]Workspace: {workspace}[/bold]")
-    console.print(f"  Total entries: {n_total}")
-    console.print(f"  With sidecar match: {n_with_json}")
-    console.print(f"  With timestamps: {n_with_dates}")
-
-    embeddings_path = workspace / "embeddings.npy"
-    if embeddings_path.exists():
-        console.print("  Embeddings cached: yes")
-    else:
-        console.print("  Embeddings cached: no")

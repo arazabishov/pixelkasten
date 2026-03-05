@@ -1,11 +1,10 @@
 """
 Tests for the unified pipeline orchestrator.
 
-Tests stage sequencing, skip flags, dry-run, hooks, takeout dispatch, and workspace caching.
+Tests stage sequencing, skip flags, dry-run, hooks, and takeout dispatch.
 All I/O-bound stages are mocked.
 """
 
-import json
 from unittest.mock import MagicMock, patch
 
 from helpers import make_options
@@ -183,120 +182,3 @@ class TestTakeoutMode:
         hooks["on_reconcile"].assert_called_once()
         hooks["on_rename"].assert_called_once()
         hooks["on_apply"].assert_called_once()
-
-
-class TestWorkspaceCaching:
-    @patch(f"{PATCH_PREFIX}.report")
-    @patch(f"{PATCH_PREFIX}.apply")
-    @patch(f"{PATCH_PREFIX}.rename")
-    @patch(f"{PATCH_PREFIX}.dedupe_resolve")
-    @patch(f"{PATCH_PREFIX}.dedupe_hash")
-    @patch(f"{PATCH_PREFIX}.reconcile")
-    @patch(f"{PATCH_PREFIX}.link")
-    @patch(f"{PATCH_PREFIX}.scan")
-    def test_saves_manifest_to_workspace(
-        self,
-        mock_scan,
-        mock_link,
-        mock_reconcile,
-        mock_hash,
-        mock_resolve,
-        mock_rename,
-        mock_apply,
-        mock_report,
-        tmp_path,
-    ):
-        mock_scan.return_value = {
-            "files_media": [],
-            "files_metadata": [],
-            "files_metadata_albums": [],
-        }
-        mock_link.return_value = {"manifest": [{"mediaPath": "/test.jpg"}], "stats": {}}
-
-        from pixelkasten.pipeline import run_pipeline
-
-        run_pipeline(make_options(takeout=True, workspace=str(tmp_path)))
-
-        # Manifest should be saved
-        manifest_path = tmp_path / "manifest.json"
-        assert manifest_path.exists()
-
-        saved = json.loads(manifest_path.read_text())
-        assert len(saved) == 1
-        assert saved[0]["mediaPath"] == "/test.jpg"
-
-    @patch(f"{PATCH_PREFIX}.report")
-    @patch(f"{PATCH_PREFIX}.apply")
-    @patch(f"{PATCH_PREFIX}.rename")
-    @patch(f"{PATCH_PREFIX}.dedupe_resolve")
-    @patch(f"{PATCH_PREFIX}.dedupe_hash")
-    @patch(f"{PATCH_PREFIX}.reconcile")
-    @patch(f"{PATCH_PREFIX}.link")
-    @patch(f"{PATCH_PREFIX}.scan")
-    def test_loads_manifest_from_workspace(
-        self,
-        mock_scan,
-        mock_link,
-        mock_reconcile,
-        mock_hash,
-        mock_resolve,
-        mock_rename,
-        mock_apply,
-        mock_report,
-        tmp_path,
-    ):
-        # Pre-populate workspace
-        cached = [{"mediaPath": "/cached.jpg"}]
-        (tmp_path / "manifest.json").write_text(json.dumps(cached))
-
-        from pixelkasten.pipeline import run_pipeline
-
-        result = run_pipeline(make_options(takeout=True, workspace=str(tmp_path)))
-
-        # Scan and link should NOT be called (loaded from cache)
-        mock_scan.assert_not_called()
-        mock_link.assert_not_called()
-
-        # Manifest should be the cached one
-        assert result[0]["mediaPath"] == "/cached.jpg"
-
-    @patch(f"{PATCH_PREFIX}.report")
-    @patch(f"{PATCH_PREFIX}.apply")
-    @patch(f"{PATCH_PREFIX}.rename")
-    @patch(f"{PATCH_PREFIX}.dedupe_resolve")
-    @patch(f"{PATCH_PREFIX}.dedupe_hash")
-    @patch(f"{PATCH_PREFIX}.reconcile")
-    @patch(f"{PATCH_PREFIX}.link")
-    @patch(f"{PATCH_PREFIX}.scan")
-    def test_rescan_ignores_workspace_cache(
-        self,
-        mock_scan,
-        mock_link,
-        mock_reconcile,
-        mock_hash,
-        mock_resolve,
-        mock_rename,
-        mock_apply,
-        mock_report,
-        tmp_path,
-    ):
-        # Pre-populate workspace
-        (tmp_path / "manifest.json").write_text(json.dumps([{"mediaPath": "/old.jpg"}]))
-
-        mock_scan.return_value = {
-            "files_media": [],
-            "files_metadata": [],
-            "files_metadata_albums": [],
-        }
-        mock_link.return_value = {
-            "manifest": [{"mediaPath": "/fresh.jpg"}],
-            "stats": {},
-        }
-
-        from pixelkasten.pipeline import run_pipeline
-
-        result = run_pipeline(make_options(takeout=True, workspace=str(tmp_path), rescan=True))
-
-        # Scan should be called despite cache existing
-        mock_scan.assert_called_once()
-        assert result[0]["mediaPath"] == "/fresh.jpg"

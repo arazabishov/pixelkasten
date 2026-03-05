@@ -16,8 +16,6 @@ def make_options(**overrides) -> PipelineOptions:
         "prefer": "album",
         "fuzzy": True,
         "fuzzy_threshold": 40,
-        "rescan": False,
-        "workspace": None,
         "catalog": None,
     }
     defaults.update(overrides)
