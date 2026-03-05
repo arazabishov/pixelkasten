@@ -11,10 +11,52 @@ import os
 from unittest.mock import call, patch
 
 from helpers import make_options
+from pixelkasten.core.types import (
+    ApplyResult,
+    Dedupe,
+    DedupeResult,
+    ManifestEntry,
+    Metadata,
+    Rename,
+    Sidecar,
+    Source,
+    Status,
+)
 from pixelkasten.stages.apply import apply
 
 # Helper: build platform-correct paths for assertions
 J = os.path.join
+
+
+def _entry(
+    media_path,
+    dedupe_result=DedupeResult.KEEP,
+    rename_path=None,
+    write_tags=None,
+    metadata_status=Status.PROCESSED,
+    sidecar_path=None,
+    skip_dedupe=False,
+):
+    """Helper to create a manifest entry for apply tests."""
+    dedupe = (
+        None if skip_dedupe else Dedupe(status=Status.PROCESSED, result=dedupe_result, hash="abc")
+    )
+    rename = Rename(status=Status.PROCESSED, target_path=rename_path) if rename_path else None
+    metadata = (
+        Metadata(status=metadata_status, write_tags=write_tags or [])
+        if write_tags is not None
+        else None
+    )
+    sidecar = Sidecar(path=sidecar_path, confidence=3) if sidecar_path else None
+
+    return ManifestEntry(
+        media_path=media_path,
+        source=Source(type="loose"),
+        dedupe=dedupe,
+        rename=rename,
+        metadata=metadata,
+        sidecar=sidecar,
+    )
 
 
 class TestApply:
@@ -38,15 +80,8 @@ class TestApply:
         self, mock_makedirs, mock_copy2, mock_write_metadata
     ):
         manifest = [
-            {
-                "mediaPath": "/source/delete-me.jpg",
-                "dedupe": {"status": "delete"},
-            },
-            {
-                "mediaPath": "/source/keep-me.jpg",
-                "dedupe": {"status": "keep"},
-                "rename": {"targetPath": "2023/keep-me.jpg"},
-            },
+            _entry("/source/delete-me.jpg", dedupe_result=DedupeResult.DELETE),
+            _entry("/source/keep-me.jpg", rename_path="2023/keep-me.jpg"),
         ]
 
         apply(manifest, make_options(destination="/dest", skip_embed=True))
@@ -55,8 +90,8 @@ class TestApply:
         assert mock_copy2.call_args_list[0] == call(
             "/source/keep-me.jpg", J("/dest", "2023/keep-me.jpg")
         )
-        assert "apply" not in manifest[0]
-        assert manifest[1]["apply"]["status"] == "copied"
+        assert manifest[0].apply is None
+        assert manifest[1].apply.result == ApplyResult.COPIED
 
     @patch("pixelkasten.stages.apply.write_metadata")
     @patch("pixelkasten.stages.apply.shutil.copy2")
@@ -64,19 +99,14 @@ class TestApply:
     def test_uses_original_filename_when_rename_stage_was_skipped(
         self, mock_makedirs, mock_copy2, mock_write_metadata
     ):
-        manifest = [
-            {
-                "mediaPath": "/source/photos/IMG_1234.jpg",
-                "dedupe": {"status": "keep"},
-            },
-        ]
+        manifest = [_entry("/source/photos/IMG_1234.jpg")]
 
         apply(manifest, make_options(destination="/dest", skip_embed=True))
 
         assert mock_copy2.call_args_list[0] == call(
             "/source/photos/IMG_1234.jpg", J("/dest", "IMG_1234.jpg")
         )
-        assert manifest[0]["apply"]["status"] == "copied"
+        assert manifest[0].apply.result == ApplyResult.COPIED
 
     @patch("pixelkasten.stages.apply.write_metadata")
     @patch("pixelkasten.stages.apply.shutil.copy2")
@@ -84,16 +114,7 @@ class TestApply:
     def test_uses_target_path_when_rename_stage_was_run(
         self, mock_makedirs, mock_copy2, mock_write_metadata
     ):
-        manifest = [
-            {
-                "mediaPath": "/source/IMG_1234.jpg",
-                "dedupe": {"status": "keep"},
-                "rename": {
-                    "status": "processed",
-                    "targetPath": "2023/20230515-120000.jpg",
-                },
-            },
-        ]
+        manifest = [_entry("/source/IMG_1234.jpg", rename_path="2023/20230515-120000.jpg")]
 
         apply(manifest, make_options(destination="/dest", skip_embed=True))
 
@@ -110,17 +131,12 @@ class TestApply:
     def test_treats_entries_without_dedupe_as_keepers(
         self, mock_makedirs, mock_copy2, mock_write_metadata
     ):
-        manifest = [
-            {
-                "mediaPath": "/source/photo.jpg",
-                "rename": {"targetPath": "photo.jpg"},
-            },
-        ]
+        manifest = [_entry("/source/photo.jpg", rename_path="photo.jpg", skip_dedupe=True)]
 
         apply(manifest, make_options(destination="/dest", skip_embed=True))
 
         assert mock_copy2.call_count == 1
-        assert manifest[0]["apply"]["status"] == "copied"
+        assert manifest[0].apply.result == ApplyResult.COPIED
 
     @patch("pixelkasten.stages.apply.write_metadata")
     @patch("pixelkasten.stages.apply.shutil.copy2")
@@ -128,23 +144,12 @@ class TestApply:
     def test_only_checks_write_tags_to_decide_embedding_not_options(
         self, mock_makedirs, mock_copy2, mock_write_metadata
     ):
-        manifest = [
-            {
-                "mediaPath": "/source/photo.jpg",
-                "dedupe": {"status": "keep"},
-                "rename": {"targetPath": "photo.jpg"},
-                "metadata": {
-                    "status": "noop",
-                    "writeTags": [],
-                    "dates": ["2023-01-01T12:00:00"],
-                },
-            },
-        ]
+        manifest = [_entry("/source/photo.jpg", rename_path="photo.jpg", write_tags=[])]
 
         apply(manifest, make_options(destination="/dest"))
 
         mock_write_metadata.assert_not_called()
-        assert manifest[0]["apply"]["status"] == "copied"
+        assert manifest[0].apply.result == ApplyResult.COPIED
 
     @patch("pixelkasten.stages.apply.write_metadata")
     @patch("pixelkasten.stages.apply.shutil.copy2")
@@ -152,19 +157,12 @@ class TestApply:
     def test_skips_embedding_when_entry_has_no_write_tags(
         self, mock_makedirs, mock_copy2, mock_write_metadata
     ):
-        manifest = [
-            {
-                "mediaPath": "/source/photo.jpg",
-                "dedupe": {"status": "keep"},
-                "rename": {"targetPath": "photo.jpg"},
-                "metadata": {"status": "noop", "writeTags": []},
-            },
-        ]
+        manifest = [_entry("/source/photo.jpg", rename_path="photo.jpg", write_tags=[])]
 
         apply(manifest, make_options(destination="/dest"))
 
         mock_write_metadata.assert_not_called()
-        assert manifest[0]["apply"]["status"] == "copied"
+        assert manifest[0].apply.result == ApplyResult.COPIED
 
     @patch("pixelkasten.stages.apply.write_metadata")
     @patch("pixelkasten.stages.apply.shutil.copy2")
@@ -172,18 +170,12 @@ class TestApply:
     def test_skips_embedding_when_metadata_property_is_undefined(
         self, mock_makedirs, mock_copy2, mock_write_metadata
     ):
-        manifest = [
-            {
-                "mediaPath": "/source/photo.jpg",
-                "dedupe": {"status": "keep"},
-                "rename": {"targetPath": "photo.jpg"},
-            },
-        ]
+        manifest = [_entry("/source/photo.jpg", rename_path="photo.jpg")]
 
         apply(manifest, make_options(destination="/dest"))
 
         mock_write_metadata.assert_not_called()
-        assert manifest[0]["apply"]["status"] == "copied"
+        assert manifest[0].apply.result == ApplyResult.COPIED
 
     @patch("pixelkasten.stages.apply.write_metadata")
     @patch("pixelkasten.stages.apply.shutil.copy2")
@@ -192,15 +184,12 @@ class TestApply:
         self, mock_makedirs, mock_copy2, mock_write_metadata
     ):
         manifest = [
-            {
-                "mediaPath": "/source/photo.jpg",
-                "dedupe": {"status": "keep"},
-                "rename": {"targetPath": "photo.jpg"},
-                "metadata": {
-                    "status": "processed",
-                    "writeTags": ["DateTimeOriginal=2023:01:01 12:00:00"],
-                },
-            },
+            _entry(
+                "/source/photo.jpg",
+                rename_path="photo.jpg",
+                write_tags=["DateTimeOriginal=2023:01:01 12:00:00"],
+                metadata_status=Status.PROCESSED,
+            ),
         ]
 
         apply(manifest, make_options(destination="/dest"))
@@ -210,7 +199,7 @@ class TestApply:
             J("/dest", "photo.jpg"),
             ["DateTimeOriginal=2023:01:01 12:00:00"],
         )
-        assert manifest[0]["apply"]["status"] == "embedded"
+        assert manifest[0].apply.result == ApplyResult.EMBEDDED
 
     @patch("pixelkasten.stages.apply.write_metadata")
     @patch("pixelkasten.stages.apply.shutil.copy2")
@@ -218,20 +207,14 @@ class TestApply:
     def test_marks_entry_as_error_when_copy_fails(
         self, mock_makedirs, mock_copy2, mock_write_metadata
     ):
-        manifest = [
-            {
-                "mediaPath": "/source/photo.jpg",
-                "dedupe": {"status": "keep"},
-                "rename": {"targetPath": "photo.jpg"},
-            },
-        ]
+        manifest = [_entry("/source/photo.jpg", rename_path="photo.jpg")]
 
         mock_copy2.side_effect = OSError("ENOENT: no such file")
 
         apply(manifest, make_options(destination="/dest", skip_embed=True))
 
-        assert manifest[0]["apply"]["status"] == "error"
-        assert manifest[0]["apply"]["reason"] == "ENOENT: no such file"
+        assert manifest[0].apply.status == Status.ERROR
+        assert manifest[0].apply.error == "ENOENT: no such file"
 
     @patch("pixelkasten.stages.apply.write_metadata")
     @patch("pixelkasten.stages.apply.shutil.copy2")
@@ -240,39 +223,30 @@ class TestApply:
         self, mock_makedirs, mock_copy2, mock_write_metadata
     ):
         manifest = [
-            {
-                "mediaPath": "/source/photo.jpg",
-                "dedupe": {"status": "keep"},
-                "rename": {"targetPath": "photo.jpg"},
-                "metadata": {
-                    "status": "processed",
-                    "writeTags": ["DateTimeOriginal=2023:01:01 12:00:00"],
-                },
-            },
+            _entry(
+                "/source/photo.jpg",
+                rename_path="photo.jpg",
+                write_tags=["DateTimeOriginal=2023:01:01 12:00:00"],
+                metadata_status=Status.PROCESSED,
+            ),
         ]
 
         mock_write_metadata.side_effect = RuntimeError("exiftool failed")
 
         apply(manifest, make_options(destination="/dest"))
 
-        assert manifest[0]["apply"]["status"] == "error"
-        assert manifest[0]["apply"]["reason"] == "exiftool failed"
+        assert manifest[0].apply.status == Status.ERROR
+        assert manifest[0].apply.error == "exiftool failed"
 
     @patch("pixelkasten.stages.apply.write_metadata")
     @patch("pixelkasten.stages.apply.shutil.copy2")
     @patch("pixelkasten.stages.apply.os.makedirs")
     def test_stores_dest_path_in_apply_object(self, mock_makedirs, mock_copy2, mock_write_metadata):
-        manifest = [
-            {
-                "mediaPath": "/source/photo.jpg",
-                "dedupe": {"status": "keep"},
-                "rename": {"targetPath": "2023/photo.jpg"},
-            },
-        ]
+        manifest = [_entry("/source/photo.jpg", rename_path="2023/photo.jpg")]
 
         apply(manifest, make_options(destination="/dest", skip_embed=True))
 
-        assert manifest[0]["apply"]["targetPath"] == J("/dest", "2023/photo.jpg")
+        assert manifest[0].apply.target_path == J("/dest", "2023/photo.jpg")
 
     @patch("pixelkasten.stages.apply.write_metadata")
     @patch("pixelkasten.stages.apply.shutil.copy2")
@@ -281,12 +255,11 @@ class TestApply:
         self, mock_makedirs, mock_copy2, mock_write_metadata
     ):
         manifest = [
-            {
-                "mediaPath": "/source/photo.jpg",
-                "dedupe": {"status": "keep"},
-                "rename": {"targetPath": "2023/photo.jpg"},
-                "json": {"path": "/source/photo.jpg.json"},
-            },
+            _entry(
+                "/source/photo.jpg",
+                rename_path="2023/photo.jpg",
+                sidecar_path="/source/photo.jpg.json",
+            ),
         ]
 
         apply(manifest, make_options(destination="/dest", skip_embed=True))
@@ -303,12 +276,9 @@ class TestApply:
         self, mock_makedirs, mock_copy2, mock_write_metadata
     ):
         manifest = [
-            {
-                "mediaPath": "/source/photo.jpg",
-                "dedupe": {"status": "keep"},
-                "rename": {"targetPath": "photo.jpg"},
-                "json": {"path": "/source/photo.jpg.json"},
-            },
+            _entry(
+                "/source/photo.jpg", rename_path="photo.jpg", sidecar_path="/source/photo.jpg.json"
+            ),
         ]
 
         apply(manifest, make_options(destination="/dest"))
@@ -321,14 +291,7 @@ class TestApply:
     def test_does_not_copy_sidecar_when_no_matched_sidecar(
         self, mock_makedirs, mock_copy2, mock_write_metadata
     ):
-        manifest = [
-            {
-                "mediaPath": "/source/photo.jpg",
-                "dedupe": {"status": "keep"},
-                "rename": {"targetPath": "photo.jpg"},
-                "json": None,
-            },
-        ]
+        manifest = [_entry("/source/photo.jpg", rename_path="photo.jpg")]
 
         apply(manifest, make_options(destination="/dest", skip_embed=True))
 
@@ -341,11 +304,7 @@ class TestApply:
         self, mock_makedirs, mock_copy2, mock_write_metadata
     ):
         manifest = [
-            {
-                "mediaPath": "/source/photos/IMG_1234.jpg",
-                "dedupe": {"status": "keep"},
-                "json": {"path": "/source/photos/IMG_1234.jpg.json"},
-            },
+            _entry("/source/photos/IMG_1234.jpg", sidecar_path="/source/photos/IMG_1234.jpg.json")
         ]
 
         apply(manifest, make_options(destination="/dest", skip_embed=True))
@@ -361,12 +320,9 @@ class TestApply:
         self, mock_makedirs, mock_copy2, mock_write_metadata
     ):
         manifest = [
-            {
-                "mediaPath": "/source/photo.jpg",
-                "dedupe": {"status": "keep"},
-                "rename": {"targetPath": "photo.jpg"},
-                "json": {"path": "/source/photo.jpg.json"},
-            },
+            _entry(
+                "/source/photo.jpg", rename_path="photo.jpg", sidecar_path="/source/photo.jpg.json"
+            ),
         ]
 
         apply(manifest, make_options(destination="/dest"))
@@ -378,14 +334,7 @@ class TestApply:
     @patch("pixelkasten.stages.apply.os.makedirs")
     def test_handles_nested_album_paths(self, mock_makedirs, mock_copy2, mock_write_metadata):
         manifest = [
-            {
-                "mediaPath": "/source/photo.jpg",
-                "dedupe": {"status": "keep"},
-                "rename": {
-                    "status": "processed",
-                    "targetPath": "2023/20230501 - Vacation/20230515-120000.jpg",
-                },
-            },
+            _entry("/source/photo.jpg", rename_path="2023/20230501 - Vacation/20230515-120000.jpg"),
         ]
 
         apply(manifest, make_options(destination="/dest", skip_embed=True))
@@ -402,12 +351,9 @@ class TestApply:
         self, mock_makedirs, mock_copy2, mock_write_metadata
     ):
         manifest = [
-            {
-                "mediaPath": "/source/photo.jpg",
-                "dedupe": {"status": "keep"},
-                "rename": {"targetPath": "photo.jpg"},
-                "json": {"path": "/source/photo.jpg.json"},
-            },
+            _entry(
+                "/source/photo.jpg", rename_path="photo.jpg", sidecar_path="/source/photo.jpg.json"
+            ),
         ]
 
         def copy_side_effect(src, dst):
@@ -418,5 +364,5 @@ class TestApply:
 
         apply(manifest, make_options(destination="/dest", skip_embed=True))
 
-        assert manifest[0]["apply"]["status"] == "error"
-        assert manifest[0]["apply"]["reason"] == "ENOSPC: no space left"
+        assert manifest[0].apply.status == Status.ERROR
+        assert manifest[0].apply.error == "ENOSPC: no space left"

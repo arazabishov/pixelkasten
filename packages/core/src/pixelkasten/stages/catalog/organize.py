@@ -67,9 +67,9 @@ def build_cluster_summary_text(manifest: dict) -> str:
     entries = manifest.get("entries", [])
 
     # Group entries by cluster for efficient single-pass aggregation.
-    entries_by_cluster: dict[str, list[dict]] = {}
+    entries_by_cluster: dict[str, list] = {}
     for entry in entries:
-        cid = str(entry.get("cluster", -1))
+        cid = str(entry.catalog.cluster if entry.catalog else -1)
         if cid in clusters:
             entries_by_cluster.setdefault(cid, []).append(entry)
 
@@ -82,7 +82,7 @@ def build_cluster_summary_text(manifest: dict) -> str:
         cluster_entries = entries_by_cluster.get(cluster_id, [])
 
         # Captions from representative images.
-        captions = [e["caption"] for e in cluster_entries if e.get("caption")]
+        captions = [e.catalog.caption for e in cluster_entries if e.catalog and e.catalog.caption]
         if captions:
             lines.append("  Captions:")
             for cap in captions:
@@ -91,8 +91,9 @@ def build_cluster_summary_text(manifest: dict) -> str:
         # Tags aggregated from all entries in the cluster.
         tag_counts: Counter = Counter()
         for entry in cluster_entries:
-            for tag in entry.get("tags", []):
-                tag_counts[tag["name"]] += 1
+            if entry.catalog:
+                for tag in entry.catalog.tags:
+                    tag_counts[tag.name] += 1
         if tag_counts:
             top_tags = [name for name, _ in tag_counts.most_common(5)]
             lines.append(f"  Top tags: {', '.join(top_tags)}")
@@ -100,7 +101,7 @@ def build_cluster_summary_text(manifest: dict) -> str:
         # Date range from metadata timestamps (populated by reconcile).
         timestamps = []
         for e in cluster_entries:
-            dates = e.get("metadata", {}).get("dates", [])
+            dates = e.metadata.dates if e.metadata else []
             if dates:
                 timestamps.append(dates[0])
         if timestamps:
@@ -113,12 +114,13 @@ def build_cluster_summary_text(manifest: dict) -> str:
         city_counts: Counter = Counter()
         region_counts: Counter = Counter()
         for entry in cluster_entries:
-            location = entry.get("location", {})
-            if location.get("name"):
-                city = location["name"].split(",")[0].strip()
+            if not entry.location:
+                continue
+            if entry.location.name:
+                city = entry.location.name.split(",")[0].strip()
                 city_counts[city] += 1
-            if location.get("region"):
-                region_counts[location["region"]] += 1
+            if entry.location.region:
+                region_counts[entry.location.region] += 1
 
         total_geotagged = sum(region_counts.values())
         if total_geotagged > 0:
@@ -127,9 +129,10 @@ def build_cluster_summary_text(manifest: dict) -> str:
             ]
             significant_cities = []
             for entry in cluster_entries:
-                location = entry.get("location", {})
-                if location.get("region") in significant_regions:
-                    city = location.get("name", "").split(",")[0].strip()
+                if not entry.location:
+                    continue
+                if entry.location.region in significant_regions:
+                    city = entry.location.name.split(",")[0].strip() if entry.location.name else ""
                     if city and city not in significant_cities:
                         significant_cities.append(city)
 
@@ -159,15 +162,17 @@ def propose_albums(manifest: dict, options: CatalogOptions) -> None:
     """
     album_names = _propose_organization(manifest, model=options.organize_model)
 
+    from pixelkasten.core.types import Source
+
     for entry in manifest.get("entries", []):
-        cluster_id = str(entry.get("cluster", -1))
+        cluster_id = str(entry.catalog.cluster if entry.catalog else -1)
 
         if cluster_id not in album_names or cluster_id == "-1":
             continue
 
         name = album_names[cluster_id]
         if name:
-            entry["source"] = {"type": "album", "name": name}
+            entry.source = Source(type="album", name=name)
 
 
 def _propose_organization(

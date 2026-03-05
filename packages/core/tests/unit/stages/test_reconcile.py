@@ -8,18 +8,19 @@ Mocks read_metadata (I/O) and read_sidecar (I/O). Uses real handlers
 from unittest.mock import patch
 
 from helpers import make_options
+from pixelkasten.core.types import Dedupe, DedupeResult, ManifestEntry, Sidecar, Source, Status
 from pixelkasten.stages.reconcile import reconcile
 
 
-def _entry(media_path, json_path=None, dedupe_status="keep"):
+def _entry(media_path, json_path=None, dedupe_result=DedupeResult.KEEP):
     """Helper to create a manifest entry."""
-    e = {
-        "mediaPath": media_path,
-        "dedupe": {"hash": "abc", "status": dedupe_status},
-    }
-    if json_path:
-        e["json"] = {"path": json_path, "confidence": 3}
-    return e
+    sidecar = Sidecar(path=json_path, confidence=3) if json_path else None
+    return ManifestEntry(
+        media_path=media_path,
+        source=Source(type="loose"),
+        sidecar=sidecar,
+        dedupe=Dedupe(status=Status.PROCESSED, result=dedupe_result, hash="abc"),
+    )
 
 
 class TestReconcile:
@@ -47,7 +48,7 @@ class TestReconcile:
         }
 
         manifest = [
-            _entry("/tmp/delete.jpg", dedupe_status="delete"),
+            _entry("/tmp/delete.jpg", dedupe_result=DedupeResult.DELETE),
             _entry("/tmp/keep.jpg", "/tmp/keep.json"),
         ]
         reconcile(manifest, make_options())
@@ -56,7 +57,7 @@ class TestReconcile:
         assert mock_metadata.call_count == 1
 
         # The deleted entry should NOT have metadata
-        assert "metadata" not in manifest[0]
+        assert manifest[0].metadata is None
 
         # read_metadata should only receive the keeper path
         call_paths = mock_metadata.call_args[0][0]
@@ -74,13 +75,13 @@ class TestReconcile:
         reconcile(manifest, make_options())
 
         # Verify no metadata changes were needed
-        assert manifest[0]["metadata"]["status"] == "noop"
+        assert manifest[0].metadata.status == Status.PROCESSED
 
         # Verify no tags were queued for writing
-        assert manifest[0]["metadata"]["writeTags"] == []
+        assert manifest[0].metadata.write_tags == []
 
         # Verify dates from disk are preserved even without sidecar
-        assert "2023-01-01T12:00:00" in manifest[0]["metadata"]["dates"]
+        assert "2023-01-01T12:00:00" in manifest[0].metadata.dates
 
     @patch("pixelkasten.stages.reconcile.read_metadata")
     @patch("pixelkasten.stages.reconcile.read_sidecar")
@@ -93,11 +94,11 @@ class TestReconcile:
         manifest = [_entry("/tmp/image.jpg", "/tmp/image.json")]
         reconcile(manifest, make_options())
 
-        # Disk already has DateTimeOriginal -- noop
-        assert manifest[0]["metadata"]["status"] == "noop"
+        # Disk already has DateTimeOriginal -- processed with no writes
+        assert manifest[0].metadata.status == Status.PROCESSED
 
         # No tags queued for writing
-        assert manifest[0]["metadata"]["writeTags"] == []
+        assert manifest[0].metadata.write_tags == []
 
     @patch("pixelkasten.stages.reconcile.read_metadata")
     @patch("pixelkasten.stages.reconcile.read_sidecar")
@@ -110,16 +111,16 @@ class TestReconcile:
         reconcile(manifest, make_options())
 
         # Verify entry was marked for processing
-        assert manifest[0]["metadata"]["status"] == "processed"
+        assert manifest[0].metadata.status == Status.PROCESSED
 
         # Verify at least one tag was queued for writing
-        assert len(manifest[0]["metadata"]["writeTags"]) >= 1
+        assert len(manifest[0].metadata.write_tags) >= 1
 
         # Verify the EXIF timestamp tag format is correct
-        assert manifest[0]["metadata"]["writeTags"][0].startswith("SubSecDateTimeOriginal=")
+        assert manifest[0].metadata.write_tags[0].startswith("SubSecDateTimeOriginal=")
 
         # Verify timestamp was prepended to dates
-        assert manifest[0]["metadata"]["dates"][0] == "2023-01-01T12:00:00"
+        assert manifest[0].metadata.dates[0] == "2023-01-01T12:00:00"
 
     @patch("pixelkasten.stages.reconcile.read_metadata")
     @patch("pixelkasten.stages.reconcile.read_sidecar")
@@ -134,10 +135,10 @@ class TestReconcile:
         reconcile(manifest, make_options())
 
         # Verify entry was marked for processing
-        assert manifest[0]["metadata"]["status"] == "processed"
+        assert manifest[0].metadata.status == Status.PROCESSED
 
         # Verify geo tags were queued for writing (EXIF handler produces 4 geo tags)
-        assert len(manifest[0]["metadata"]["writeTags"]) >= 1
+        assert len(manifest[0].metadata.write_tags) >= 1
 
     @patch("pixelkasten.stages.reconcile.read_metadata")
     @patch("pixelkasten.stages.reconcile.read_sidecar")
@@ -152,13 +153,13 @@ class TestReconcile:
         reconcile(manifest, make_options())
 
         # Verify entry was marked for processing
-        assert manifest[0]["metadata"]["status"] == "processed"
+        assert manifest[0].metadata.status == Status.PROCESSED
 
-        # Should have at least 2 writeTags (timestamp + geo)
-        assert len(manifest[0]["metadata"]["writeTags"]) >= 2
+        # Should have at least 2 write_tags (timestamp + geo)
+        assert len(manifest[0].metadata.write_tags) >= 2
 
         # Verify timestamp was prepended to dates
-        assert manifest[0]["metadata"]["dates"][0] == "2023-01-01T12:00:00"
+        assert manifest[0].metadata.dates[0] == "2023-01-01T12:00:00"
 
     @patch("pixelkasten.stages.reconcile.read_metadata")
     @patch("pixelkasten.stages.reconcile.read_sidecar")
@@ -196,7 +197,7 @@ class TestReconcile:
         reconcile(manifest, make_options())
 
         # Verify error was recorded without throwing
-        assert manifest[0]["metadata"]["status"] == "error"
+        assert manifest[0].metadata.status == Status.ERROR
 
     @patch("pixelkasten.stages.reconcile.read_metadata")
     @patch("pixelkasten.stages.reconcile.read_sidecar")
@@ -208,18 +209,18 @@ class TestReconcile:
         reconcile(manifest, make_options())
 
         # Verify unsupported file type was skipped
-        assert manifest[0]["metadata"]["status"] == "skipped"
+        assert manifest[0].metadata.status == Status.SKIPPED
 
-        # Verify reason is set
-        assert "No metadata handler for .unknown" in manifest[0]["metadata"]["reason"]
+        # Verify error message is set
+        assert "No metadata handler for .unknown" in manifest[0].metadata.error
 
-        # Verify empty writeTags and dates
-        assert manifest[0]["metadata"]["writeTags"] == []
-        assert manifest[0]["metadata"]["dates"] == []
+        # Verify empty write_tags and dates
+        assert manifest[0].metadata.write_tags == []
+        assert manifest[0].metadata.dates == []
 
     @patch("pixelkasten.stages.reconcile.read_metadata")
     @patch("pixelkasten.stages.reconcile.read_sidecar")
-    def test_does_not_queue_writeTags_when_skip_embed(self, mock_sidecar, mock_metadata):
+    def test_does_not_queue_write_tags_when_skip_embed(self, mock_sidecar, mock_metadata):
         mock_metadata.return_value = {"/tmp/image.jpg": {}}
         mock_sidecar.return_value = {
             "timestamp": "1672574400",
@@ -229,11 +230,11 @@ class TestReconcile:
         manifest = [_entry("/tmp/image.jpg", "/tmp/image.json")]
         reconcile(manifest, make_options(skip_embed=True))
 
-        # No writeTags queued due to skip_embed
-        assert manifest[0]["metadata"]["writeTags"] == []
+        # No write_tags queued due to skip_embed
+        assert manifest[0].metadata.write_tags == []
 
-        # Status is noop since no writes are queued
-        assert manifest[0]["metadata"]["status"] == "noop"
+        # Status is processed since no writes are queued
+        assert manifest[0].metadata.status == Status.PROCESSED
 
         # But dates should still be populated (needed for rename stage)
-        assert manifest[0]["metadata"]["dates"][0] == "2023-01-01T12:00:00"
+        assert manifest[0].metadata.dates[0] == "2023-01-01T12:00:00"

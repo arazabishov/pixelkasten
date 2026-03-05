@@ -11,7 +11,7 @@ manifest but don't get cluster labels, captions, or album assignments.
 from contextlib import contextmanager
 from pathlib import Path
 
-
+from pixelkasten.core.types import Catalog, ManifestEntry, Status, Tag
 from pixelkasten.stages.catalog.caption import caption_representatives
 from pixelkasten.stages.catalog.classify import (
     DEFAULT_LABEL_SETS,
@@ -31,10 +31,10 @@ from pixelkasten.options import PipelineOptions
 
 
 def run_catalog(
-    manifest: list[dict],
+    manifest: list[ManifestEntry],
     options: PipelineOptions,
     progress=None,
-) -> list[dict]:
+) -> list[ManifestEntry]:
     """
     Run AI catalog stages: embed → cluster → classify → refine → caption → propose.
 
@@ -42,8 +42,8 @@ def run_catalog(
     assignments to embeddable image entries. Non-image entries are ignored.
     """
     # Filter to embeddable images — catalog ignores videos etc.
-    image_entries = [e for e in manifest if is_image(Path(e["mediaPath"]))]
-    image_paths = [Path(e["mediaPath"]) for e in image_entries]
+    image_entries = [e for e in manifest if is_image(Path(e.media_path))]
+    image_paths = [Path(e.media_path) for e in image_entries]
 
     if not image_paths:
         return manifest
@@ -81,14 +81,16 @@ def run_catalog(
     reps_flat = {r for reps in representatives.values() for r in reps}
     for i, entry in enumerate(image_entries):
         if i < len(ok_indices):
-            entry["cluster"] = int(labels[ok_indices[i]])
-            entry["status"] = "ok"
-            entry["is_representative"] = ok_indices[i] in reps_flat
-            entry["tags"] = [
-                {"name": name, "score": round(score, 3)} for name, score in all_tags[ok_indices[i]]
-            ]
+            entry.catalog = Catalog(
+                status=Status.PROCESSED,
+                cluster=int(labels[ok_indices[i]]),
+                is_representative=ok_indices[i] in reps_flat,
+                tags=[
+                    Tag(name=name, score=round(score, 3)) for name, score in all_tags[ok_indices[i]]
+                ],
+            )
         else:
-            entry["status"] = "failed"
+            entry.catalog = Catalog(status=Status.ERROR)
 
     # Build manifest dict for refine/caption/propose
     summary = cluster_summary(labels)
@@ -101,8 +103,8 @@ def run_catalog(
     if not catalog_options.skip_refine:
         new_labels, _ = refine_clusters(manifest_dict, embeddings)
         for i, entry in enumerate(image_entries):
-            if i < len(new_labels):
-                entry["cluster"] = int(new_labels[i])
+            if i < len(new_labels) and entry.catalog:
+                entry.catalog.cluster = int(new_labels[i])
         representatives = find_representatives(embeddings, new_labels)
         # Rebuild clusters dict so caption/propose see post-refine clusters
         summary = cluster_summary(new_labels)
@@ -112,7 +114,11 @@ def run_catalog(
 
     # Caption (optional)
     if not catalog_options.skip_caption:
-        n_reps = sum(1 for e in manifest if e.get("is_representative") and e.get("status") == "ok")
+        n_reps = sum(
+            1
+            for e in manifest
+            if e.catalog and e.catalog.is_representative and e.catalog.status == Status.PROCESSED
+        )
         with _progress_ctx(progress, "Captioning images", n_reps) as on_progress:
             captions = caption_representatives(
                 manifest_dict,
@@ -122,8 +128,8 @@ def run_catalog(
             )
         for path, cap in captions.items():
             for entry in manifest:
-                if entry["mediaPath"] == path:
-                    entry["caption"] = cap
+                if entry.media_path == path:
+                    entry.catalog.caption = cap
 
     # Propose albums (requires Ollama)
     with _progress_ctx(progress, "Proposing albums", 1) as on_progress:

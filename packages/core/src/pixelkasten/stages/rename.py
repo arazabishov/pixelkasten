@@ -10,20 +10,21 @@ import os
 
 from pixelkasten.core.datetime import parse_iso_date
 from pixelkasten.core.manifest import can_keep
+from pixelkasten.core.types import ManifestEntry, Rename, Status
 
 
-def rename(manifest: list[dict]) -> None:
+def rename(manifest: list[ManifestEntry]) -> None:
     """
     Resolve target paths for media files based on their timestamps.
 
-    Mutates manifest entries in-place, adding entry["rename"] with
-    status and targetPath.
-
+    Mutates manifest entries in-place, setting entry.rename.
     Skips entries marked for deletion, error, or with skipped metadata.
     """
     # Filter to candidates: keepable and not skipped by reconcile
     candidates = [
-        e for e in manifest if can_keep(e) and e.get("metadata", {}).get("status") != "skipped"
+        e
+        for e in manifest
+        if can_keep(e) and (e.metadata is None or e.metadata.status != Status.SKIPPED)
     ]
 
     if not candidates:
@@ -37,23 +38,20 @@ def rename(manifest: list[dict]) -> None:
 
     for entry in candidates:
         try:
-            entry["rename"] = _resolve_target_path(entry, used_paths, album_dates)
+            entry.rename = _resolve_target_path(entry, used_paths, album_dates)
         except Exception as e:
-            entry["rename"] = {
-                "status": "error",
-                "reason": str(e),
-            }
+            entry.rename = Rename(status=Status.ERROR, error=str(e))
 
 
-def _resolve_album_dates(candidates: list[dict]) -> dict[str, dict]:
+def _resolve_album_dates(candidates: list[ManifestEntry]) -> dict[str, dict]:
     """Resolve the earliest valid date for each album."""
     album_dates: dict[str, dict] = {}
 
     for entry in candidates:
-        if entry.get("source", {}).get("type") != "album":
+        if entry.source.type != "album":
             continue
 
-        dates = entry.get("metadata", {}).get("dates", [])
+        dates = entry.metadata.dates if entry.metadata else []
         parsed = None
         for d in dates:
             parsed = parse_iso_date(d)
@@ -63,7 +61,7 @@ def _resolve_album_dates(candidates: list[dict]) -> dict[str, dict]:
         if not parsed:
             continue
 
-        album_name = entry["source"]["name"]
+        album_name = entry.source.name
         existing = album_dates.get(album_name)
 
         if not existing or _is_earlier_date(parsed, existing):
@@ -81,15 +79,15 @@ def _is_earlier_date(a: dict, b: dict) -> bool:
 
 
 def _resolve_target_path(
-    entry: dict,
+    entry: ManifestEntry,
     used_paths: set[str],
     album_dates: dict[str, dict],
-) -> dict:
+) -> Rename:
     """Resolve the target path for a single manifest entry."""
-    dates = entry.get("metadata", {}).get("dates", [])
+    dates = entry.metadata.dates if entry.metadata else []
 
     if not dates:
-        raise ValueError(f"No timestamp available for {entry['mediaPath']}")
+        raise ValueError(f"No timestamp available for {entry.media_path}")
 
     # Try each date in order until one parses
     parsed = None
@@ -99,7 +97,7 @@ def _resolve_target_path(
             break
 
     if not parsed:
-        raise ValueError(f"No valid date format found for {entry['mediaPath']}")
+        raise ValueError(f"No valid date format found for {entry.media_path}")
 
     year = str(parsed["year"]).zfill(4)
     month = str(parsed["month"]).zfill(2)
@@ -109,11 +107,11 @@ def _resolve_target_path(
     second = str(parsed["second"]).zfill(2)
 
     timestamp = f"{year}{month}{day}-{hour}{minute}{second}"
-    ext = os.path.splitext(entry["mediaPath"])[1].lower()
+    ext = os.path.splitext(entry.media_path)[1].lower()
 
     # Determine directory structure
-    is_album = entry.get("source", {}).get("type") == "album"
-    album_date = album_dates.get(entry["source"]["name"]) if is_album else None
+    is_album = entry.source.type == "album"
+    album_date = album_dates.get(entry.source.name) if is_album else None
 
     # Use album's earliest date for directory, or entry's own date
     dir_date = album_date or parsed
@@ -123,17 +121,14 @@ def _resolve_target_path(
 
     if is_album:
         album_date_prefix = f"{dir_year}{dir_month}{dir_day}"
-        base_path = f"{dir_year}/{album_date_prefix} - {entry['source']['name']}/{timestamp}{ext}"
+        base_path = f"{dir_year}/{album_date_prefix} - {entry.source.name}/{timestamp}{ext}"
     else:
         base_path = f"{dir_year}/{timestamp}{ext}"
 
     target_path = _resolve_collision(base_path, used_paths)
     used_paths.add(target_path)
 
-    return {
-        "status": "processed",
-        "targetPath": target_path,
-    }
+    return Rename(status=Status.PROCESSED, target_path=target_path)
 
 
 def _resolve_collision(base_path: str, used_paths: set[str]) -> str:

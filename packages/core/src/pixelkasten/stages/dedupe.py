@@ -7,70 +7,69 @@ Ported from packages/core/src/stages/dedupe.js.
 import hashlib
 from collections.abc import Callable
 
+from pixelkasten.core.types import Dedupe, DedupeResult, ManifestEntry, Status
 from pixelkasten.options import PipelineOptions
 
 
 def dedupe_hash(
-    manifest: list[dict],
+    manifest: list[ManifestEntry],
     on_progress: Callable[[int], None] | None = None,
 ) -> None:
     """
     Compute SHA-256 for each manifest entry.
 
-    Mutates entries in-place, adding:
-        entry["dedupe"] = {"hash": str, "status": "pending"}
-    On error:
-        entry["dedupe"] = {"hash": None, "status": "error", "reason": str}
+    Mutates entries in-place, setting entry.dedupe with hash and PENDING status.
+    On error, sets entry.dedupe with ERROR status.
     """
     for i, entry in enumerate(manifest):
         try:
-            sha256 = _calculate_hash(entry["mediaPath"])
-            entry["dedupe"] = {"hash": sha256, "status": "pending"}
+            sha256 = _calculate_hash(entry.media_path)
+            entry.dedupe = Dedupe(status=Status.PENDING, hash=sha256)
         except Exception as e:
-            entry["dedupe"] = {"hash": None, "status": "error", "reason": str(e)}
+            entry.dedupe = Dedupe(status=Status.ERROR, error=str(e))
         if on_progress is not None:
             on_progress(i + 1)
 
 
-def dedupe_resolve(manifest: list[dict], options: PipelineOptions) -> None:
+def dedupe_resolve(manifest: list[ManifestEntry], options: PipelineOptions) -> None:
     """
     Resolve duplicates: prefer album over loose (or vice versa), keep same-type dupes.
 
-    Mutates entries in-place, setting dedupe.status to "keep" or "delete".
+    Mutates entries in-place, setting dedupe.result to KEEP or DELETE.
 
     Rules:
-    - Unique files (one entry per hash): always "keep"
+    - Unique files (one entry per hash): always KEEP
     - Mixed types (has preferred AND has other): keep preferred, delete others
     - Same type (all album or all loose): keep all
-
-    options:
-        prefer: "album" | "loose" (default: "album")
     """
     prefer = options.prefer
 
     # Group by hash, skip entries with None hash (errors)
-    groups: dict[str, list[dict]] = {}
+    groups: dict[str, list[ManifestEntry]] = {}
     for entry in manifest:
-        h = entry.get("dedupe", {}).get("hash")
-        if h:
-            groups.setdefault(h, []).append(entry)
+        if entry.dedupe is None or entry.dedupe.hash is None:
+            continue
+        groups.setdefault(entry.dedupe.hash, []).append(entry)
 
     for duplicates in groups.values():
         if len(duplicates) == 1:
-            duplicates[0]["dedupe"]["status"] = "keep"
+            duplicates[0].dedupe.status = Status.PROCESSED
+            duplicates[0].dedupe.result = DedupeResult.KEEP
         else:
-            has_preferred = any(e["source"]["type"] == prefer for e in duplicates)
-            has_other = any(e["source"]["type"] != prefer for e in duplicates)
+            has_preferred = any(e.source.type == prefer for e in duplicates)
+            has_other = any(e.source.type != prefer for e in duplicates)
 
             if has_preferred and has_other:
                 for entry in duplicates:
-                    entry["dedupe"]["status"] = (
-                        "keep" if entry["source"]["type"] == prefer else "delete"
+                    entry.dedupe.status = Status.PROCESSED
+                    entry.dedupe.result = (
+                        DedupeResult.KEEP if entry.source.type == prefer else DedupeResult.DELETE
                     )
             else:
                 # All same type: keep all
                 for entry in duplicates:
-                    entry["dedupe"]["status"] = "keep"
+                    entry.dedupe.status = Status.PROCESSED
+                    entry.dedupe.result = DedupeResult.KEEP
 
     _check_invariants(manifest)
 
@@ -87,12 +86,12 @@ def _calculate_hash(file_path: str) -> str:
     return h.hexdigest()
 
 
-def _check_invariants(manifest: list[dict]) -> None:
-    """Verify all dedupe statuses are valid."""
-    valid = {"keep", "delete", "error"}
+def _check_invariants(manifest: list[ManifestEntry]) -> None:
+    """Verify all dedupe entries have a valid result or error status."""
     for entry in manifest:
-        status = entry.get("dedupe", {}).get("status")
-        if status not in valid:
-            raise ValueError(
-                f'Invalid dedupe status "{status}" for {entry.get("mediaPath", "unknown")}'
-            )
+        if entry.dedupe is None:
+            continue
+        if entry.dedupe.status == Status.ERROR:
+            continue
+        if entry.dedupe.result is None:
+            raise ValueError(f"Dedupe result not set for {entry.media_path}")

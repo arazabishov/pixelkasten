@@ -12,6 +12,7 @@ import os
 import re
 from typing import NamedTuple
 
+from pixelkasten.core.types import ManifestEntry, Sidecar, Source
 from pixelkasten.options import PipelineOptions
 
 # Truncated variants of .supplemental-metadata (longest first for greedy matching).
@@ -103,21 +104,30 @@ def link(raw_collections: dict, options: PipelineOptions) -> dict:
         parsed_media.append({"path": file_path, **parsed._asdict()})
 
     # Stage 4: match media files to their metadata sidecars.
-    manifest = []
+    manifest: list[ManifestEntry] = []
     for media_entry in parsed_media:
         dir_path = os.path.dirname(media_entry["path"])
         candidates = metadata_by_dir.get(dir_path, [])
 
         source = (
-            {"type": "album", "name": albums[dir_path]} if dir_path in albums else {"type": "loose"}
+            Source(type="album", name=albums[dir_path])
+            if dir_path in albums
+            else Source(type="loose")
+        )
+
+        sidecar_match = _match(media_entry, candidates, options)
+        sidecar = (
+            Sidecar(path=sidecar_match["path"], confidence=sidecar_match["confidence"])
+            if sidecar_match
+            else None
         )
 
         manifest.append(
-            {
-                "mediaPath": media_entry["path"],
-                "source": source,
-                "json": _match(media_entry, candidates, options),
-            }
+            ManifestEntry(
+                media_path=media_entry["path"],
+                source=source,
+                sidecar=sidecar,
+            )
         )
 
     # Stage 5: compute statistics from the manifest.
@@ -125,9 +135,9 @@ def link(raw_collections: dict, options: PipelineOptions) -> dict:
     unmatched_media = set(files_media)
 
     for entry in manifest:
-        if entry["json"]:
-            unmatched_metadata.discard(entry["json"]["path"])
-            unmatched_media.discard(entry["mediaPath"])
+        if entry.sidecar:
+            unmatched_metadata.discard(entry.sidecar.path)
+            unmatched_media.discard(entry.media_path)
 
     return {
         "manifest": manifest,
