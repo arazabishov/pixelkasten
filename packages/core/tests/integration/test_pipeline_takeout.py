@@ -17,6 +17,7 @@ import pytest
 
 from helpers import make_options
 from pixelkasten.core.exiftool import check_exiftool, read_metadata
+from pixelkasten.configuration import Hooks, _noop_progress
 from pixelkasten.pipeline import run_pipeline
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "media"
@@ -173,12 +174,9 @@ class TestTakeoutPipeline:
         )
 
         run_pipeline(
-            make_options(
-                source=str(source),
-                destination=str(dest),
-                takeout=True,
-                skip_dedupe=True,
-            )
+            make_options(source=str(source), destination=str(dest), takeout=True, skip_dedupe=True),
+            hooks=Hooks(),
+            progress=_noop_progress,
         )
 
         # Expected output paths (no-month format).
@@ -305,11 +303,9 @@ class TestTakeoutPipeline:
         )
 
         run_pipeline(
-            make_options(
-                source=str(source),
-                destination=str(dest),
-                takeout=True,
-            )
+            make_options(source=str(source), destination=str(dest), takeout=True),
+            hooks=Hooks(),
+            progress=_noop_progress,
         )
 
         # Album copy should be at: 2024/20240321 - Vacation/20240321-102410.jpg
@@ -370,12 +366,9 @@ class TestTakeoutPipeline:
         )
 
         run_pipeline(
-            make_options(
-                source=str(source),
-                destination=str(dest),
-                takeout=True,
-                skip_embed=True,
-            )
+            make_options(source=str(source), destination=str(dest), takeout=True, skip_embed=True),
+            hooks=Hooks(),
+            progress=_noop_progress,
         )
 
         # File should still be renamed based on sidecar timestamp.
@@ -429,12 +422,9 @@ class TestTakeoutPipeline:
         )
 
         run_pipeline(
-            make_options(
-                source=str(source),
-                destination=str(dest),
-                takeout=True,
-                dry_run=True,
-            )
+            make_options(source=str(source), destination=str(dest), takeout=True, dry_run=True),
+            hooks=Hooks(),
+            progress=_noop_progress,
         )
 
         # Verify destination is empty (dry run writes nothing).
@@ -490,12 +480,9 @@ class TestTakeoutPipeline:
         (avi_dir / "video.avi.supplemental-metadata.json").write_text(json.dumps(avi_sidecar))
 
         run_pipeline(
-            make_options(
-                source=str(source),
-                destination=str(dest),
-                takeout=True,
-                skip_dedupe=True,
-            )
+            make_options(source=str(source), destination=str(dest), takeout=True, skip_dedupe=True),
+            hooks=Hooks(),
+            progress=_noop_progress,
         )
 
         # Verify the JPEG was renamed and embedded as usual.

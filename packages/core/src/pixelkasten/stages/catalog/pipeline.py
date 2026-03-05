@@ -8,7 +8,7 @@ cannot process (e.g., videos) pass through unchanged — they stay in the
 manifest but don't get cluster labels, captions, or album assignments.
 """
 
-from contextlib import contextmanager
+from collections.abc import Callable
 from pathlib import Path
 
 from pixelkasten.core.types import Catalog, ManifestEntry, Status, Tag
@@ -27,13 +27,11 @@ from pixelkasten.stages.catalog.embed import embed_images, embed_texts, load_mod
 from pixelkasten.stages.catalog.organize import propose_albums
 from pixelkasten.stages.catalog.refine import refine_clusters
 from pixelkasten.handlers import is_image
-from pixelkasten.options import PipelineOptions
+from pixelkasten.configuration import Options
 
 
 def run_catalog(
-    manifest: list[ManifestEntry],
-    options: PipelineOptions,
-    progress=None,
+    manifest: list[ManifestEntry], options: Options, progress: Callable = None
 ) -> list[ManifestEntry]:
     """
     Run AI catalog stages: embed → cluster → classify → refine → caption → propose.
@@ -55,14 +53,14 @@ def run_catalog(
 
     model, preprocess, tokenizer, device = load_model(model_name=catalog_options.clip_model)
 
-    with _progress_ctx(progress, "Embedding images", len(image_paths)) as on_progress:
+    with progress("Embedding images", len(image_paths)) as tick:
         embeddings, failed_indices = embed_images(
             model,
             preprocess,
             image_paths,
             device,
             batch_size=catalog_options.batch_size,
-            on_progress=on_progress,
+            on_progress=tick,
         )
 
     # Cluster
@@ -119,12 +117,12 @@ def run_catalog(
             for e in manifest
             if e.catalog and e.catalog.is_representative and e.catalog.status == Status.PROCESSED
         )
-        with _progress_ctx(progress, "Captioning images", n_reps) as on_progress:
+        with progress("Captioning images", n_reps) as tick:
             captions = caption_representatives(
                 manifest_dict,
                 catalog_options.caption_model,
                 "Describe this photo briefly.",
-                on_progress=on_progress,
+                on_progress=tick,
             )
         for path, cap in captions.items():
             for entry in manifest:
@@ -132,22 +130,9 @@ def run_catalog(
                     entry.catalog.caption = cap
 
     # Propose albums (requires Ollama)
-    with _progress_ctx(progress, "Proposing albums", 1) as on_progress:
+    with progress("Proposing albums", 1) as tick:
         propose_albums(manifest_dict, catalog_options)
-        if on_progress:
-            on_progress(1)
+        if tick:
+            tick(1)
 
     return manifest
-
-
-def _progress_ctx(factory, label: str, total: int):
-    """Create a progress context from a factory, or a noop if factory is None."""
-    if factory:
-        return factory(label, total)
-    return _noop_ctx()
-
-
-@contextmanager
-def _noop_ctx():
-    """Context manager that yields None."""
-    yield None

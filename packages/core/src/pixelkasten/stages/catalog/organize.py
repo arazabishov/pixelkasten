@@ -17,7 +17,7 @@ from typing import Callable
 
 import ollama as ollama_client
 
-from pixelkasten.options import CatalogOptions
+from pixelkasten.configuration import CatalogOptions
 
 DEFAULT_MODEL = "qwen3.5:35b"
 

@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 
 from helpers import make_options
 from pixelkasten.core.types import ManifestEntry, Source
+from pixelkasten.configuration import Hooks, _noop_progress
 
 PATCH_PREFIX = "pixelkasten.pipeline"
 
@@ -25,7 +26,7 @@ class TestTakeoutMode:
     def _run(self, options, hooks=None):
         from pixelkasten.pipeline import run_pipeline
 
-        return run_pipeline(options, hooks)
+        return run_pipeline(options, hooks or Hooks(), progress=_noop_progress)
 
     def test_runs_all_takeout_stages(
         self,
@@ -166,20 +167,20 @@ class TestTakeoutMode:
         }
         mock_link.return_value = {"manifest": [], "stats": {}}
 
-        hooks = {
-            "on_scan": MagicMock(),
-            "on_link": MagicMock(),
-            "on_dedupe": MagicMock(),
-            "on_reconcile": MagicMock(),
-            "on_rename": MagicMock(),
-            "on_apply": MagicMock(),
-        }
+        hooks = Hooks(
+            on_scan=MagicMock(),
+            on_link=MagicMock(),
+            on_dedupe=MagicMock(),
+            on_reconcile=MagicMock(),
+            on_rename=MagicMock(),
+            on_apply=MagicMock(),
+        )
 
         self._run(make_options(takeout=True), hooks)
 
-        hooks["on_scan"].assert_called_once()
-        hooks["on_link"].assert_called_once()
-        hooks["on_dedupe"].assert_called_once()
-        hooks["on_reconcile"].assert_called_once()
-        hooks["on_rename"].assert_called_once()
-        hooks["on_apply"].assert_called_once()
+        hooks.on_scan.assert_called_once()
+        hooks.on_link.assert_called_once()
+        hooks.on_dedupe.assert_called_once()
+        hooks.on_reconcile.assert_called_once()
+        hooks.on_rename.assert_called_once()
+        hooks.on_apply.assert_called_once()
