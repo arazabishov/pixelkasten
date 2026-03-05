@@ -78,7 +78,9 @@ uv run ruff format --check src/
 
 ### Style
 
-Favor clarity over conciseness. Avoid inline ternaries and dense one-liners when a local variable would be more readable:
+#### Clarity over conciseness
+
+Avoid inline ternaries and dense one-liners when a local variable would be more readable:
 
 ```python
 # Bad — hard to parse
@@ -92,7 +94,15 @@ timestamp = photo_taken_time.get("timestamp") if photo_taken_time else None
 return {"timestamp": timestamp, "geo": geo}
 ```
 
+#### Type annotations and imports
+
 All public functions should have full type annotations. Imports for heavy dependencies (torch, sklearn, ollama) are deferred inside functions. This is not just about startup speed. A user running `--no-catalog` takeout processing should not need torch installed at all. Deferred imports make optional dependencies truly optional.
+
+#### Comments and docstrings
+
+Comments should explain *why*, not *what*. Don't restate what the code already says. Keep comments as single-line inline comments above the relevant line. Docstrings should focus on design intent, invariants, and non-obvious constraints — not mechanical parameter/return descriptions that duplicate the type annotations.
+
+#### Typing at boundaries
 
 When dealing with untyped external data (JSON from exiftool, sidecar files, API responses), follow "parse, don't validate." Type boundary function inputs as `dict[str, Any]` — this is honest about the data being unstructured. The boundary function converts raw dicts into concrete typed structures (dataclasses, TypedDict, NamedTuple). Everything downstream works with those concrete types, never raw dicts. Don't let imprecise upstream types (like bare `dict`) pollute downstream function signatures with workaround unions.
 
