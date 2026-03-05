@@ -207,7 +207,8 @@ def _propose_organization(
         ],
     )
 
-    raw_response = response.message.content.strip()
+    content = response.message.content
+    raw_response = content.strip() if content else ""
 
     if on_progress:
         on_progress("Parsing response...")

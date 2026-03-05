@@ -64,11 +64,12 @@ def cluster_embeddings(
     # HDBSCAN with cosine metric is natural for CLIP embeddings because
     # they're L2-normalized — cosine distance captures semantic similarity
     # better than Euclidean distance in high-dimensional spaces.
+    # sklearn stubs say str for copy, but runtime only accepts bool
     clusterer = HDBSCAN(
         min_cluster_size=min_cluster_size,
         min_samples=min_samples,
         metric="cosine",
-        copy=True,
+        copy=True,  # pyright: ignore[reportArgumentType]
     )
 
     labels = clusterer.fit_predict(embeddings)

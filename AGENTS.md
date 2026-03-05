@@ -94,6 +94,8 @@ return {"timestamp": timestamp, "geo": geo}
 
 All public functions should have full type annotations. Imports for heavy dependencies (torch, sklearn, ollama) are deferred inside functions. This is not just about startup speed. A user running `--no-catalog` takeout processing should not need torch installed at all. Deferred imports make optional dependencies truly optional.
 
+When dealing with untyped external data (JSON from exiftool, sidecar files, API responses), follow "parse, don't validate." Type boundary function inputs as `dict[str, Any]` — this is honest about the data being unstructured. The boundary function converts raw dicts into concrete typed structures (dataclasses, TypedDict, NamedTuple). Everything downstream works with those concrete types, never raw dicts. Don't let imprecise upstream types (like bare `dict`) pollute downstream function signatures with workaround unions.
+
 ### Testing
 
 Tests use pytest. Test names should describe observable behavior, not implementation details. Treat functions as black boxes and verify what you can observe externally (e.g., `test_does_not_perform_disk_operations_when_manifest_is_empty`, not `test_filters_out_entries_marked_for_deletion`).

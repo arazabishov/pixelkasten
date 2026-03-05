@@ -44,19 +44,6 @@ def read_sidecar(json_path: str | Path | None) -> dict | None:
         raise RuntimeError(f"Failed to read sidecar file at {json_path}: {e}") from e
 
 
-def has_geo_data(geo: dict | None) -> bool:
-    """
-    Validate geo data from a sidecar. Rejects (0, 0) as Google's placeholder.
-
-    Unlike _validate_gps in exif.py (which only rejects when BOTH are zero),
-    this rejects if EITHER latitude or longitude is 0. This is correct for
-    sidecar data because Google uses 0 as default for missing coordinates.
-    """
-    if not geo:
-        return False
-    return geo.get("latitude", 0) != 0 and geo.get("longitude", 0) != 0
-
-
 def get_geo_data(
     geo_data_exif: dict | None,
     geo_data: dict | None,
@@ -64,21 +51,30 @@ def get_geo_data(
     """
     Extract geo data, preferring geoDataExif over geoData.
 
-    Strips latitudeSpan/longitudeSpan fields (GPS accuracy, not portable
-    to EXIF metadata).
+    Rejects if EITHER latitude or longitude is 0, since Google uses 0
+    as default for missing coordinates. Strips latitudeSpan/longitudeSpan
+    fields (GPS accuracy, not portable to EXIF metadata).
     """
-    if has_geo_data(geo_data_exif):
-        return {
-            "latitude": geo_data_exif["latitude"],
-            "longitude": geo_data_exif["longitude"],
-            "altitude": geo_data_exif.get("altitude"),
-        }
+    return _extract_geo(geo_data_exif) or _extract_geo(geo_data)
 
-    if has_geo_data(geo_data):
-        return {
-            "latitude": geo_data["latitude"],
-            "longitude": geo_data["longitude"],
-            "altitude": geo_data.get("altitude"),
-        }
 
-    return None
+def _extract_geo(geo: dict | None) -> dict | None:
+    """
+    Extract and validate geo data from a single sidecar geo dict.
+
+    Returns None if the dict is missing or contains zero coordinates.
+    """
+    if not geo:
+        return None
+
+    lat = geo.get("latitude", 0)
+    lon = geo.get("longitude", 0)
+
+    if lat == 0 or lon == 0:
+        return None
+
+    return {
+        "latitude": lat,
+        "longitude": lon,
+        "altitude": geo.get("altitude"),
+    }
