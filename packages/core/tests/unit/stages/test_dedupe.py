@@ -1,6 +1,6 @@
 import hashlib
 
-import pytest
+from helpers import make_options
 from pixelkasten.stages.dedupe import dedupe_hash, dedupe_resolve
 
 
@@ -31,7 +31,7 @@ class TestDedupeResolve:
             for prefer in ["album", "loose"]:
                 for source_type in ["album", "loose"]:
                     m = [_entry("/tmp/p.jpg", source_type, hash_val="h1")]
-                    dedupe_resolve(m, {"prefer": prefer})
+                    dedupe_resolve(m, make_options(prefer=prefer))
                     assert m[0]["dedupe"]["status"] == "keep"
 
     class TestPreferAlbum:
@@ -40,7 +40,7 @@ class TestDedupeResolve:
                 _entry("/tmp/album/p.jpg", "album", "Vacation", hash_val="h1"),
                 _entry("/tmp/loose/p.jpg", "loose", hash_val="h1"),
             ]
-            dedupe_resolve(manifest, {"prefer": "album"})
+            dedupe_resolve(manifest, make_options(prefer="album"))
             assert manifest[0]["dedupe"]["status"] == "keep"
             assert manifest[1]["dedupe"]["status"] == "delete"
 
@@ -50,7 +50,7 @@ class TestDedupeResolve:
                 _entry("/tmp/a2/p.jpg", "album", "A2", hash_val="h1"),
                 _entry("/tmp/loose/p.jpg", "loose", hash_val="h1"),
             ]
-            dedupe_resolve(manifest, {"prefer": "album"})
+            dedupe_resolve(manifest, make_options(prefer="album"))
             assert manifest[0]["dedupe"]["status"] == "keep"
             assert manifest[1]["dedupe"]["status"] == "keep"
             assert manifest[2]["dedupe"]["status"] == "delete"
@@ -61,7 +61,7 @@ class TestDedupeResolve:
                 _entry("/tmp/l1/p.jpg", "loose", hash_val="h1"),
                 _entry("/tmp/l2/p.jpg", "loose", hash_val="h1"),
             ]
-            dedupe_resolve(manifest, {"prefer": "album"})
+            dedupe_resolve(manifest, make_options(prefer="album"))
             assert manifest[0]["dedupe"]["status"] == "keep"
             assert manifest[1]["dedupe"]["status"] == "delete"
             assert manifest[2]["dedupe"]["status"] == "delete"
@@ -72,7 +72,7 @@ class TestDedupeResolve:
                 _entry("/tmp/a/p.jpg", "album", "A", hash_val="h1"),
                 _entry("/tmp/l/p.jpg", "loose", hash_val="h1"),
             ]
-            dedupe_resolve(manifest, {"prefer": "loose"})
+            dedupe_resolve(manifest, make_options(prefer="loose"))
             assert manifest[0]["dedupe"]["status"] == "delete"
             assert manifest[1]["dedupe"]["status"] == "keep"
 
@@ -82,7 +82,7 @@ class TestDedupeResolve:
                 _entry("/tmp/l1/p.jpg", "loose", hash_val="h1"),
                 _entry("/tmp/l2/p.jpg", "loose", hash_val="h1"),
             ]
-            dedupe_resolve(manifest, {"prefer": "loose"})
+            dedupe_resolve(manifest, make_options(prefer="loose"))
             assert manifest[0]["dedupe"]["status"] == "delete"
             assert manifest[1]["dedupe"]["status"] == "keep"
             assert manifest[2]["dedupe"]["status"] == "keep"
@@ -93,7 +93,7 @@ class TestDedupeResolve:
                 _entry("/tmp/a2/p.jpg", "album", "A2", hash_val="h1"),
                 _entry("/tmp/l/p.jpg", "loose", hash_val="h1"),
             ]
-            dedupe_resolve(manifest, {"prefer": "loose"})
+            dedupe_resolve(manifest, make_options(prefer="loose"))
             assert manifest[0]["dedupe"]["status"] == "delete"
             assert manifest[1]["dedupe"]["status"] == "delete"
             assert manifest[2]["dedupe"]["status"] == "keep"
@@ -104,7 +104,7 @@ class TestDedupeResolve:
                 _entry("/tmp/a1/p.jpg", "album", "A1", hash_val="h1"),
                 _entry("/tmp/a2/p.jpg", "album", "A2", hash_val="h1"),
             ]
-            dedupe_resolve(manifest, {"prefer": "album"})
+            dedupe_resolve(manifest, make_options(prefer="album"))
             assert all(e["dedupe"]["status"] == "keep" for e in manifest)
 
         def test_keeps_all_when_all_loose(self):
@@ -112,7 +112,7 @@ class TestDedupeResolve:
                 _entry("/tmp/l1/p.jpg", "loose", hash_val="h1"),
                 _entry("/tmp/l2/p.jpg", "loose", hash_val="h1"),
             ]
-            dedupe_resolve(manifest, {"prefer": "album"})
+            dedupe_resolve(manifest, make_options(prefer="album"))
             assert all(e["dedupe"]["status"] == "keep" for e in manifest)
 
     class TestMultipleHashGroups:
@@ -124,7 +124,7 @@ class TestDedupeResolve:
                 _entry("/tmp/l2/p2.jpg", "loose", hash_val="h2"),
                 _entry("/tmp/l3/p3.jpg", "loose", hash_val="h3"),
             ]
-            dedupe_resolve(manifest, {"prefer": "album"})
+            dedupe_resolve(manifest, make_options(prefer="album"))
             # Group h1: album keep, loose delete
             assert manifest[0]["dedupe"]["status"] == "keep"
             assert manifest[1]["dedupe"]["status"] == "delete"

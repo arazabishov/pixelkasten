@@ -10,11 +10,12 @@ from collections.abc import Callable
 
 from pixelkasten.core.exiftool import write_metadata
 from pixelkasten.core.manifest import can_keep
+from pixelkasten.core.options import PipelineOptions
 
 
 def apply(
     manifest: list[dict],
-    options: dict | None = None,
+    options: PipelineOptions,
     on_progress: Callable[[int], None] | None = None,
 ) -> None:
     """
@@ -27,13 +28,8 @@ def apply(
     The source directory is never modified.
 
     Mutates entries in-place, adding entry["apply"] with status and targetPath.
-
-    Options:
-        destination (str): required -- root destination directory
-        skip_embed (bool): if True, copy sidecar instead of embedding
     """
-    options = options or {}
-    destination = options.get("destination", "")
+    destination = options.destination
 
     keepers = [e for e in manifest if can_keep(e)]
     if not keepers:
@@ -68,7 +64,7 @@ def apply(
                 }
 
             # Copy sidecar when embedding is skipped and a sidecar exists
-            if options.get("skip_embed") and entry.get("json", {}).get("path"):
+            if options.skip_embed and entry.get("json", {}).get("path"):
                 shutil.copy2(entry["json"]["path"], dest_path + ".json")
 
         except Exception as e:

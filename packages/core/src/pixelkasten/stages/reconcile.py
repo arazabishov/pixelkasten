@@ -13,6 +13,7 @@ from pixelkasten.core.datetime import parse_photo_taken_time
 from pixelkasten.core.exiftool import read_metadata
 from pixelkasten.core.handlers import handlers
 from pixelkasten.core.manifest import can_keep
+from pixelkasten.core.options import PipelineOptions
 from pixelkasten.core.sidecar import read_sidecar
 
 BATCH_SIZE = 512
@@ -20,7 +21,7 @@ BATCH_SIZE = 512
 
 def reconcile(
     manifest: list[dict],
-    options: dict | None = None,
+    options: PipelineOptions,
     on_progress: Callable[[int], None] | None = None,
 ) -> None:
     """
@@ -34,8 +35,6 @@ def reconcile(
 
     Processes entries in batches of 512 for efficient exiftool invocation.
     """
-    options = options or {}
-
     keepers = [e for e in manifest if can_keep(e)]
     if not keepers:
         return
@@ -76,7 +75,7 @@ def _resolve(
     media_path: str,
     json_path: str | None,
     raw_disk_tags: dict | None,
-    options: dict,
+    options: PipelineOptions,
 ) -> dict:
     """Resolve metadata for a single entry."""
     ext = os.path.splitext(media_path)[1].lower()
@@ -117,14 +116,14 @@ def _resolve(
         ptt = parse_photo_taken_time(sidecar_data["timestamp"])
 
         # Queue timestamp for writing if embedding is enabled.
-        if not options.get("skip_embed"):
+        if not options.skip_embed:
             metadata["writeTags"].extend(handler.timestamp(ptt["exif"]))
 
         # Make sure that timestamp is stored as the primary date (needed for rename).
         metadata["dates"].insert(0, ptt["iso"])
 
     # Queue geo data for writing if embedding is enabled.
-    if not options.get("skip_embed") and not disk_data.geo and sidecar_data.get("geo"):
+    if not options.skip_embed and not disk_data.geo and sidecar_data.get("geo"):
         metadata["writeTags"].extend(handler.geo(sidecar_data["geo"]))
 
     # Use sidecar geo if disk has none (for downstream geocoding).

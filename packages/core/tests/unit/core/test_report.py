@@ -5,6 +5,7 @@ Tests for the report module — ported from packages/core/test/core/report.test.
 import csv
 import os
 
+from helpers import make_options
 from pixelkasten.core.report import report, resolve_status
 
 
@@ -62,7 +63,7 @@ class TestReport:
                 },
             },
         ]
-        options = {"source": "/source", "destination": str(tmp_path)}
+        options = make_options(source="/source", destination=str(tmp_path))
 
         result_path = report(manifest, options)
 
@@ -94,7 +95,7 @@ class TestReport:
                 "dedupe": {"status": "delete"},
             },
         ]
-        options = {"source": "/source", "destination": str(tmp_path)}
+        options = make_options(source="/source", destination=str(tmp_path))
 
         report(manifest, options)
 
@@ -122,7 +123,7 @@ class TestReport:
                 },
             },
         ]
-        options = {"source": "/source", "destination": str(tmp_path)}
+        options = make_options(source="/source", destination=str(tmp_path))
 
         report(manifest, options)
 
@@ -146,7 +147,7 @@ class TestReport:
                 },
             },
         ]
-        options = {"source": "/source", "destination": str(tmp_path)}
+        options = make_options(source="/source", destination=str(tmp_path))
 
         report(manifest, options)
 
@@ -178,7 +179,7 @@ class TestReport:
                 },
             },
         ]
-        options = {"source": "/source", "destination": str(tmp_path)}
+        options = make_options(source="/source", destination=str(tmp_path))
 
         report(manifest, options)
 
@@ -200,7 +201,7 @@ class TestReport:
                 },
             },
         ]
-        options = {"source": "/source", "destination": str(tmp_path)}
+        options = make_options(source="/source", destination=str(tmp_path))
 
         report(manifest, options)
 
@@ -224,7 +225,7 @@ class TestReport:
                 },
             },
         ]
-        options = {"source": "/source", "destination": str(tmp_path)}
+        options = make_options(source="/source", destination=str(tmp_path))
 
         report(manifest, options)
 

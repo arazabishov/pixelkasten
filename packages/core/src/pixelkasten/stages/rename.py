@@ -10,9 +10,10 @@ import os
 
 from pixelkasten.core.datetime import parse_iso_date
 from pixelkasten.core.manifest import can_keep
+from pixelkasten.core.options import PipelineOptions
 
 
-def rename(manifest: list[dict], options: dict | None = None) -> None:
+def rename(manifest: list[dict], options: PipelineOptions | None = None) -> None:
     """
     Resolve target paths for media files based on their timestamps.
 

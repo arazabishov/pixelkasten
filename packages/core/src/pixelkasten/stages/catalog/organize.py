@@ -17,6 +17,7 @@ from typing import Callable
 
 import ollama as ollama_client
 
+from pixelkasten.core.options import PipelineOptions
 
 DEFAULT_MODEL = "qwen3.5:35b"
 
@@ -142,7 +143,7 @@ def build_cluster_summary_text(manifest: dict) -> str:
     return "\n".join(lines)
 
 
-def propose_albums(manifest: dict, options: dict | None = None) -> None:
+def propose_albums(manifest: dict, options: PipelineOptions | None = None) -> None:
     """
     Call LLM to propose album names, then mutate manifest entries.
 
@@ -156,8 +157,7 @@ def propose_albums(manifest: dict, options: dict | None = None) -> None:
         manifest: Manifest dict with "entries" list and "clusters" dict.
         options: Dict with optional "model" key for Ollama model name.
     """
-    options = options or {}
-    model = options.get("model", DEFAULT_MODEL)
+    model = options.organize_model if options else DEFAULT_MODEL
 
     album_names = _propose_organization(manifest, model=model)
 

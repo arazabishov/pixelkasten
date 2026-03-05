@@ -110,6 +110,37 @@ def main(
         "--prefer",
         help="When deduplicating, prefer 'album' or 'loose' copies.",
     ),
+    # Catalog-specific options
+    clip_model: str = typer.Option(
+        "ViT-L-14",
+        "--clip-model",
+        help="CLIP model name for image embeddings.",
+    ),
+    batch_size: int = typer.Option(
+        32,
+        "--batch-size",
+        help="Batch size for CLIP embedding.",
+    ),
+    min_cluster_size: int = typer.Option(
+        5,
+        "--min-cluster-size",
+        help="Minimum cluster size for HDBSCAN.",
+    ),
+    classify_threshold: float = typer.Option(
+        0.15,
+        "--classify-threshold",
+        help="Zero-shot classification confidence threshold.",
+    ),
+    caption_model: str = typer.Option(
+        "llava",
+        "--caption-model",
+        help="Ollama vision model for captioning.",
+    ),
+    organize_model: str = typer.Option(
+        "qwen3.5:35b",
+        "--organize-model",
+        help="Ollama text model for album naming.",
+    ),
 ):
     """
     Organize a photo library.
@@ -125,6 +156,7 @@ def main(
         console.print("[red]--destination is required (unless --dry-run is set)[/red]")
         raise typer.Exit(code=1)
 
+    from pixelkasten.core.options import PipelineOptions
     from pixelkasten.pipeline import run_pipeline
 
     # Check exiftool if embedding or renaming is needed (mirrors pipeline gate)
@@ -137,33 +169,38 @@ def main(
             console.print(f"[red]{e}[/red]")
             raise typer.Exit(code=1)
 
-    options = {
-        "source": str(source),
-        "destination": str(destination) if destination else None,
-        "takeout": takeout,
-        "catalog": catalog,
-        "dry_run": dry_run,
-        "skip_dedupe": skip_dedupe,
-        "skip_embed": skip_embed,
-        "skip_caption": skip_caption,
-        "skip_refine": skip_refine,
-        "skip_rename": skip_rename,
-        "prefer": prefer,
-        "fuzzy": fuzzy,
-        "fuzzy_threshold": fuzzy_threshold,
-        "rescan": rescan,
-    }
+    progress, hooks = _build_pipeline_ui(console)
 
-    if workspace:
-        options["workspace"] = str(workspace)
+    options = PipelineOptions(
+        source=str(source),
+        destination=str(destination) if destination else None,
+        takeout=takeout,
+        catalog=catalog,
+        dry_run=dry_run,
+        skip_dedupe=skip_dedupe,
+        skip_embed=skip_embed,
+        skip_rename=skip_rename,
+        skip_caption=skip_caption,
+        skip_refine=skip_refine,
+        prefer=prefer,
+        fuzzy=fuzzy,
+        fuzzy_threshold=fuzzy_threshold,
+        rescan=rescan,
+        workspace=str(workspace) if workspace else None,
+        clip_model=clip_model,
+        batch_size=batch_size,
+        min_cluster_size=min_cluster_size,
+        classify_threshold=classify_threshold,
+        caption_model=caption_model,
+        organize_model=organize_model,
+        progress=progress,
+    )
 
     console.print(f"\n[bold]Processing photos from {source}...[/bold]")
     if catalog:
         console.print("  [cyan]AI album discovery enabled[/cyan]")
     console.print()
 
-    progress, hooks = _build_pipeline_ui(console)
-    options["progress"] = progress
     manifest = run_pipeline(options, hooks)
 
     # Final summary

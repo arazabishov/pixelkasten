@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 
+from helpers import make_options
 from pixelkasten.core.exiftool import check_exiftool, read_metadata
 from pixelkasten.pipeline import run_pipeline
 
@@ -174,14 +175,12 @@ class TestTakeoutPipeline:
         )
 
         manifest = run_pipeline(
-            {
-                "source": str(source),
-                "destination": str(dest),
-                "takeout": True,
-                "prefer": "album",
-                "fuzzy": True,
-                "skip_dedupe": True,
-            }
+            make_options(
+                source=str(source),
+                destination=str(dest),
+                takeout=True,
+                skip_dedupe=True,
+            )
         )
 
         # Expected output paths (no-month format).
@@ -310,13 +309,11 @@ class TestTakeoutPipeline:
         )
 
         manifest = run_pipeline(
-            {
-                "source": str(source),
-                "destination": str(dest),
-                "takeout": True,
-                "prefer": "album",
-                "fuzzy": True,
-            }
+            make_options(
+                source=str(source),
+                destination=str(dest),
+                takeout=True,
+            )
         )
 
         # Album copy should be at: 2024/20240321 - Vacation/20240321-102410.jpg
@@ -381,14 +378,12 @@ class TestTakeoutPipeline:
         )
 
         manifest = run_pipeline(
-            {
-                "source": str(source),
-                "destination": str(dest),
-                "takeout": True,
-                "prefer": "album",
-                "fuzzy": True,
-                "skip_embed": True,
-            }
+            make_options(
+                source=str(source),
+                destination=str(dest),
+                takeout=True,
+                skip_embed=True,
+            )
         )
 
         # File should still be renamed based on sidecar timestamp.
@@ -444,14 +439,12 @@ class TestTakeoutPipeline:
         )
 
         manifest = run_pipeline(
-            {
-                "source": str(source),
-                "destination": str(dest),
-                "takeout": True,
-                "prefer": "album",
-                "fuzzy": True,
-                "dry_run": True,
-            }
+            make_options(
+                source=str(source),
+                destination=str(dest),
+                takeout=True,
+                dry_run=True,
+            )
         )
 
         # Verify destination is empty (dry run writes nothing).
@@ -509,14 +502,12 @@ class TestTakeoutPipeline:
         )
 
         manifest = run_pipeline(
-            {
-                "source": str(source),
-                "destination": str(dest),
-                "takeout": True,
-                "prefer": "album",
-                "fuzzy": True,
-                "skip_dedupe": True,
-            }
+            make_options(
+                source=str(source),
+                destination=str(dest),
+                takeout=True,
+                skip_dedupe=True,
+            )
         )
 
         # Verify the JPEG was renamed and embedded as usual.

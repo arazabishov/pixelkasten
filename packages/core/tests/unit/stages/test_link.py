@@ -5,13 +5,13 @@ These tests are the specification for Google Takeout sidecar matching.
 Every edge case encodes real-world filename truncation behavior.
 """
 
+from helpers import make_options
 from pixelkasten.stages.link import link
 
 
-def _link_and_map(raw, options=None):
+def _link_and_map(raw, **overrides):
     """Helper: run link() and return a dict keyed by mediaPath."""
-    options = options or {"fuzzy_threshold": 40}
-    result = link(raw, options)
+    result = link(raw, make_options(**overrides))
     return {e["mediaPath"]: e for e in result["manifest"]}, result["stats"]
 
 
@@ -154,18 +154,18 @@ class TestTruncatedFilenamesFuzzyMatching:
     }
 
     def test_matches_truncated_video(self):
-        m, _ = _link_and_map(self.RAW, {"fuzzy_threshold": 0})
+        m, _ = _link_and_map(self.RAW, fuzzy_threshold=0)
         assert m["/tmp/988555-0000.mov"]["json"]["path"] == "/tmp/988555-000.json"
 
     def test_matches_truncated_jpg(self):
-        m, _ = _link_and_map(self.RAW, {"fuzzy_threshold": 0})
+        m, _ = _link_and_map(self.RAW, fuzzy_threshold=0)
         assert (
             m["/tmp/C3D916AEF50.jpg"]["json"]["path"]
             == "/tmp/C3D916AEF50D.jpg.suppl.json"
         )
 
     def test_matches_systematic_truncation_cases(self):
-        m, _ = _link_and_map(self.RAW, {"fuzzy_threshold": 0})
+        m, _ = _link_and_map(self.RAW, fuzzy_threshold=0)
         cases = ["a", "b", "c", "d", "e", "f", "g", "h", "i"]
         for c in cases:
             media = next(f for f in self.RAW["files_media"] if f"/{c}" in f)
@@ -556,14 +556,14 @@ class TestTruncatedLivePhotoWithSharedSidecar:
     }
 
     def test_matches_exact_mp4(self):
-        m, _ = _link_and_map(self.RAW, {"fuzzy_threshold": 0})
+        m, _ = _link_and_map(self.RAW, fuzzy_threshold=0)
         assert (
             m["/tmp/3D06C8D1-7637-4625-BEBE-C3D916AEF50D.mp4"]["json"]["path"]
             == "/tmp/3D06C8D1-7637-4625-BEBE-C3D916AEF50D.json"
         )
 
     def test_matches_truncated_heic(self):
-        m, _ = _link_and_map(self.RAW, {"fuzzy_threshold": 0})
+        m, _ = _link_and_map(self.RAW, fuzzy_threshold=0)
         assert (
             m["/tmp/3D06C8D1-7637-4625-BEBE-C3D916AEF50.heic"]["json"]["path"]
             == "/tmp/3D06C8D1-7637-4625-BEBE-C3D916AEF50D.json"
@@ -584,11 +584,11 @@ class TestFuzzyMatchingDisabled:
     }
 
     def test_exact_matches_still_work(self):
-        m, _ = _link_and_map(self.RAW, {"fuzzy_threshold": 0, "fuzzy": False})
+        m, _ = _link_and_map(self.RAW, fuzzy_threshold=0, fuzzy=False)
         assert m["/tmp/exact-match.jpg"]["json"]["path"] == "/tmp/exact-match.jpg.json"
 
     def test_truncated_does_not_match(self):
-        m, _ = _link_and_map(self.RAW, {"fuzzy_threshold": 0, "fuzzy": False})
+        m, _ = _link_and_map(self.RAW, fuzzy_threshold=0, fuzzy=False)
         assert m["/tmp/truncated-media-file-name-that-is-very-long.jpg"]["json"] is None
 
 
