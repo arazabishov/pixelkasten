@@ -19,7 +19,6 @@ def make_options(**overrides) -> PipelineOptions:
         "rescan": False,
         "workspace": None,
         "catalog": None,
-        "progress": None,
     }
     defaults.update(overrides)
     return PipelineOptions(**defaults)
