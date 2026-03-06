@@ -112,7 +112,7 @@ Use `pathlib` by default. Use `os.path` only when pathlib's normalization would 
 
 #### Typing at boundaries
 
-When dealing with untyped external data (JSON from exiftool, sidecar files, API responses), follow "parse, don't validate." Type boundary function inputs as `dict[str, Any]` — this is honest about the data being unstructured. The boundary function converts raw dicts into concrete typed structures (dataclasses, TypedDict, NamedTuple). Everything downstream works with those concrete types, never raw dicts. Don't let imprecise upstream types (like bare `dict`) pollute downstream function signatures with workaround unions.
+Stages are the type boundary, not individual functions within a stage. Internal helpers (exiftool, sidecar, handlers) can freely use raw dicts — they never leave the stage. But when a stage writes to `ManifestEntry`, it must use the typed structures from `core/types.py` (e.g., `Geo`, `Metadata`, `Dedupe`). This keeps typing focused where it matters (the manifest contract between stages) without fighting Python's dynamic nature inside stage internals.
 
 ### Testing
 

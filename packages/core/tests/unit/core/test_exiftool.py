@@ -74,7 +74,7 @@ class TestReadMetadata:
             stderr="",
         )
 
-        read_metadata([Path("/test.jpg")], ["EXIF:DateTimeOriginal"])
+        read_metadata(["/test.jpg"], ["EXIF:DateTimeOriginal"])
 
         call_args = mock_run.call_args[0][0]
 
