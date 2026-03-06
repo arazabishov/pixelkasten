@@ -127,7 +127,6 @@ def run_discovery(
             captions = caption_representatives(
                 image_entries,
                 discovery_opts.caption_model,
-                "Describe this photo briefly.",
                 on_progress=tick,
             )
         entries_by_path = {e.media_path: e for e in image_entries}
