@@ -6,10 +6,11 @@ and how to format write commands for timestamps and GPS data. The registry
 maps file extensions to handlers.
 """
 
-from pathlib import Path
+import os
 
 from pixelkasten.handlers.exif import ExifHandler
 from pixelkasten.handlers.quicktime import QuickTimeHandler
+from pixelkasten.handlers.shared import Handler
 
 
 IMAGE_EXTENSIONS: frozenset[str] = frozenset({".jpg", ".jpeg", ".heic", ".png"})
@@ -19,7 +20,7 @@ UNSUPPORTED_MEDIA_EXTENSIONS: frozenset[str] = frozenset({".avi", ".mkv", ".wmv"
 exif_handler = ExifHandler()
 quicktime_handler = QuickTimeHandler()
 
-handlers: dict[str, ExifHandler | QuickTimeHandler] = {
+handlers: dict[str, Handler] = {
     ".jpg": exif_handler,
     ".jpeg": exif_handler,
     ".heic": exif_handler,
@@ -33,11 +34,13 @@ SUPPORTED_EXTENSIONS: frozenset[str] = frozenset(handlers.keys())
 ALL_KNOWN_MEDIA_EXTENSIONS: frozenset[str] = SUPPORTED_EXTENSIONS | UNSUPPORTED_MEDIA_EXTENSIONS
 
 
-def is_image(path: Path) -> bool:
+def is_image(path: str) -> bool:
     """Check if a path is a supported image (not video) file."""
-    return path.suffix.lower() in IMAGE_EXTENSIONS
+    ext = os.path.splitext(path)[1].lower()
+    return ext in IMAGE_EXTENSIONS
 
 
-def is_video(path: Path) -> bool:
+def is_video(path: str) -> bool:
     """Check if a path is a supported video file."""
-    return path.suffix.lower() in VIDEO_EXTENSIONS
+    ext = os.path.splitext(path)[1].lower()
+    return ext in VIDEO_EXTENSIONS

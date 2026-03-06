@@ -1,16 +1,11 @@
 """Pipeline configuration — options, hooks, and other pipeline-level types."""
 
 from collections.abc import Callable
-from contextlib import nullcontext
 from dataclasses import dataclass
 
 
 def _noop(*args) -> None:
     pass
-
-
-def _noop_progress(label: str, total: int):
-    return nullcontext()
 
 
 @dataclass

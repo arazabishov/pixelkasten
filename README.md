@@ -56,7 +56,7 @@ destination/
   2024/
     20240301-133245.jpg                        # loose file
     20240301-133245-1.jpg                      # collision (-1, -2, ...)
-    20240715 - Beach Vacation/                 # album
+    20240715-Beach Vacation/                  # album
       20240715-143000.jpg
       20240716-091200.jpg
   Unsorted/                                    # no EXIF timestamp

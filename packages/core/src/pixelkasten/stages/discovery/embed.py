@@ -42,7 +42,6 @@ between any two vectors is simply their dot product.
 import torch
 import numpy as np
 import open_clip
-from pathlib import Path
 from PIL import Image
 
 
@@ -110,7 +109,7 @@ def load_model(
 def embed_images(
     model,
     preprocess,
-    image_paths: list[Path],
+    image_paths: list[str],
     device: str,
     batch_size: int = 32,
     on_progress=None,
