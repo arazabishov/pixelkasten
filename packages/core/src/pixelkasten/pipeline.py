@@ -54,6 +54,7 @@ def run_pipeline(options: Options, hooks: Hooks, progress: Callable) -> list[Man
         from pixelkasten.stages.discovery import run_discovery
 
         manifest = run_discovery(manifest, options, progress=progress)
+        hooks.on_discover(manifest)
 
     if not options.skip_rename:
         rename(manifest)

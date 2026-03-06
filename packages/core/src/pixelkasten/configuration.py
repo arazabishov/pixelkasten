@@ -82,6 +82,9 @@ class Hooks:
     # called after reading disk metadata
     on_reconcile: Callable = _noop
 
+    # called after AI album discovery
+    on_discover: Callable = _noop
+
     # called after target paths are set
     on_rename: Callable = _noop
 
