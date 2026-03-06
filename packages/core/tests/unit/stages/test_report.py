@@ -6,7 +6,7 @@ import csv
 import os
 
 from helpers import make_options
-from pixelkasten.stages.report import report, resolve_status
+from pixelkasten.stages.report import report, _resolve_status
 from pixelkasten.manifest import (
     Apply,
     ApplyResult,
@@ -63,34 +63,31 @@ def _entry(
 class TestResolveStatus:
     def test_embedded_status(self):
         entry = _entry(apply_result=ApplyResult.EMBEDDED)
-        assert resolve_status(entry) == {"status": "embedded", "reason": ""}
+        assert _resolve_status(entry) == ("embedded", "")
 
     def test_copied_status(self):
         entry = _entry(apply_result=ApplyResult.COPIED)
-        assert resolve_status(entry) == {"status": "copied", "reason": ""}
+        assert _resolve_status(entry) == ("copied", "")
 
     def test_apply_error_status(self):
         entry = _entry(apply_error="ENOENT")
-        assert resolve_status(entry) == {"status": "error", "reason": "ENOENT"}
+        assert _resolve_status(entry) == ("error", "ENOENT")
 
     def test_skipped_status(self):
         entry = _entry(metadata_status=Status.SKIPPED, metadata_error="No handler for .unknown")
-        assert resolve_status(entry) == {
-            "status": "skipped",
-            "reason": "No handler for .unknown",
-        }
+        assert _resolve_status(entry) == ("skipped", "No handler for .unknown")
 
     def test_deleted_status(self):
         entry = _entry(dedupe_result=DedupeResult.DELETE)
-        assert resolve_status(entry) == {"status": "deleted", "reason": ""}
+        assert _resolve_status(entry) == ("deleted", "")
 
     def test_dedupe_error_status(self):
         entry = _entry(dedupe_error="Hash failed")
-        assert resolve_status(entry) == {"status": "error", "reason": "Hash failed"}
+        assert _resolve_status(entry) == ("error", "Hash failed")
 
     def test_unknown_state_fallback(self):
         entry = _entry()
-        assert resolve_status(entry) == {"status": "error", "reason": "Unknown state"}
+        assert _resolve_status(entry) == ("error", "Unknown state")
 
 
 class TestReport:
