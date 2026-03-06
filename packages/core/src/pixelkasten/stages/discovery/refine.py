@@ -62,7 +62,7 @@ def refine_clusters(
     #
     # Timestamps come from metadata.dates (populated by reconcile).
     # Locations come from entry["location"]["region"] (populated by reverse_geocode).
-    from pixelkasten.stages.discovery.types import Status
+    from pixelkasten.manifest import Status
 
     timestamps = {}
     regions = {}
@@ -135,7 +135,7 @@ def refine_clusters(
 
 def _extract_labels(manifest: dict) -> np.ndarray:
     """Extract cluster labels from manifest entries into an array matching embeddings shape."""
-    from pixelkasten.stages.discovery.types import Status
+    from pixelkasten.manifest import Status
 
     labels = []
     for de in manifest["entries"]:

@@ -1,7 +1,7 @@
 import hashlib
 
 from helpers import make_options
-from pixelkasten.core.types import Dedupe, DedupeResult, ManifestEntry, Source, Status
+from pixelkasten.manifest import Dedupe, DedupeResult, ManifestEntry, Source, Status
 from pixelkasten.stages.dedupe import dedupe_hash, dedupe_resolve
 
 

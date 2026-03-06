@@ -9,13 +9,12 @@ write_tags for any metadata missing from disk.
 import os
 from collections.abc import Callable
 
-from pixelkasten.core.datetime import parse_photo_taken_time
-from pixelkasten.core.exiftool import read_metadata
-from pixelkasten.core.manifest import can_keep
-from pixelkasten.core.types import Geo, ManifestEntry, Metadata, Status
+from pixelkasten.tools.dates import parse_photo_taken_time
+from pixelkasten.tools.exiftool import read_metadata
+from pixelkasten.manifest import Geo, ManifestEntry, Metadata, Status
 from pixelkasten.handlers import handlers
 from pixelkasten.configuration import Options
-from pixelkasten.core.sidecar import read_sidecar
+from pixelkasten.tools.sidecar import read_sidecar
 
 BATCH_SIZE = 512
 
@@ -31,7 +30,7 @@ def reconcile(
     Mutates manifest entries in-place by setting entry.metadata.
     Processes entries in batches of 512 for efficient exiftool invocation.
     """
-    keepers = [e for e in manifest if can_keep(e)]
+    keepers = [e for e in manifest if e.can_keep()]
     if not keepers:
         return
 

@@ -4,7 +4,7 @@ Integration tests for exiftool.
 Requires exiftool installed (`brew install exiftool`).
 """
 
-from pixelkasten.core.exiftool import check_exiftool
+from pixelkasten.tools.exiftool import check_exiftool
 
 
 class TestCheckExiftool:

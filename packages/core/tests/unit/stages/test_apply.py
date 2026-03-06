@@ -11,7 +11,7 @@ import os
 from unittest.mock import call, patch
 
 from helpers import make_options
-from pixelkasten.core.types import (
+from pixelkasten.manifest import (
     ApplyResult,
     Dedupe,
     DedupeResult,

@@ -1,8 +1,15 @@
 import numpy as np
 import pytest
 
-from pixelkasten.core.types import Location, ManifestEntry, Metadata, Source, Status
-from pixelkasten.stages.discovery.types import DiscoveryEntry, Tag
+from pixelkasten.manifest import (
+    DiscoveryEntry,
+    Location,
+    ManifestEntry,
+    Metadata,
+    Source,
+    Status,
+    Tag,
+)
 
 
 def _entry(

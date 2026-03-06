@@ -141,7 +141,7 @@ def main(
 
     # Check exiftool if embedding or renaming is needed (mirrors pipeline gate)
     if not skip_embed or not skip_rename:
-        from pixelkasten.core.exiftool import check_exiftool
+        from pixelkasten.tools.exiftool import check_exiftool
 
         try:
             check_exiftool()

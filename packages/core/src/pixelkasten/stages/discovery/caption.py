@@ -95,7 +95,7 @@ def caption_representatives(
     Returns:
         Dict of {image_path: caption} for successfully captioned images.
     """
-    from pixelkasten.stages.discovery.types import Status
+    from pixelkasten.manifest import Status
 
     representatives = [
         de for de in manifest["entries"] if de.is_representative and de.status == Status.PROCESSED

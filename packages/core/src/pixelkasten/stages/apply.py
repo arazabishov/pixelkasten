@@ -8,9 +8,8 @@ import os
 import shutil
 from collections.abc import Callable
 
-from pixelkasten.core.exiftool import write_metadata
-from pixelkasten.core.manifest import can_keep
-from pixelkasten.core.types import Apply, ApplyResult, ManifestEntry, Status
+from pixelkasten.tools.exiftool import write_metadata
+from pixelkasten.manifest import Apply, ApplyResult, ManifestEntry, Status
 from pixelkasten.configuration import Options
 
 
@@ -34,7 +33,7 @@ def apply(
         raise ValueError("destination is required for apply")
     destination = options.destination
 
-    keepers = [e for e in manifest if can_keep(e)]
+    keepers = [e for e in manifest if e.can_keep()]
     if not keepers:
         return
 

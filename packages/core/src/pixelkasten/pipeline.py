@@ -10,9 +10,8 @@ Link matches sidecars automatically when present, --discover enables AI album di
 from collections.abc import Callable
 
 from pixelkasten.configuration import Hooks, Options
-from pixelkasten.core.manifest import can_keep
-from pixelkasten.core.report import report
-from pixelkasten.core.types import ManifestEntry
+from pixelkasten.manifest import ManifestEntry
+from pixelkasten.stages.report import report
 from pixelkasten.stages.apply import apply
 from pixelkasten.stages.dedupe import dedupe_hash, dedupe_resolve
 from pixelkasten.stages.link import link
@@ -60,7 +59,7 @@ def run_pipeline(options: Options, hooks: Hooks, progress: Callable) -> list[Man
         hooks.on_rename(manifest)
 
     if not options.dry_run:
-        count = sum(1 for e in manifest if can_keep(e))
+        count = sum(1 for e in manifest if e.can_keep())
         with progress("Applying changes", count) as tick:
             apply(manifest, options, on_progress=tick)
         hooks.on_apply(manifest)

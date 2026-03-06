@@ -7,7 +7,7 @@ Ported from packages/core/src/core/report.js. Uses Python stdlib csv module.
 import csv
 import os
 
-from pixelkasten.core.types import ApplyResult, DedupeResult, ManifestEntry, Status
+from pixelkasten.manifest import ApplyResult, DedupeResult, ManifestEntry, Status
 from pixelkasten.configuration import Options
 
 

@@ -165,7 +165,7 @@ def propose_albums(manifest: dict, options: DiscoveryOptions) -> None:
     """
     album_names = _propose_organization(manifest, model=options.organize_model)
 
-    from pixelkasten.core.types import Source
+    from pixelkasten.manifest import Source
 
     for de in manifest.get("entries", []):
         cluster_id = str(de.cluster if de.cluster is not None else -1)

@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 
 from helpers import make_options
-from pixelkasten.core.exiftool import check_exiftool, read_metadata
+from pixelkasten.tools.exiftool import check_exiftool, read_metadata
 from pixelkasten.configuration import Hooks, _noop_progress
 from pixelkasten.pipeline import run_pipeline
 

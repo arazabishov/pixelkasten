@@ -8,7 +8,7 @@ import json
 
 import pytest
 
-from pixelkasten.core.sidecar import get_geo_data, read_sidecar
+from pixelkasten.tools.sidecar import read_sidecar
 
 
 def _write_sidecar(tmp_path, data):
@@ -243,34 +243,3 @@ class TestReadSidecar:
             read_sidecar("/nonexistent/path.json")
 
 
-class TestGetGeoData:
-    def test_returns_none_when_both_absent(self):
-        assert get_geo_data(None, None) is None
-
-    def test_prefers_exif_source(self):
-        exif = {"latitude": 48.0, "longitude": 2.0, "altitude": 35.0}
-        regular = {"latitude": 10.0, "longitude": 20.0, "altitude": 5.0}
-
-        result = get_geo_data(exif, regular)
-
-        assert result["latitude"] == 48.0
-
-    def test_falls_back_to_regular(self):
-        regular = {"latitude": 10.0, "longitude": 20.0, "altitude": 5.0}
-
-        result = get_geo_data(None, regular)
-
-        assert result["latitude"] == 10.0
-
-    def test_rejects_both_zero_coordinates(self):
-        assert get_geo_data({"latitude": 0, "longitude": 0}, None) is None
-
-    def test_rejects_zero_latitude(self):
-        # Sidecar validation rejects if EITHER is zero (stricter than EXIF)
-        assert get_geo_data({"latitude": 0, "longitude": 2.2945}, None) is None
-
-    def test_rejects_zero_longitude(self):
-        assert get_geo_data({"latitude": 48.8584, "longitude": 0}, None) is None
-
-    def test_returns_none_for_empty_dicts(self):
-        assert get_geo_data({}, {}) is None
