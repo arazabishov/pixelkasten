@@ -12,6 +12,7 @@ Prerequisites:
 from typing import Callable
 
 from pixelkasten.manifest import ManifestEntry, Status
+from pixelkasten.tools.ollama import chat
 
 
 DEFAULT_PROMPT = (
@@ -20,51 +21,14 @@ DEFAULT_PROMPT = (
 )
 
 
-def check_ollama(model: str) -> None:
-    """
-    Verify that Ollama is reachable and the requested model is available.
-
-    Raises RuntimeError with a clear message if something is wrong.
-    """
-    import ollama as ollama_client
-
-    try:
-        available = ollama_client.list()
-    except Exception:
-        raise RuntimeError("Ollama is not running. Start it with: ollama serve")
-
-    model_names = [m.model for m in available.models]
-
-    base_names = [n.split(":")[0] for n in model_names if n is not None]
-
-    if model not in model_names and model not in base_names:
-        available_str = ", ".join(n for n in model_names if n is not None) or "(none)"
-        raise RuntimeError(
-            f"Model '{model}' not found. Run: ollama pull {model}\nAvailable models: {available_str}"
-        )
-
-
 def caption_image(model: str, image_path: str, prompt: str) -> str | None:
     """
     Send a single image to Ollama and return the caption text.
 
     Returns None if captioning fails so the pipeline can continue.
     """
-    import ollama as ollama_client
-
     try:
-        response = ollama_client.chat(
-            model=model,
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt,
-                    "images": [image_path],
-                },
-            ],
-        )
-        content = response.message.content
-        return content.strip() if content else None
+        return chat(model, prompt, images=[image_path])
     except Exception:
         return None
 

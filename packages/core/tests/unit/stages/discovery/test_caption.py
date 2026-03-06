@@ -2,7 +2,7 @@
 Unit tests for the caption module with mocked Ollama.
 """
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from pixelkasten.manifest import Discovery, ManifestEntry, Source, Status
 from pixelkasten.stages.discovery.caption import (
@@ -24,17 +24,15 @@ def _entry(path, is_representative=False, status=Status.PROCESSED):
 
 
 class TestCaptionImage:
-    @patch("ollama.chat")
-    def test_returns_stripped_caption(self, mock_chat):
-        response = MagicMock()
-        response.message.content = "  A sunset over the ocean.  "
-        mock_chat.return_value = response
+    @patch("pixelkasten.stages.discovery.caption.chat")
+    def test_returns_caption(self, mock_chat):
+        mock_chat.return_value = "A sunset over the ocean."
 
         result = caption_image("llava", "/photos/img.jpg", "Describe this.")
 
         assert result == "A sunset over the ocean."
 
-    @patch("ollama.chat")
+    @patch("pixelkasten.stages.discovery.caption.chat")
     def test_returns_none_on_exception(self, mock_chat):
         mock_chat.side_effect = RuntimeError("Connection refused")
 
@@ -42,11 +40,9 @@ class TestCaptionImage:
 
         assert result is None
 
-    @patch("ollama.chat")
+    @patch("pixelkasten.stages.discovery.caption.chat")
     def test_returns_none_for_empty_content(self, mock_chat):
-        response = MagicMock()
-        response.message.content = ""
-        mock_chat.return_value = response
+        mock_chat.return_value = None
 
         result = caption_image("llava", "/photos/img.jpg", "Describe this.")
 
