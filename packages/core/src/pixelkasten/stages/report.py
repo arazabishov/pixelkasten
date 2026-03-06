@@ -52,8 +52,8 @@ def _resolve_status(entry: ManifestEntry) -> tuple[str, str]:
     the final outcome — an apply error overrides a successful dedupe.
     """
     if entry.apply is not None:
-        if entry.apply.result == ApplyResult.EMBEDDED:
-            return ("embedded", "")
+        if entry.apply.result == ApplyResult.WRITTEN:
+            return ("written", "")
 
         if entry.apply.result == ApplyResult.COPIED:
             return ("copied", "")

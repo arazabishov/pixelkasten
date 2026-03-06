@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/arazabishov/pixelkasten/actions/workflows/ci.yml/badge.svg)](https://github.com/arazabishov/pixelkasten/actions/workflows/ci.yml)
 
-PixelKasten helps you organize your photo library. It can automatically discover and name albums in any photo collection using local AI (CLIP + Ollama), and it can process Google Takeout exports by matching media files to their JSON sidecars, embedding metadata, and deduplicating. Both capabilities work independently or together.
+PixelKasten helps you organize your photo library. It can automatically discover and name albums in any photo collection using local AI (CLIP + Ollama), and it can process Google Takeout exports by matching media files to their JSON sidecars, writing metadata, and deduplicating. Both capabilities work independently or together.
 
 If you've ever tried to make sense of a Google Photos Takeout export, you know the pain: photos scattered across directories, timestamps and GPS coordinates trapped in `.json` sidecar files, and filenames truncated in ways that make matching things up surprisingly difficult. PixelKasten handles all of that. And if you just have a folder of photos you want organized into albums, no Takeout involved, it can do that too.
 
@@ -34,10 +34,10 @@ Google makes this matching harder than you'd expect. Long filenames get truncate
 If all you need is the pairing, skip everything else. You'll get a CSV report mapping each file to its sidecar, and you can take it from there with exiftool or any other tool you prefer.
 
 ```bash
-pixelkasten -s ~/takeout -d ~/photos --skip-embed --skip-rename
+pixelkasten -s ~/takeout -d ~/photos --skip-metadata-write --skip-rename
 ```
 
-### Embed metadata into your files
+### Write metadata into your files
 
 If you'd rather not wrangle exiftool yourself, PixelKasten can write timestamps and GPS coordinates from the JSON sidecars directly into your media files. It uses the correct native tags for each format: EXIF for images, QuickTime for video.
 
@@ -81,7 +81,7 @@ This requires [Ollama](https://ollama.com/) with vision and text models installe
 
 ## Prerequisites
 
-Python 3.12+ and [uv](https://docs.astral.sh/uv/) are required. [exiftool](https://exiftool.org/) must be installed separately for metadata embedding. [Ollama](https://ollama.com/) with vision and text models is only needed when running with `--discover`.
+Python 3.12+ and [uv](https://docs.astral.sh/uv/) are required. [exiftool](https://exiftool.org/) must be installed separately for metadata writing. [Ollama](https://ollama.com/) with vision and text models is only needed when running with `--discover`.
 
 ## Installation
 
@@ -104,7 +104,7 @@ Every run produces a `report.csv` in the destination directory with one row per 
 | `media` | Path to the source media file (relative to source) |
 | `metadata` | Path to the matched JSON sidecar (empty if unmatched) |
 | `confidence` | Match confidence: **3** (high), **2** (medium), **1** (satisfactory), or empty |
-| `status` | Outcome: `embedded`, `copied`, `skipped`, `deleted`, or `error` |
+| `status` | Outcome: `written`, `copied`, `skipped`, `deleted`, or `error` |
 | `reason` | Explanation when status is `skipped` or `error` |
 
 ## Supported formats
@@ -114,4 +114,4 @@ Every run produces a `report.csv` in the destination directory with one row per 
 | EXIF | `.jpg`, `.jpeg`, `.heic`, `.png` | Timestamps, GPS |
 | QuickTime | `.mp4`, `.mov` | Timestamps, GPS |
 
-Files with unsupported extensions (`.avi`, `.mkv`, `.wmv`, etc.) are copied without metadata embedding and reported as skipped.
+Files with unsupported extensions (`.avi`, `.mkv`, `.wmv`, etc.) are copied without metadata writing and reported as skipped.

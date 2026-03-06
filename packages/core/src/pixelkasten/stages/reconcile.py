@@ -93,15 +93,15 @@ def _resolve(
     if not disk_data["timestamp"] and sidecar_data.get("timestamp"):
         ptt = parse_photo_taken_time(sidecar_data["timestamp"])
 
-        # Queue timestamp for writing if embedding is enabled.
-        if not options.skip_embed:
+        # Queue timestamp for writing if metadata writing is enabled.
+        if not options.skip_metadata_write:
             metadata.write_tags.extend(handler.timestamp(ptt["exif"]))
 
         # Make sure that timestamp is stored as the primary date (needed for rename).
         metadata.dates.insert(0, ptt["iso"])
 
-    # Queue geo data for writing if embedding is enabled.
-    if not options.skip_embed and not disk_data["geo"] and sidecar_data.get("geo"):
+    # Queue geo data for writing if metadata writing is enabled.
+    if not options.skip_metadata_write and not disk_data["geo"] and sidecar_data.get("geo"):
         metadata.write_tags.extend(handler.geo(sidecar_data["geo"]))
 
     # Use sidecar geo if disk has none (for downstream geocoding).

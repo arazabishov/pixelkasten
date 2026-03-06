@@ -53,7 +53,7 @@ class Options:
     skip_dedupe: bool
 
     # skip writing metadata into files
-    skip_embed: bool
+    skip_metadata_write: bool
 
     # skip target path computation
     skip_rename: bool

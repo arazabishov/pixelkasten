@@ -80,7 +80,7 @@ class TestPipeline:
         mock_hash.assert_not_called()
         mock_resolve.assert_not_called()
 
-    def test_skips_reconcile_when_both_embed_and_rename_skipped(
+    def test_skips_reconcile_when_both_metadata_write_and_rename_skipped(
         self,
         mock_scan,
         mock_link,
@@ -98,7 +98,7 @@ class TestPipeline:
         }
         mock_link.return_value = {"manifest": [], "stats": {}}
 
-        self._run(make_options(skip_embed=True, skip_rename=True))
+        self._run(make_options(skip_metadata_write=True, skip_rename=True))
 
         mock_reconcile.assert_not_called()
         mock_rename.assert_not_called()

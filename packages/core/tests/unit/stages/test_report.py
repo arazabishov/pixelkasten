@@ -63,9 +63,9 @@ def _entry(
 
 
 class TestResolveStatus:
-    def test_embedded_status(self):
-        entry = _entry(apply_result=ApplyResult.EMBEDDED)
-        assert _resolve_status(entry) == ("embedded", "")
+    def test_written_status(self):
+        entry = _entry(apply_result=ApplyResult.WRITTEN)
+        assert _resolve_status(entry) == ("written", "")
 
     def test_copied_status(self):
         entry = _entry(apply_result=ApplyResult.COPIED)
@@ -100,7 +100,7 @@ class TestReport:
                 sidecar_path="/source/photos/IMG_001.jpg.json",
                 sidecar_confidence=3,
                 dedupe_result=DedupeResult.KEEP,
-                apply_result=ApplyResult.EMBEDDED,
+                apply_result=ApplyResult.WRITTEN,
                 apply_target="/dest/2023/01 - January/20230101-120000.jpg",
             ),
         ]
@@ -131,7 +131,7 @@ class TestReport:
         assert rows[1][0] == "photos/IMG_001.jpg"
         assert rows[1][1] == "photos/IMG_001.jpg.json"
         assert rows[1][2] == "3"
-        assert rows[1][3] == "embedded"
+        assert rows[1][3] == "written"
         assert rows[1][4] == ""
 
     def test_resolves_deleted_entries(self, tmp_path):

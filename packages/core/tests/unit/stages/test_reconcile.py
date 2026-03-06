@@ -235,7 +235,7 @@ class TestReconcile:
 
     @patch("pixelkasten.stages.reconcile.read_metadata")
     @patch("pixelkasten.stages.reconcile.read_sidecar")
-    def test_does_not_queue_write_tags_when_skip_embed(self, mock_sidecar, mock_metadata):
+    def test_does_not_queue_write_tags_when_skip_metadata_write(self, mock_sidecar, mock_metadata):
         mock_metadata.return_value = {"/tmp/image.jpg": {}}
         mock_sidecar.return_value = {
             "timestamp": "1672574400",
@@ -243,11 +243,11 @@ class TestReconcile:
         }
 
         manifest = [_entry("/tmp/image.jpg", "/tmp/image.json")]
-        reconcile(manifest, make_options(skip_embed=True))
+        reconcile(manifest, make_options(skip_metadata_write=True))
 
         assert manifest[0].metadata is not None
 
-        # No write_tags queued due to skip_embed
+        # No write_tags queued due to skip_metadata_write
         assert manifest[0].metadata.write_tags == []
 
         # Status is processed since no writes are queued

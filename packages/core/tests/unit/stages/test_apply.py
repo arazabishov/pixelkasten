@@ -84,7 +84,7 @@ class TestApply:
             _entry("/source/keep-me.jpg", rename_path="2023/keep-me.jpg"),
         ]
 
-        apply(manifest, make_options(destination="/dest", skip_embed=True))
+        apply(manifest, make_options(destination="/dest", skip_metadata_write=True))
 
         assert mock_copy2.call_count == 1
         assert mock_copy2.call_args_list[0] == call(
@@ -102,7 +102,7 @@ class TestApply:
     ):
         manifest = [_entry("/source/photos/IMG_1234.jpg")]
 
-        apply(manifest, make_options(destination="/dest", skip_embed=True))
+        apply(manifest, make_options(destination="/dest", skip_metadata_write=True))
 
         assert mock_copy2.call_args_list[0] == call(
             "/source/photos/IMG_1234.jpg", J("/dest", "IMG_1234.jpg")
@@ -118,7 +118,7 @@ class TestApply:
     ):
         manifest = [_entry("/source/IMG_1234.jpg", rename_path="2023/20230515-120000.jpg")]
 
-        apply(manifest, make_options(destination="/dest", skip_embed=True))
+        apply(manifest, make_options(destination="/dest", skip_metadata_write=True))
 
         expected_dir = os.path.dirname(J("/dest", "2023/20230515-120000.jpg"))
         assert mock_makedirs.call_args_list[0] == call(expected_dir, exist_ok=True)
@@ -135,7 +135,7 @@ class TestApply:
     ):
         manifest = [_entry("/source/photo.jpg", rename_path="photo.jpg", skip_dedupe=True)]
 
-        apply(manifest, make_options(destination="/dest", skip_embed=True))
+        apply(manifest, make_options(destination="/dest", skip_metadata_write=True))
 
         assert mock_copy2.call_count == 1
         assert manifest[0].apply is not None
@@ -144,7 +144,7 @@ class TestApply:
     @patch("pixelkasten.stages.apply.write_metadata")
     @patch("pixelkasten.stages.apply.shutil.copy2")
     @patch("pixelkasten.stages.apply.os.makedirs")
-    def test_only_checks_write_tags_to_decide_embedding_not_options(
+    def test_only_checks_write_tags_to_decide_metadata_write_not_options(
         self, mock_makedirs, mock_copy2, mock_write_metadata
     ):
         manifest = [_entry("/source/photo.jpg", rename_path="photo.jpg", write_tags=[])]
@@ -158,7 +158,7 @@ class TestApply:
     @patch("pixelkasten.stages.apply.write_metadata")
     @patch("pixelkasten.stages.apply.shutil.copy2")
     @patch("pixelkasten.stages.apply.os.makedirs")
-    def test_skips_embedding_when_entry_has_no_write_tags(
+    def test_skips_metadata_write_when_entry_has_no_write_tags(
         self, mock_makedirs, mock_copy2, mock_write_metadata
     ):
         manifest = [_entry("/source/photo.jpg", rename_path="photo.jpg", write_tags=[])]
@@ -172,7 +172,7 @@ class TestApply:
     @patch("pixelkasten.stages.apply.write_metadata")
     @patch("pixelkasten.stages.apply.shutil.copy2")
     @patch("pixelkasten.stages.apply.os.makedirs")
-    def test_skips_embedding_when_metadata_property_is_undefined(
+    def test_skips_metadata_write_when_metadata_property_is_undefined(
         self, mock_makedirs, mock_copy2, mock_write_metadata
     ):
         manifest = [_entry("/source/photo.jpg", rename_path="photo.jpg")]
@@ -186,7 +186,7 @@ class TestApply:
     @patch("pixelkasten.stages.apply.write_metadata")
     @patch("pixelkasten.stages.apply.shutil.copy2")
     @patch("pixelkasten.stages.apply.os.makedirs")
-    def test_embeds_metadata_into_copied_files(
+    def test_writes_metadata_into_copied_files(
         self, mock_makedirs, mock_copy2, mock_write_metadata
     ):
         manifest = [
@@ -206,7 +206,7 @@ class TestApply:
             ["DateTimeOriginal=2023:01:01 12:00:00"],
         )
         assert manifest[0].apply is not None
-        assert manifest[0].apply.result == ApplyResult.EMBEDDED
+        assert manifest[0].apply.result == ApplyResult.WRITTEN
 
     @patch("pixelkasten.stages.apply.write_metadata")
     @patch("pixelkasten.stages.apply.shutil.copy2")
@@ -218,7 +218,7 @@ class TestApply:
 
         mock_copy2.side_effect = OSError("ENOENT: no such file")
 
-        apply(manifest, make_options(destination="/dest", skip_embed=True))
+        apply(manifest, make_options(destination="/dest", skip_metadata_write=True))
 
         assert manifest[0].apply is not None
         assert manifest[0].apply.status == Status.ERROR
@@ -227,7 +227,7 @@ class TestApply:
     @patch("pixelkasten.stages.apply.write_metadata")
     @patch("pixelkasten.stages.apply.shutil.copy2")
     @patch("pixelkasten.stages.apply.os.makedirs")
-    def test_marks_entry_as_error_when_embed_fails(
+    def test_marks_entry_as_error_when_metadata_write_fails(
         self, mock_makedirs, mock_copy2, mock_write_metadata
     ):
         manifest = [
@@ -253,7 +253,7 @@ class TestApply:
     def test_stores_dest_path_in_apply_object(self, mock_makedirs, mock_copy2, mock_write_metadata):
         manifest = [_entry("/source/photo.jpg", rename_path="2023/photo.jpg")]
 
-        apply(manifest, make_options(destination="/dest", skip_embed=True))
+        apply(manifest, make_options(destination="/dest", skip_metadata_write=True))
 
         assert manifest[0].apply is not None
         assert manifest[0].apply.target_path == J("/dest", "2023/photo.jpg")
@@ -261,7 +261,7 @@ class TestApply:
     @patch("pixelkasten.stages.apply.write_metadata")
     @patch("pixelkasten.stages.apply.shutil.copy2")
     @patch("pixelkasten.stages.apply.os.makedirs")
-    def test_copies_sidecar_when_skip_embed_is_true_and_sidecar_exists(
+    def test_copies_sidecar_when_skip_metadata_write_is_true_and_sidecar_exists(
         self, mock_makedirs, mock_copy2, mock_write_metadata
     ):
         manifest = [
@@ -272,7 +272,7 @@ class TestApply:
             ),
         ]
 
-        apply(manifest, make_options(destination="/dest", skip_embed=True))
+        apply(manifest, make_options(destination="/dest", skip_metadata_write=True))
 
         assert mock_copy2.call_count == 2
         assert mock_copy2.call_args_list[1] == call(
@@ -282,7 +282,7 @@ class TestApply:
     @patch("pixelkasten.stages.apply.write_metadata")
     @patch("pixelkasten.stages.apply.shutil.copy2")
     @patch("pixelkasten.stages.apply.os.makedirs")
-    def test_does_not_copy_sidecar_when_skip_embed_is_false(
+    def test_does_not_copy_sidecar_when_skip_metadata_write_is_false(
         self, mock_makedirs, mock_copy2, mock_write_metadata
     ):
         manifest = [
@@ -303,7 +303,7 @@ class TestApply:
     ):
         manifest = [_entry("/source/photo.jpg", rename_path="photo.jpg")]
 
-        apply(manifest, make_options(destination="/dest", skip_embed=True))
+        apply(manifest, make_options(destination="/dest", skip_metadata_write=True))
 
         assert mock_copy2.call_count == 1
 
@@ -317,7 +317,7 @@ class TestApply:
             _entry("/source/photos/IMG_1234.jpg", sidecar_path="/source/photos/IMG_1234.jpg.json")
         ]
 
-        apply(manifest, make_options(destination="/dest", skip_embed=True))
+        apply(manifest, make_options(destination="/dest", skip_metadata_write=True))
 
         assert mock_copy2.call_args_list[1] == call(
             "/source/photos/IMG_1234.jpg.json", J("/dest", "IMG_1234.jpg") + ".json"
@@ -326,7 +326,7 @@ class TestApply:
     @patch("pixelkasten.stages.apply.write_metadata")
     @patch("pixelkasten.stages.apply.shutil.copy2")
     @patch("pixelkasten.stages.apply.os.makedirs")
-    def test_does_not_copy_sidecar_when_skip_embed_is_not_set(
+    def test_does_not_copy_sidecar_when_skip_metadata_write_is_not_set(
         self, mock_makedirs, mock_copy2, mock_write_metadata
     ):
         manifest = [
@@ -347,7 +347,7 @@ class TestApply:
             _entry("/source/photo.jpg", rename_path="2023/20230501 - Vacation/20230515-120000.jpg"),
         ]
 
-        apply(manifest, make_options(destination="/dest", skip_embed=True))
+        apply(manifest, make_options(destination="/dest", skip_metadata_write=True))
 
         expected_dest = J("/dest", "2023/20230501 - Vacation/20230515-120000.jpg")
         expected_dir = os.path.dirname(expected_dest)
@@ -372,7 +372,7 @@ class TestApply:
 
         mock_copy2.side_effect = copy_side_effect
 
-        apply(manifest, make_options(destination="/dest", skip_embed=True))
+        apply(manifest, make_options(destination="/dest", skip_metadata_write=True))
 
         assert manifest[0].apply is not None
         assert manifest[0].apply.status == Status.ERROR

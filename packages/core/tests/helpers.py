@@ -17,7 +17,7 @@ def make_options(**overrides) -> Options:
         "destination": "/dest",
         "dry_run": False,
         "skip_dedupe": False,
-        "skip_embed": False,
+        "skip_metadata_write": False,
         "skip_rename": False,
         "prefer": "album",
         "fuzzy": True,

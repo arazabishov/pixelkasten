@@ -24,7 +24,7 @@ class DedupeResult(Enum):
 
 
 class ApplyResult(Enum):
-    EMBEDDED = "embedded"
+    WRITTEN = "written"
     COPIED = "copied"
 
 
@@ -146,10 +146,10 @@ class Rename:
 
 @dataclass
 class Apply:
-    # tracks whether the copy/embed succeeded
+    # tracks whether the copy/metadata write succeeded
     status: Status
 
-    # whether exiftool tags were embedded or file was only copied
+    # whether exiftool tags were written or file was only copied
     result: ApplyResult | None = None
 
     # actual path on disk — may differ from rename on filename collision
@@ -182,7 +182,7 @@ class ManifestEntry:
     # date-based destination path — consumed by apply for file copy
     rename: Rename | None = None
 
-    # final outcome — copied/embedded result and actual disk path
+    # final outcome — copied/written result and actual disk path
     apply: Apply | None = None
 
     # cluster assignment, tags, caption — set by discovery stages
