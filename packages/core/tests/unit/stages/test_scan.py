@@ -115,12 +115,8 @@ class TestScan:
         result = scan(str(tmp_path))
 
         # Full paths are constructed correctly
-        assert result["files_media"] == [
-            str(tmp_path / "Photos from 2024" / "photo.jpg")
-        ]
-        assert result["files_metadata_albums"] == [
-            str(tmp_path / "Vacation" / "metadata.json")
-        ]
+        assert result["files_media"] == [str(tmp_path / "Photos from 2024" / "photo.jpg")]
+        assert result["files_metadata_albums"] == [str(tmp_path / "Vacation" / "metadata.json")]
 
     def test_handles_case_insensitive_extensions(self, tmp_path):
         (tmp_path / "PHOTO.JPG").touch()

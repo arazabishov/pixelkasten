@@ -12,7 +12,7 @@ from collections.abc import Callable
 from pixelkasten.core.datetime import parse_photo_taken_time
 from pixelkasten.core.exiftool import read_metadata
 from pixelkasten.core.manifest import can_keep
-from pixelkasten.core.types import ManifestEntry, Metadata, Status
+from pixelkasten.core.types import Geo, ManifestEntry, Metadata, Status
 from pixelkasten.handlers import handlers
 from pixelkasten.configuration import Options
 from pixelkasten.core.sidecar import read_sidecar
@@ -83,8 +83,8 @@ def _resolve(
     disk_data = handler.parse(raw_disk_tags)
 
     write_tags: list[str] = []
-    dates = list(disk_data.dates)
-    geo = disk_data.geo
+    dates = list(disk_data["dates"])
+    raw_geo = disk_data["geo"]
 
     # Retrieve and parse sidecar data.
     sidecar_data = read_sidecar(json_path)
@@ -92,7 +92,7 @@ def _resolve(
     # If there is sidecar data, resolve missing metadata.
     if sidecar_data:
         # If there is no primary timestamp on disk, use the value from sidecar.
-        if not disk_data.timestamp and sidecar_data.get("timestamp"):
+        if not disk_data["timestamp"] and sidecar_data.get("timestamp"):
             ptt = parse_photo_taken_time(sidecar_data["timestamp"])
 
             # Queue timestamp for writing if embedding is enabled.
@@ -103,17 +103,26 @@ def _resolve(
             dates.insert(0, ptt["iso"])
 
         # Queue geo data for writing if embedding is enabled.
-        if not options.skip_embed and not disk_data.geo and sidecar_data.get("geo"):
+        if not options.skip_embed and not disk_data["geo"] and sidecar_data.get("geo"):
             write_tags.extend(handler.geo(sidecar_data["geo"]))
 
         # Use sidecar geo if disk has none (for downstream geocoding).
-        if not geo and sidecar_data.get("geo"):
-            geo = sidecar_data["geo"]
+        if not raw_geo and sidecar_data.get("geo"):
+            raw_geo = sidecar_data["geo"]
 
-    status = Status.PROCESSED if write_tags else Status.PROCESSED
+    # Convert raw geo dict to typed Geo at the stage boundary.
+    geo = (
+        Geo(
+            latitude=raw_geo["latitude"],
+            longitude=raw_geo["longitude"],
+            altitude=raw_geo.get("altitude"),
+        )
+        if raw_geo
+        else None
+    )
 
     return Metadata(
-        status=status,
+        status=Status.PROCESSED,
         write_tags=write_tags,
         dates=dates,
         geo=geo,

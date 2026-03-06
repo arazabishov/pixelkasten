@@ -1,10 +1,5 @@
 """
-ExifTool integration — read, parse, and write metadata via exiftool subprocess.
-
-Provides:
-- Subprocess wrapper: check_exiftool, read_metadata, write_metadata
-- Parsed EXIF reading: read_exif, read_exif_for_representatives
-- Tag parsing: timestamp normalization, GPS validation, camera extraction
+ExifTool integration — read and write metadata via exiftool subprocess.
 
 Prerequisites:
     - exiftool installed and on PATH (`brew install exiftool`)
@@ -13,23 +8,7 @@ Prerequisites:
 import json
 import os
 import subprocess
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, TypedDict
-
-from pixelkasten.core.datetime import normalize_disk_date
-
-
-class GpsData(TypedDict, total=False):
-    latitude: float
-    longitude: float
-    altitude: float | None
-
-
-class ExifData(TypedDict, total=False):
-    timestamp: str | None
-    gps: GpsData | None
-    camera: str | None
 
 
 def check_exiftool() -> None:
@@ -54,7 +33,7 @@ def check_exiftool() -> None:
 
 
 def read_metadata(
-    file_paths: list[Path],
+    file_paths: list[str],
     tags: list[str] | None = None,
 ) -> dict[str, dict]:
     """
@@ -87,7 +66,7 @@ def read_metadata(
 
     args.extend(["-@", "-"])
 
-    stdin_text = "\n".join(str(p) for p in file_paths)
+    stdin_text = "\n".join(file_paths)
 
     result = subprocess.run(
         args,
@@ -143,155 +122,3 @@ def write_metadata(file_path: str | Path, tags: list[str]) -> None:
 
     if result.returncode != 0:
         raise RuntimeError(f"Failed to write metadata using exiftool: {result.stderr}")
-
-
-_EXIF_TAGS = [
-    "EXIF:DateTimeOriginal",
-    "EXIF:CreateDate",
-    "QuickTime:CreationDate",
-    "QuickTime:CreateDate",
-    "Composite:GPSLatitude",
-    "Composite:GPSLongitude",
-    "Composite:GPSAltitude",
-    "EXIF:Model",
-    "EXIF:Make",
-]
-
-
-def read_exif(file_paths: list[Path]) -> dict[str, ExifData]:
-    """
-    Read EXIF metadata from multiple files in a single exiftool invocation.
-
-    Uses exiftool's -json mode with stdin file list for efficiency (one
-    process for all files, not one per file).
-
-    Args:
-        file_paths: List of image file paths to read.
-
-    Returns:
-        Dict mapping file path (string) to parsed ExifData. Files that
-        fail to read or have no relevant metadata get an ExifData with
-        all None values.
-    """
-    if not file_paths:
-        return {}
-
-    raw_results = read_metadata(file_paths, _EXIF_TAGS)
-
-    parsed = {}
-    for source_file, raw in raw_results.items():
-        parsed[source_file] = _parse_exiftool_entry(raw)
-
-    # Fill in any files that didn't appear in the output.
-    for p in file_paths:
-        key = str(p)
-        if key not in parsed:
-            parsed[key] = ExifData(timestamp=None, gps=None, camera=None)
-
-    return parsed
-
-
-def _parse_exiftool_entry(raw: dict[str, Any]) -> ExifData:
-    """
-    Parse a single exiftool JSON entry into our normalized ExifData shape.
-
-    Handles the tag priority chain:
-    - Timestamp: DateTimeOriginal > CreateDate (EXIF) > CreationDate (QT)
-    - GPS: Composite GPSLatitude + GPSLongitude (skip 0,0)
-    - Camera: Model (fallback: Make)
-    """
-    # Timestamp: try tags in priority order.
-    timestamp = None
-    for tag in [
-        "EXIF:DateTimeOriginal",
-        "EXIF:CreateDate",
-        "QuickTime:CreationDate",
-        "QuickTime:CreateDate",
-    ]:
-        if tag in raw:
-            timestamp = _normalize_timestamp(raw[tag])
-            if timestamp is not None:
-                break
-
-    # GPS: use Composite tags (cross-format, already decimal with -n).
-    gps = None
-    lat = raw.get("Composite:GPSLatitude")
-    lon = raw.get("Composite:GPSLongitude")
-
-    validated = _validate_gps(lat, lon)
-    if validated is not None:
-        gps = GpsData(
-            latitude=validated[0],
-            longitude=validated[1],
-            altitude=_safe_float(raw.get("Composite:GPSAltitude")),
-        )
-
-    # Camera: prefer Model, fall back to Make.
-    camera = raw.get("EXIF:Model") or raw.get("EXIF:Make") or None
-
-    return ExifData(timestamp=timestamp, gps=gps, camera=camera)
-
-
-def _normalize_timestamp(raw_value) -> str | None:
-    """
-    Normalize an exiftool timestamp value to ISO 8601.
-
-    Strips timezone offsets to preserve wall-clock time (matching Node.js
-    behavior). Delegates string parsing to normalize_disk_date().
-
-    Handles:
-    - EXIF string: "2019:07:15 14:30:00" -> "2019-07-15T14:30:00"
-    - EXIF with tz: "2019:07:15 14:30:00+02:00" -> "2019-07-15T14:30:00"
-    - Numeric (Unix epoch): 1563197400 -> "2019-07-15T13:30:00"
-
-    Returns None if the value is missing, empty, or unparseable.
-    """
-    if raw_value is None:
-        return None
-
-    # Numeric (Unix epoch).
-    if isinstance(raw_value, (int, float)):
-        try:
-            dt = datetime.fromtimestamp(raw_value, tz=timezone.utc)
-            return dt.strftime("%Y-%m-%dT%H:%M:%S")
-        except (ValueError, OSError):
-            return None
-
-    raw_str = str(raw_value).strip()
-    if not raw_str or raw_str == "0000:00:00 00:00:00":
-        return None
-
-    return normalize_disk_date(raw_str)
-
-
-def _validate_gps(lat: float | None, lon: float | None) -> tuple[float, float] | None:
-    """
-    Validate and parse GPS coordinates.
-
-    Returns (lat, lon) as floats if valid, None otherwise.
-    Per the project's guiding principle: if latitude or longitude are
-    0, 0.0, null, or undefined, skip geo data entirely.
-    """
-    if lat is None or lon is None:
-        return None
-
-    try:
-        lat_f = float(lat)
-        lon_f = float(lon)
-    except (ValueError, TypeError):
-        return None
-
-    if lat_f == 0.0 and lon_f == 0.0:
-        return None
-
-    return (lat_f, lon_f)
-
-
-def _safe_float(value) -> float | None:
-    """Convert to float, returning None if not possible."""
-    if value is None:
-        return None
-    try:
-        return float(value)
-    except (ValueError, TypeError):
-        return None

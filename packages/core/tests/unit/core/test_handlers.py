@@ -77,7 +77,7 @@ class TestExifHandler:
             }
         )
 
-        assert result.timestamp == "2023-05-20T14:30:00"
+        assert result["timestamp"] == "2023-05-20T14:30:00"
 
     def test_extracts_and_normalizes_all_dates(self):
         result = exif_handler.parse(
@@ -91,10 +91,10 @@ class TestExifHandler:
             }
         )
 
-        assert len(result.dates) == 6
+        assert len(result["dates"]) == 6
 
         # Dates are in priority order and normalized
-        assert result.dates == [
+        assert result["dates"] == [
             "2023-05-20T14:30:00",
             "2023-05-20T14:30:01",
             "2023-05-20T14:30:02",
@@ -113,14 +113,14 @@ class TestExifHandler:
         )
 
         # Only valid dates included
-        assert len(result.dates) == 2
-        assert result.dates == ["2023-05-20T14:30:00", "2023-05-20T14:30:03"]
+        assert len(result["dates"]) == 2
+        assert result["dates"] == ["2023-05-20T14:30:00", "2023-05-20T14:30:03"]
 
     def test_returns_none_timestamp_when_empty(self):
         result = exif_handler.parse({})
 
-        assert result.timestamp is None
-        assert result.dates == []
+        assert result["timestamp"] is None
+        assert result["dates"] == []
 
     def test_extracts_geo_data(self):
         result = exif_handler.parse(
@@ -131,11 +131,7 @@ class TestExifHandler:
             }
         )
 
-        assert result.geo == {
-            "latitude": 40.7128,
-            "longitude": -74.006,
-            "altitude": 10,
-        }
+        assert result["geo"] == {"latitude": 40.7128, "longitude": -74.006, "altitude": 10}
 
     def test_returns_none_geo_when_absent(self):
         result = exif_handler.parse(
@@ -144,7 +140,7 @@ class TestExifHandler:
             }
         )
 
-        assert result.geo is None
+        assert result["geo"] is None
 
     def test_returns_subsec_datetime_original_tag(self):
         result = exif_handler.timestamp("2023:05:20 14:30:00+00:00")
@@ -204,7 +200,7 @@ class TestQuickTimeHandler:
             }
         )
 
-        assert result.timestamp == "2024-03-15T10:30:00"
+        assert result["timestamp"] == "2024-03-15T10:30:00"
 
     def test_extracts_and_normalizes_all_dates(self):
         result = quicktime_handler.parse(
@@ -218,10 +214,10 @@ class TestQuickTimeHandler:
             }
         )
 
-        assert len(result.dates) == 6
+        assert len(result["dates"]) == 6
 
         # Dates normalized (timezone stripped from File: tags)
-        assert result.dates == [
+        assert result["dates"] == [
             "2024-03-15T10:30:00",
             "2024-03-15T10:30:01",
             "2024-03-15T10:30:02",
@@ -239,14 +235,14 @@ class TestQuickTimeHandler:
             }
         )
 
-        assert len(result.dates) == 2
-        assert result.dates == ["2024-03-15T10:30:00", "2024-03-15T10:30:03"]
+        assert len(result["dates"]) == 2
+        assert result["dates"] == ["2024-03-15T10:30:00", "2024-03-15T10:30:03"]
 
     def test_returns_none_timestamp_when_empty(self):
         result = quicktime_handler.parse({})
 
-        assert result.timestamp is None
-        assert result.dates == []
+        assert result["timestamp"] is None
+        assert result["dates"] == []
 
     def test_extracts_geo_data(self):
         result = quicktime_handler.parse(
@@ -257,11 +253,7 @@ class TestQuickTimeHandler:
             }
         )
 
-        assert result.geo == {
-            "latitude": 37.7749,
-            "longitude": -122.4194,
-            "altitude": 50,
-        }
+        assert result["geo"] == {"latitude": 37.7749, "longitude": -122.4194, "altitude": 50}
 
     def test_returns_none_geo_when_absent(self):
         result = quicktime_handler.parse(
@@ -270,7 +262,7 @@ class TestQuickTimeHandler:
             }
         )
 
-        assert result.geo is None
+        assert result["geo"] is None
 
     def test_returns_creation_date_tag(self):
         result = quicktime_handler.timestamp("2024:03:15 10:30:00+00:00")

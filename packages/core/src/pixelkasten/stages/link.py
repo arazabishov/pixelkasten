@@ -10,7 +10,6 @@ silently normalizes double extensions (.MP.jpg) and duplicate markers (1).
 
 import os
 import re
-from typing import NamedTuple
 
 from pixelkasten.core.types import ManifestEntry, Sidecar, Source
 from pixelkasten.configuration import Options
@@ -52,20 +51,6 @@ _EDITED_SUFFIX_PATTERN = re.compile(r"(?:-edited|-edite|-edit|-edi|-ed|-e)$")
 _DUPLICATE_PATTERN = re.compile(r"\((\d+)\)$")
 
 
-class MediaParsed(NamedTuple):
-    path: str
-    name: str
-    duplicate: int | None
-    extension: str
-
-
-class SidecarParsed(NamedTuple):
-    path: str
-    name: str
-    duplicate: int | None
-    extension: str
-
-
 def link(raw_collections: dict, options: Options) -> dict:
     """
     Match media files to their JSON sidecar metadata files.
@@ -79,9 +64,9 @@ def link(raw_collections: dict, options: Options) -> dict:
     files_metadata_albums = raw_collections.get("files_metadata_albums", [])
 
     # Stage 1: index metadata by directory for O(1) lookups.
-    metadata_by_dir: dict[str, list[SidecarParsed]] = {}
+    metadata_by_dir: dict[str, list[dict]] = {}
     for file_path in files_metadata:
-        parsed = parse_sidecar(file_path)
+        parsed = _parse_sidecar(file_path)
         dir_path = os.path.dirname(file_path)
         metadata_by_dir.setdefault(dir_path, []).append(parsed)
 
@@ -92,12 +77,12 @@ def link(raw_collections: dict, options: Options) -> dict:
         albums[dir_path] = os.path.basename(dir_path)
 
     # Stage 3: pre-parse media files for performance.
-    parsed_media = [parse_media(fp) for fp in files_media]
+    parsed_media = [_parse_media(fp) for fp in files_media]
 
     # Stage 4: match media files to their metadata sidecars.
     manifest: list[ManifestEntry] = []
     for media in parsed_media:
-        dir_path = os.path.dirname(media.path)
+        dir_path = os.path.dirname(media["path"])
         candidates = metadata_by_dir.get(dir_path, [])
 
         source = (
@@ -115,7 +100,7 @@ def link(raw_collections: dict, options: Options) -> dict:
 
         manifest.append(
             ManifestEntry(
-                media_path=media.path,
+                media_path=media["path"],
                 source=source,
                 sidecar=sidecar,
             )
@@ -139,7 +124,7 @@ def link(raw_collections: dict, options: Options) -> dict:
     }
 
 
-def parse_media(file_path: str) -> MediaParsed:
+def _parse_media(file_path: str) -> dict:
     """
     Parse a media file path into components for matching.
 
@@ -160,15 +145,15 @@ def parse_media(file_path: str) -> MediaParsed:
     if edited_match:
         name = name[: edited_match.start()]
 
-    return MediaParsed(
-        path=file_path,
-        name=name,
-        duplicate=duplicate,
-        extension=extension.lower(),
-    )
+    return {
+        "path": file_path,
+        "name": name,
+        "duplicate": duplicate,
+        "extension": extension.lower(),
+    }
 
 
-def parse_sidecar(file_path: str) -> SidecarParsed:
+def _parse_sidecar(file_path: str) -> dict:
     """
     Parse a sidecar JSON file path into components for matching.
 
@@ -194,22 +179,22 @@ def parse_sidecar(file_path: str) -> SidecarParsed:
     # Extract extension (e.g., .jpg from "photo.jpg").
     name, extension = os.path.splitext(name)
 
-    return SidecarParsed(
-        path=file_path,
-        name=name,
-        duplicate=duplicate,
-        extension=extension.lower(),
-    )
+    return {
+        "path": file_path,
+        "name": name,
+        "duplicate": duplicate,
+        "extension": extension.lower(),
+    }
 
 
-def _match(media: MediaParsed, candidates: list[SidecarParsed], options: Options) -> dict | None:
+def _match(media: dict, candidates: list[dict], options: Options) -> dict | None:
     """Find the best metadata match for a media file within the same directory."""
     best_match = None
     best_score = 0
 
     for sidecar in candidates:
         # Strict duplicate check: (1) must always match (1).
-        if media.duplicate != sidecar.duplicate:
+        if media["duplicate"] != sidecar["duplicate"]:
             continue
 
         score = _match_score(media, sidecar, options)
@@ -228,10 +213,10 @@ def _match(media: MediaParsed, candidates: list[SidecarParsed], options: Options
     else:
         confidence = 1
 
-    return {"path": best_match.path, "confidence": confidence}
+    return {"path": best_match["path"], "confidence": confidence}
 
 
-def _match_score(media: MediaParsed, sidecar: SidecarParsed, options: Options) -> int:
+def _match_score(media: dict, sidecar: dict, options: Options) -> int:
     """
     Calculate match score between a media file and a metadata file.
 
@@ -244,17 +229,23 @@ def _match_score(media: MediaParsed, sidecar: SidecarParsed, options: Options) -
     threshold = options.fuzzy_threshold
     fuzzy = options.fuzzy
 
+    media_name = media["name"]
+    media_ext = media["extension"]
+
+    sidecar_name = sidecar["name"]
+    sidecar_ext = sidecar["extension"]
+
     # Case 1: direct name match.
-    if media.name == sidecar.name:
-        if sidecar.extension and sidecar.extension == media.extension:
+    if media_name == sidecar_name:
+        if sidecar_ext and sidecar_ext == media_ext:
             return 150
         return 100
 
     # Case 2: embedded extension match. Handles cases like:
     #   media: "123.mp" (name="123", ext=".mp")
     #   metadata name: "123.mp"
-    composite_name = f"{media.name}{media.extension}".lower()
-    if composite_name == sidecar.name.lower():
+    composite_name = f"{media_name}{media_ext}".lower()
+    if composite_name == sidecar_name.lower():
         return 100
 
     # Fuzzy matching disabled.
@@ -262,15 +253,15 @@ def _match_score(media: MediaParsed, sidecar: SidecarParsed, options: Options) -
         return 0
 
     # Case 3: fuzzy requires sufficient filename length.
-    longer_name = max(len(media.name), len(sidecar.name))
+    longer_name = max(len(media_name), len(sidecar_name))
     if longer_name < threshold:
         return 0
 
     # Case 4: bidirectional prefix match.
-    sidecar_starts = sidecar.name.startswith(media.name)
-    media_starts = media.name.startswith(sidecar.name)
+    sidecar_starts = sidecar_name.startswith(media_name)
+    media_starts = media_name.startswith(sidecar_name)
 
     if media_starts or sidecar_starts:
-        return 50 + min(len(media.name), len(sidecar.name))
+        return 50 + min(len(media_name), len(sidecar_name))
 
     return 0
