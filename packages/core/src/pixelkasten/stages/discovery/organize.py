@@ -12,8 +12,6 @@ Prerequisites:
 
 import json
 from collections import Counter
-from typing import Callable
-
 from pixelkasten.configuration import DiscoveryOptions
 from pixelkasten.manifest import ManifestEntry, Source, Status
 
@@ -170,29 +168,16 @@ def propose_albums(entries: list[ManifestEntry], options: DiscoveryOptions) -> N
 
 
 def _propose_organization(
-    entries: list[ManifestEntry],
-    model: str = DEFAULT_MODEL,
-    on_progress: Callable[[str], None] | None = None,
+    entries: list[ManifestEntry], model: str = DEFAULT_MODEL
 ) -> dict[str, str]:
     """
     Send cluster summaries to the LLM and get back album name proposals.
     """
     from pixelkasten.tools.ollama import chat
 
-    if on_progress:
-        on_progress("Building cluster summaries...")
-
     summary_text = build_cluster_summary_text(entries)
     prompt = PROMPT_TEMPLATE.format(cluster_summary=summary_text)
-
-    if on_progress:
-        on_progress("Sending to LLM...")
-
     raw_response = chat(model, prompt) or ""
-
-    if on_progress:
-        on_progress("Parsing response...")
-
     return _parse_llm_response(raw_response)
 
 
