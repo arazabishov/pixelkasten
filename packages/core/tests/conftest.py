@@ -50,9 +50,9 @@ def _entry(
 
 
 @pytest.fixture
-def sample_manifest():
+def sample_entries():
     """
-    A small manifest with 10 entries covering different scenarios:
+    A list of ManifestEntry objects covering different scenarios:
     - Entries 0-4: cluster 0, with metadata dates + GPS locations
     - Entries 5-7: cluster 1, with metadata dates, no GPS
     - Entry 8: noise (cluster -1), with metadata dates
@@ -69,7 +69,7 @@ def sample_manifest():
         country="US",
     )
 
-    entries = [
+    return [
         _entry(
             "/photos/img_001.jpg",
             cluster=0,
@@ -152,13 +152,17 @@ def sample_manifest():
         ),
     ]
 
+
+# Backwards-compatible alias for tests that still use the dict form.
+@pytest.fixture
+def sample_manifest(sample_entries):
     return {
         "version": 1,
         "embeddings_file": "embeddings.npy",
         "total_images": 10,
         "embedded": 9,
         "failed": 1,
-        "entries": entries,
+        "entries": sample_entries,
         "clusters": {
             "0": {"size": 5},
             "1": {"size": 3},
@@ -169,13 +173,12 @@ def sample_manifest():
 @pytest.fixture
 def sample_embeddings():
     """
-    9x768 normalized embedding matrix (matches 9 ok-status entries in sample_manifest).
+    9x768 normalized embedding matrix (matches 9 ok-status entries in sample_entries).
     Seeded for determinism. First 5 vectors are similar (cluster 0),
     next 3 are similar (cluster 1), last 1 is different (noise).
     """
     rng = np.random.RandomState(42)
 
-    # Create base vectors for each cluster.
     base_0 = rng.randn(768).astype(np.float32)
     base_0 /= np.linalg.norm(base_0)
 
@@ -185,7 +188,6 @@ def sample_embeddings():
     noise_vec = rng.randn(768).astype(np.float32)
     noise_vec /= np.linalg.norm(noise_vec)
 
-    # Create variations around each base.
     embeddings = []
     for _ in range(5):
         v = base_0 + rng.randn(768).astype(np.float32) * 0.05
@@ -203,7 +205,7 @@ def sample_embeddings():
 
 
 @pytest.fixture
-def sample_manifest_path(tmp_path, sample_manifest, sample_embeddings):
+def sample_manifest_path(tmp_path, sample_embeddings):
     """Writes sample embeddings to temp dir, returns tmp_path."""
     embeddings_path = tmp_path / "embeddings.npy"
     np.save(embeddings_path, sample_embeddings)

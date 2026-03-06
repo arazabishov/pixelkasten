@@ -39,10 +39,7 @@ All vectors are L2-normalized (unit length), which means cosine similarity
 between any two vectors is simply their dot product.
 """
 
-import torch
 import numpy as np
-import open_clip
-from PIL import Image
 
 
 def detect_device() -> str:
@@ -54,6 +51,8 @@ def detect_device() -> str:
     - "cuda" — NVIDIA GPU. Available on Linux/Windows with NVIDIA hardware.
     - "cpu"  — Fallback. Works everywhere but is ~10-20x slower.
     """
+    import torch
+
     if torch.backends.mps.is_available():
         return "mps"
     if torch.cuda.is_available():
@@ -87,6 +86,8 @@ def load_model(
           the model expects.
         - device: The device string that was selected.
     """
+    import open_clip
+
     if device is None:
         device = detect_device()
 
@@ -141,6 +142,9 @@ def embed_images(
         - failed_indices: Indices of images that could not be loaded (corrupt
           files, unsupported formats, etc.). These are skipped, not errored.
     """
+    import torch
+    from PIL import Image
+
     all_embeddings = []
     failed_indices = []
     processed = 0
@@ -226,6 +230,8 @@ def embed_texts(
         A numpy array of shape (M, embedding_dim) where M = len(texts).
         Each row is a 768-dimensional unit vector.
     """
+    import torch
+
     # Tokenize: convert text strings into sequences of integer token IDs
     # that the model understands. Handles padding, truncation, etc.
     tokens = tokenizer(texts).to(device)

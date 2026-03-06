@@ -11,7 +11,6 @@ manifest but don't get cluster labels, captions, or album assignments.
 from collections.abc import Callable
 
 from pixelkasten.manifest import Discovery, ManifestEntry, Status, Tag
-from pixelkasten.stages.discovery.caption import caption_representatives
 from pixelkasten.stages.discovery.classify import (
     DEFAULT_LABEL_SETS,
     build_label_list,
@@ -19,7 +18,6 @@ from pixelkasten.stages.discovery.classify import (
 )
 from pixelkasten.stages.discovery.cluster import (
     cluster_embeddings,
-    cluster_summary,
     find_representatives,
 )
 from pixelkasten.stages.discovery.embed import embed_images, embed_texts, load_model
@@ -71,51 +69,53 @@ def run_discovery(
         embeddings, label_embeddings, prefixed_names, threshold=discovery_opts.classify_threshold
     )
 
-    # Populate discovery field on each image entry
-    ok_indices = [i for i in range(len(image_paths)) if i not in failed_indices]
+    # Map image_entries index → embedding row index.
+    # Failed images don't have a row in the embeddings array, so we
+    # skip them and track which entry index maps to which row.
+    failed = set(failed_indices)
+    entry_to_row: dict[int, int] = {}
+    row = 0
+    for i in range(len(image_paths)):
+        if i not in failed:
+            entry_to_row[i] = row
+            row += 1
+
+    # Populate discovery field on each image entry.
     reps_flat = {r for reps in representatives.values() for r in reps}
     for i, entry in enumerate(image_entries):
-        if i < len(ok_indices):
+        if i in entry_to_row:
+            embed_row = entry_to_row[i]
             entry.discovery = Discovery(
                 status=Status.PROCESSED,
-                cluster=int(labels[ok_indices[i]]),
-                is_representative=ok_indices[i] in reps_flat,
-                tags=[
-                    Tag(name=name, score=round(score, 3)) for name, score in all_tags[ok_indices[i]]
-                ],
+                cluster=int(labels[embed_row]),
+                is_representative=embed_row in reps_flat,
+                tags=[Tag(name=name, score=round(score, 3)) for name, score in all_tags[embed_row]],
             )
         else:
             entry.discovery = Discovery(status=Status.ERROR)
 
-    summary = cluster_summary(labels)
-    discovery_manifest = {
-        "entries": image_entries,
-        "clusters": {str(k): {"size": v} for k, v in summary.get("cluster_sizes", {}).items()},
-    }
-
-    # Resolve GPS → location names (used by refine and organize)
+    # Resolve GPS → location names (used by refine and organize).
     from pixelkasten.stages.discovery.geocode import reverse_geocode
 
     reverse_geocode(manifest)
 
-    # Refine (optional)
+    # Refine (optional).
     if not discovery_opts.skip_refine:
-        new_labels, _ = refine_clusters(discovery_manifest, embeddings)
+        new_labels, _ = refine_clusters(image_entries, embeddings)
         for i, entry in enumerate(image_entries):
-            if (
-                entry.discovery
-                and i < len(new_labels)
-                and entry.discovery.status == Status.PROCESSED
-            ):
-                entry.discovery.cluster = int(new_labels[i])
+            if i in entry_to_row and entry.discovery and entry.discovery.status == Status.PROCESSED:
+                entry.discovery.cluster = int(new_labels[entry_to_row[i]])
+        # Recompute representatives after refinement.
         representatives = find_representatives(embeddings, new_labels)
-        summary = cluster_summary(new_labels)
-        discovery_manifest["clusters"] = {
-            str(k): {"size": v} for k, v in summary.get("cluster_sizes", {}).items()
-        }
+        reps_flat = {r for reps in representatives.values() for r in reps}
+        for i, entry in enumerate(image_entries):
+            if i in entry_to_row and entry.discovery:
+                entry.discovery.is_representative = entry_to_row[i] in reps_flat
 
-    # Caption (optional)
+    # Caption (optional).
     if not discovery_opts.skip_caption:
+        from pixelkasten.stages.discovery.caption import caption_representatives
+
         n_reps = sum(
             1
             for entry in image_entries
@@ -125,19 +125,20 @@ def run_discovery(
         )
         with progress("Captioning images", n_reps) as tick:
             captions = caption_representatives(
-                discovery_manifest,
+                image_entries,
                 discovery_opts.caption_model,
                 "Describe this photo briefly.",
                 on_progress=tick,
             )
+        entries_by_path = {e.media_path: e for e in image_entries}
         for path, cap in captions.items():
-            for entry in image_entries:
-                if entry.media_path == path and entry.discovery:
-                    entry.discovery.caption = cap
+            entry = entries_by_path.get(path)
+            if entry and entry.discovery:
+                entry.discovery.caption = cap
 
-    # Propose albums (requires Ollama)
+    # Propose albums (requires Ollama).
     with progress("Proposing albums", 1) as tick:
-        propose_albums(discovery_manifest, discovery_opts)
+        propose_albums(image_entries, discovery_opts)
         if tick:
             tick(1)
 

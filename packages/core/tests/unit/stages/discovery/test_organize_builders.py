@@ -35,9 +35,9 @@ class TestParseLlmResponse:
 
 
 class TestBuildClusterSummaryText:
-    def test_output_includes_captions_tags_and_date_range(self, sample_manifest):
+    def test_output_includes_captions_tags_and_date_range(self, sample_entries):
         """The summary text must contain captions, tags, and date range for each cluster."""
-        text = build_cluster_summary_text(sample_manifest)
+        text = build_cluster_summary_text(sample_entries)
 
         # Cluster 0 caption (from entry-level caption field).
         assert "A beach scene" in text
@@ -56,16 +56,16 @@ class TestBuildClusterSummaryText:
         assert "2019-08-20T19:00:00" in text
         assert "2019-08-20T21:00:00" in text
 
-    def test_output_includes_location_info(self, sample_manifest):
+    def test_output_includes_location_info(self, sample_entries):
         """The summary text must include location data from entries."""
-        text = build_cluster_summary_text(sample_manifest)
+        text = build_cluster_summary_text(sample_entries)
 
         # Cluster 0 has entries with location_name including San Francisco.
         assert "San Francisco" in text
         assert "California" in text
 
-    def test_no_noise_section(self, sample_manifest):
+    def test_no_noise_section(self, sample_entries):
         """Noise images should not appear in the cluster summary."""
-        text = build_cluster_summary_text(sample_manifest)
+        text = build_cluster_summary_text(sample_entries)
         assert "Unclustered" not in text
         assert "Unsorted" not in text
