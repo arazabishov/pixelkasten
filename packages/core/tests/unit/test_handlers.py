@@ -58,7 +58,9 @@ class TestParseCompositeGeo:
             "Composite:GPSAltitude": 10,
         }
 
-        assert parse_composite_geo(raw)["altitude"] == 10
+        result = parse_composite_geo(raw)
+        assert result is not None
+        assert result["altitude"] == 10
 
     def test_altitude_is_none_when_absent(self):
         raw = {
@@ -66,7 +68,9 @@ class TestParseCompositeGeo:
             "Composite:GPSLongitude": -74.006,
         }
 
-        assert parse_composite_geo(raw)["altitude"] is None
+        result = parse_composite_geo(raw)
+        assert result is not None
+        assert result["altitude"] is None
 
 
 class TestExifHandler:

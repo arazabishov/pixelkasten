@@ -167,20 +167,27 @@ class TestPipeline:
         }
         mock_link.return_value = {"manifest": [], "stats": {}}
 
+        on_scan = MagicMock()
+        on_link = MagicMock()
+        on_dedupe = MagicMock()
+        on_reconcile = MagicMock()
+        on_rename = MagicMock()
+        on_apply = MagicMock()
+
         hooks = Hooks(
-            on_scan=MagicMock(),
-            on_link=MagicMock(),
-            on_dedupe=MagicMock(),
-            on_reconcile=MagicMock(),
-            on_rename=MagicMock(),
-            on_apply=MagicMock(),
+            on_scan=on_scan,
+            on_link=on_link,
+            on_dedupe=on_dedupe,
+            on_reconcile=on_reconcile,
+            on_rename=on_rename,
+            on_apply=on_apply,
         )
 
         self._run(make_options(), hooks)
 
-        hooks.on_scan.assert_called_once()
-        hooks.on_link.assert_called_once()
-        hooks.on_dedupe.assert_called_once()
-        hooks.on_reconcile.assert_called_once()
-        hooks.on_rename.assert_called_once()
-        hooks.on_apply.assert_called_once()
+        on_scan.assert_called_once()
+        on_link.assert_called_once()
+        on_dedupe.assert_called_once()
+        on_reconcile.assert_called_once()
+        on_rename.assert_called_once()
+        on_apply.assert_called_once()

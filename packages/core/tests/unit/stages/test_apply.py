@@ -91,6 +91,7 @@ class TestApply:
             "/source/keep-me.jpg", J("/dest", "2023/keep-me.jpg")
         )
         assert manifest[0].apply is None
+        assert manifest[1].apply is not None
         assert manifest[1].apply.result == ApplyResult.COPIED
 
     @patch("pixelkasten.stages.apply.write_metadata")
@@ -106,6 +107,7 @@ class TestApply:
         assert mock_copy2.call_args_list[0] == call(
             "/source/photos/IMG_1234.jpg", J("/dest", "IMG_1234.jpg")
         )
+        assert manifest[0].apply is not None
         assert manifest[0].apply.result == ApplyResult.COPIED
 
     @patch("pixelkasten.stages.apply.write_metadata")
@@ -136,6 +138,7 @@ class TestApply:
         apply(manifest, make_options(destination="/dest", skip_embed=True))
 
         assert mock_copy2.call_count == 1
+        assert manifest[0].apply is not None
         assert manifest[0].apply.result == ApplyResult.COPIED
 
     @patch("pixelkasten.stages.apply.write_metadata")
@@ -149,6 +152,7 @@ class TestApply:
         apply(manifest, make_options(destination="/dest"))
 
         mock_write_metadata.assert_not_called()
+        assert manifest[0].apply is not None
         assert manifest[0].apply.result == ApplyResult.COPIED
 
     @patch("pixelkasten.stages.apply.write_metadata")
@@ -162,6 +166,7 @@ class TestApply:
         apply(manifest, make_options(destination="/dest"))
 
         mock_write_metadata.assert_not_called()
+        assert manifest[0].apply is not None
         assert manifest[0].apply.result == ApplyResult.COPIED
 
     @patch("pixelkasten.stages.apply.write_metadata")
@@ -175,6 +180,7 @@ class TestApply:
         apply(manifest, make_options(destination="/dest"))
 
         mock_write_metadata.assert_not_called()
+        assert manifest[0].apply is not None
         assert manifest[0].apply.result == ApplyResult.COPIED
 
     @patch("pixelkasten.stages.apply.write_metadata")
@@ -199,6 +205,7 @@ class TestApply:
             J("/dest", "photo.jpg"),
             ["DateTimeOriginal=2023:01:01 12:00:00"],
         )
+        assert manifest[0].apply is not None
         assert manifest[0].apply.result == ApplyResult.EMBEDDED
 
     @patch("pixelkasten.stages.apply.write_metadata")
@@ -213,6 +220,7 @@ class TestApply:
 
         apply(manifest, make_options(destination="/dest", skip_embed=True))
 
+        assert manifest[0].apply is not None
         assert manifest[0].apply.status == Status.ERROR
         assert manifest[0].apply.error == "ENOENT: no such file"
 
@@ -235,6 +243,7 @@ class TestApply:
 
         apply(manifest, make_options(destination="/dest"))
 
+        assert manifest[0].apply is not None
         assert manifest[0].apply.status == Status.ERROR
         assert manifest[0].apply.error == "exiftool failed"
 
@@ -246,6 +255,7 @@ class TestApply:
 
         apply(manifest, make_options(destination="/dest", skip_embed=True))
 
+        assert manifest[0].apply is not None
         assert manifest[0].apply.target_path == J("/dest", "2023/photo.jpg")
 
     @patch("pixelkasten.stages.apply.write_metadata")
@@ -364,5 +374,6 @@ class TestApply:
 
         apply(manifest, make_options(destination="/dest", skip_embed=True))
 
+        assert manifest[0].apply is not None
         assert manifest[0].apply.status == Status.ERROR
         assert manifest[0].apply.error == "ENOSPC: no space left"
