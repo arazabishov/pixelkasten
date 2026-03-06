@@ -1,6 +1,6 @@
 # AGENTS.md
 
-The core objective of this tool is to help organize a photo library. For Google Takeout exports, it matches media files to their JSON sidecars, deduplicates, and embeds metadata (timestamps, geo-data) into files using exiftool. For any photo library, Takeout or not, it can automatically discover and name albums using local AI (CLIP + Ollama). Both capabilities work independently or together.
+The core objective of this tool is to help organize a photo library. For Google Takeout exports, it matches media files to their JSON sidecars, deduplicates, and writes metadata (timestamps, geo-data) into files using exiftool. For any photo library, Takeout or not, it can automatically discover and name albums using local AI (CLIP + Ollama). Both capabilities work independently or together.
 
 ## Guiding principles
 

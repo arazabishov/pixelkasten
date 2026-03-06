@@ -1,5 +1,5 @@
 """
-Apply stage — copy files to destination and optionally embed metadata.
+Apply stage — copy files to destination and optionally write metadata.
 
 Ported from packages/core/src/stages/apply.js.
 """
@@ -19,11 +19,11 @@ def apply(
     on_progress: Callable[[int], None] | None = None,
 ) -> None:
     """
-    Copy files to destination, embed metadata if write_tags exist.
+    Copy files to destination, write metadata if write_tags exist.
 
     For each file that is not marked for deletion:
     1. Copy to target path (from rename stage, or original filename if skipped)
-    2. Embed metadata tags into the copy (if any tags to write)
+    2. Write metadata tags into the copy (if any tags to write)
 
     The source directory is never modified.
 
@@ -47,7 +47,7 @@ def apply(
 
 
 def _apply_entry(entry: ManifestEntry, destination: str, options: Options) -> Apply:
-    """Copy a single file to destination, embed metadata if needed."""
+    """Copy a single file to destination, write metadata if needed."""
     target_path = (entry.rename.target_path if entry.rename else None) or os.path.basename(
         entry.media_path
     )
@@ -60,12 +60,12 @@ def _apply_entry(entry: ManifestEntry, destination: str, options: Options) -> Ap
     if write_tags:
         write_metadata(dest_path, write_tags)
 
-    # Copy sidecar when embedding is skipped and a sidecar exists
-    if options.skip_embed and entry.sidecar:
+    # Copy sidecar when metadata writing is skipped and a sidecar exists
+    if options.skip_metadata_write and entry.sidecar:
         shutil.copy2(entry.sidecar.path, dest_path + ".json")
 
     return Apply(
         status=Status.PROCESSED,
-        result=ApplyResult.EMBEDDED if write_tags else ApplyResult.COPIED,
+        result=ApplyResult.WRITTEN if write_tags else ApplyResult.COPIED,
         target_path=dest_path,
     )

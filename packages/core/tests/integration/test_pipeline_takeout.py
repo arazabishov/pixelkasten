@@ -115,9 +115,9 @@ def _build_sidecar(title: str, data: dict) -> dict:
 class TestTakeoutPipeline:
     """Integration tests for the full takeout pipeline."""
 
-    def test_embeds_and_preserves_metadata(self, tmp_path):
+    def test_writes_and_preserves_metadata(self, tmp_path):
         """
-        Pipeline should embed metadata from sidecar into files that lack it,
+        Pipeline should write metadata from sidecar into files that lack it,
         preserve metadata that already exists on disk, and partially fill
         missing fields (e.g., add GPS to a file that has timestamp but no GPS).
         """
@@ -244,17 +244,17 @@ class TestTakeoutPipeline:
         report_content = report_path.read_text()
         report_rows = report_content.strip().split("\n")
 
-        # No-EXIF file was embedded (metadata written from sidecar).
+        # No-EXIF file had metadata written from sidecar.
         no_exif_row = next(r for r in report_rows if "IMG_001.jpg" in r)
-        assert "embedded" in no_exif_row, "No-EXIF file should have 'embedded' status"
+        assert "written" in no_exif_row, "No-EXIF file should have 'written' status"
 
         # Full-EXIF file was only copied (already had metadata).
         full_exif_row = next(r for r in report_rows if "IMG_002.jpg" in r)
         assert "copied" in full_exif_row, "Full-EXIF file should have 'copied' status"
 
-        # Partial-EXIF file was embedded (GPS written from sidecar).
+        # Partial-EXIF file had GPS written from sidecar.
         partial_exif_row = next(r for r in report_rows if "IMG_003.jpg" in r)
-        assert "embedded" in partial_exif_row, "Partial-EXIF file should have 'embedded' status"
+        assert "written" in partial_exif_row, "Partial-EXIF file should have 'written' status"
 
     def test_deduplicates_album_over_loose(self, tmp_path):
         """
@@ -325,20 +325,20 @@ class TestTakeoutPipeline:
         loose_jpegs = [f for f in year_folder.iterdir() if f.is_file() and f.suffix == ".jpg"]
         assert len(loose_jpegs) == 0, "No loose JPEGs should exist directly in the year folder"
 
-        # Verify report: one embedded (album winner), one deleted (loose duplicate).
+        # Verify report: one written (album winner), one deleted (loose duplicate).
         report_content = (dest / "report.csv").read_text()
         report_rows = report_content.strip().split("\n")
 
-        embedded_rows = [r for r in report_rows if "embedded" in r]
+        written_rows = [r for r in report_rows if "written" in r]
         deleted_rows = [r for r in report_rows if "deleted" in r]
 
-        assert len(embedded_rows) == 1, "Exactly one file should be embedded"
+        assert len(written_rows) == 1, "Exactly one file should have metadata written"
         assert len(deleted_rows) == 1, "Exactly one file should be deleted"
 
-    def test_copies_sidecar_when_skip_embed(self, tmp_path):
+    def test_copies_sidecar_when_skip_metadata_write(self, tmp_path):
         """
-        When skip_embed is set, the pipeline should copy the file without
-        embedding metadata and copy the sidecar JSON alongside it.
+        When skip_metadata_write is set, the pipeline should copy the file without
+        writing metadata and copy the sidecar JSON alongside it.
         """
         source = tmp_path / "source"
         dest = tmp_path / "dest"
@@ -366,7 +366,7 @@ class TestTakeoutPipeline:
         )
 
         run_pipeline(
-            make_options(source=str(source), destination=str(dest), skip_embed=True),
+            make_options(source=str(source), destination=str(dest), skip_metadata_write=True),
             hooks=Hooks(),
             progress=noop_progress,
         )
@@ -379,14 +379,14 @@ class TestTakeoutPipeline:
         # Verify the file was copied.
         assert copied_file_meta is not None, "Copied file should exist"
 
-        # Verify no timestamp was written (skip_embed prevents metadata embedding).
+        # Verify no timestamp was written (skip_metadata_write prevents metadata writing).
         assert copied_file_meta.get("EXIF:DateTimeOriginal") is None, (
-            "DateTimeOriginal should not be present when skip_embed is set"
+            "DateTimeOriginal should not be present when skip_metadata_write is set"
         )
 
         # Verify no GPS was written.
         assert copied_file_meta.get("Composite:GPSLatitude") is None, (
-            "GPSLatitude should not be present when skip_embed is set"
+            "GPSLatitude should not be present when skip_metadata_write is set"
         )
 
         # Verify the sidecar JSON was copied alongside the media file.
@@ -431,10 +431,10 @@ class TestTakeoutPipeline:
         dest_entries = list(dest.iterdir())
         assert len(dest_entries) == 0, "Destination should be empty during dry-run"
 
-    def test_copies_unsupported_formats_without_embedding(self, tmp_path):
+    def test_copies_unsupported_formats_without_writing_metadata(self, tmp_path):
         """
         Unsupported formats (e.g., .avi) should be copied to the destination
-        with their original filename but without any metadata embedding or
+        with their original filename but without any metadata writing or
         renaming.
         """
         source = tmp_path / "source"
@@ -485,7 +485,7 @@ class TestTakeoutPipeline:
             progress=noop_progress,
         )
 
-        # Verify the JPEG was renamed and embedded as usual.
+        # Verify the JPEG was renamed and had metadata written as usual.
         jpeg_file = str(dest / "2024" / "20240321-102410.jpg")
         jpeg_metadata = read_metadata([jpeg_file], VERIFY_TAGS)
         assert jpeg_metadata.get(jpeg_file) is not None, "JPEG should be in renamed output path"

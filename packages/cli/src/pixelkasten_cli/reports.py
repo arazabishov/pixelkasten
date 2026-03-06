@@ -235,11 +235,11 @@ def render_apply_table(console: Console, manifest: list[ManifestEntry]) -> None:
     """Render the apply stage summary table."""
     n_skipped = sum(1 for e in manifest if e.dedupe and e.dedupe.result == DedupeResult.DELETE)
     n_copied = sum(1 for e in manifest if e.apply and e.apply.result == ApplyResult.COPIED)
-    n_embedded = sum(1 for e in manifest if e.apply and e.apply.result == ApplyResult.EMBEDDED)
+    n_written = sum(1 for e in manifest if e.apply and e.apply.result == ApplyResult.WRITTEN)
     n_error = sum(1 for e in manifest if e.apply and e.apply.status == Status.ERROR)
 
     table = _make_table("Apply", "Action")
-    table.add_row("Embedded", str(n_embedded))
+    table.add_row("Written", str(n_written))
     table.add_row("Copied", str(n_copied))
     if n_skipped:
         table.add_row("Skipped (duplicates)", str(n_skipped))

@@ -55,9 +55,9 @@ def main(
         "--skip-dedupe",
         help="Skip SHA-256 deduplication.",
     ),
-    skip_embed: bool = typer.Option(
+    skip_metadata_write: bool = typer.Option(
         False,
-        "--skip-embed",
+        "--skip-metadata-write",
         help="Skip writing sidecar metadata into files.",
     ),
     skip_caption: bool = typer.Option(
@@ -139,8 +139,8 @@ def main(
     from pixelkasten.configuration import Options, DiscoveryOptions
     from pixelkasten.pipeline import run_pipeline
 
-    # Check exiftool if embedding or renaming is needed (mirrors pipeline gate)
-    if not skip_embed or not skip_rename:
+    # Check exiftool if metadata writing or renaming is needed (mirrors pipeline gate)
+    if not skip_metadata_write or not skip_rename:
         from pixelkasten.tools.exiftool import check_exiftool
 
         try:
@@ -172,7 +172,7 @@ def main(
         discovery=discovery_opts,
         dry_run=dry_run,
         skip_dedupe=skip_dedupe,
-        skip_embed=skip_embed,
+        skip_metadata_write=skip_metadata_write,
         skip_rename=skip_rename,
         prefer=prefer,
         fuzzy=fuzzy,

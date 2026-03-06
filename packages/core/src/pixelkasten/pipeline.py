@@ -43,7 +43,7 @@ def run_pipeline(options: Options, hooks: Hooks, progress: Callable) -> list[Man
         hooks.on_dedupe(manifest)
 
     # Rename needs disk timestamps to build date-based paths
-    if not options.skip_embed or not options.skip_rename:
+    if not options.skip_metadata_write or not options.skip_rename:
         count = sum(1 for e in manifest if e.can_keep())
         with progress("Reading metadata", count) as tick:
             reconcile(manifest, options, on_progress=tick)

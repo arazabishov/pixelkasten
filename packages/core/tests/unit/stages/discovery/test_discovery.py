@@ -35,7 +35,7 @@ def _make_options(
         ),
         dry_run=False,
         skip_dedupe=True,
-        skip_embed=True,
+        skip_metadata_write=True,
         skip_rename=True,
         prefer="album",
         fuzzy=False,
