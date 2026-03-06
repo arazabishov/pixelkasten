@@ -37,7 +37,6 @@ def normalize_disk_date(date: str | None) -> str | None:
     return f"{y}-{mo}-{d}T{h}:{mi}:{s}"
 
 
-
 def parse_photo_taken_time(timestamp: str | int) -> dict:
     """
     Convert a Unix epoch timestamp (seconds) to ISO and EXIF datetime formats.

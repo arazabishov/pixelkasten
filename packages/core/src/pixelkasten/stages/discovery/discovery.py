@@ -31,7 +31,7 @@ from pixelkasten.configuration import Options
 
 
 def run_discovery(
-    manifest: list[ManifestEntry], options: Options, progress: Callable = None
+    manifest: list[ManifestEntry], options: Options, progress: Callable
 ) -> list[ManifestEntry]:
     """
     Run AI discovery stages: embed → cluster → classify → refine → caption → propose.

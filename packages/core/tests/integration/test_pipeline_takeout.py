@@ -308,8 +308,8 @@ class TestTakeoutPipeline:
             progress=_noop_progress,
         )
 
-        # Album copy should be at: 2024/20240321 - Vacation/20240321-102410.jpg
-        album_file = str(dest / "2024" / "20240321 - Vacation" / "20240321-102410.jpg")
+        # Album copy should be at: 2024/20240321-Vacation/20240321-102410.jpg
+        album_file = str(dest / "2024" / "20240321-Vacation" / "20240321-102410.jpg")
         album_metadata = read_metadata([album_file], VERIFY_TAGS)
         album_file_meta = album_metadata.get(album_file)
 

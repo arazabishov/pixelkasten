@@ -149,5 +149,3 @@ class TestParsePhotoTakenTime:
         result = parse_photo_taken_time(1704067200)
         assert result["exif"] == "2024:01:01 00:00:00+00:00"
         assert result["iso"] == "2024-01-01T00:00:00"
-
-

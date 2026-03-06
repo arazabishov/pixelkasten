@@ -28,10 +28,7 @@ def reverse_geocode(manifest: list[ManifestEntry]) -> None:
         if entry.metadata is None or entry.metadata.geo is None:
             continue
         geo = entry.metadata.geo
-        lat, lon = geo.get("latitude"), geo.get("longitude")
-        if lat is None or lon is None:
-            continue
-        rounded = (round(float(lat), 2), round(float(lon), 2))
+        rounded = (round(geo.latitude, 2), round(geo.longitude, 2))
         coord_to_entries.setdefault(rounded, []).append(entry)
 
     if not coord_to_entries:
