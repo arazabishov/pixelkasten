@@ -44,32 +44,31 @@ def dedupe_resolve(manifest: list[ManifestEntry], options: Options) -> None:
     """
     prefer = options.prefer
 
-    # Group by hash, skip entries with None hash (errors)
-    groups: dict[str, list[ManifestEntry]] = {}
+    # Group by hash, skip entries with None hash (errors).
+    # Storing (entry, dedupe) tuples so pyright knows dedupe is non-None downstream.
+    groups: dict[str, list[tuple[ManifestEntry, Dedupe]]] = {}
     for entry in manifest:
         if entry.dedupe is None or entry.dedupe.hash is None:
             continue
-        groups.setdefault(entry.dedupe.hash, []).append(entry)
+        groups.setdefault(entry.dedupe.hash, []).append((entry, entry.dedupe))
 
     for duplicates in groups.values():
         if len(duplicates) == 1:
-            duplicates[0].dedupe.status = Status.PROCESSED
-            duplicates[0].dedupe.result = DedupeResult.KEEP
+            _, dedupe = duplicates[0]
+            dedupe.status = Status.PROCESSED
+            dedupe.result = DedupeResult.KEEP
         else:
-            has_preferred = any(e.source.type == prefer for e in duplicates)
-            has_other = any(e.source.type != prefer for e in duplicates)
+            has_preferred = any(e.source.type == prefer for e, _ in duplicates)
+            has_other = any(e.source.type != prefer for e, _ in duplicates)
 
-            if has_preferred and has_other:
-                for entry in duplicates:
-                    entry.dedupe.status = Status.PROCESSED
-                    entry.dedupe.result = (
+            for entry, dedupe in duplicates:
+                dedupe.status = Status.PROCESSED
+                if has_preferred and has_other:
+                    dedupe.result = (
                         DedupeResult.KEEP if entry.source.type == prefer else DedupeResult.DELETE
                     )
-            else:
-                # All same type: keep all
-                for entry in duplicates:
-                    entry.dedupe.status = Status.PROCESSED
-                    entry.dedupe.result = DedupeResult.KEEP
+                else:
+                    dedupe.result = DedupeResult.KEEP
 
     _check_invariants(manifest)
 
