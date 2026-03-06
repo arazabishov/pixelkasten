@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from pixelkasten.manifest import (
-    DiscoveryEntry,
+    Discovery,
     Location,
     ManifestEntry,
     Metadata,
@@ -23,7 +23,7 @@ def _entry(
     is_representative=False,
     failed=False,
 ):
-    """Helper to build a DiscoveryEntry for discovery test fixtures."""
+    """Helper to build a ManifestEntry with discovery state for test fixtures."""
     metadata = (
         Metadata(
             status=Status.PROCESSED,
@@ -34,20 +34,18 @@ def _entry(
         else None
     )
 
-    manifest_entry = ManifestEntry(
+    return ManifestEntry(
         media_path=media_path,
         source=Source(type="loose"),
         metadata=metadata,
         location=location,
-    )
-
-    return DiscoveryEntry(
-        entry=manifest_entry,
-        status=Status.ERROR if failed else Status.PROCESSED,
-        cluster=cluster,
-        is_representative=is_representative,
-        tags=[Tag(name=t["name"], score=t["score"]) for t in tags],
-        caption=caption,
+        discovery=Discovery(
+            status=Status.ERROR if failed else Status.PROCESSED,
+            cluster=cluster,
+            is_representative=is_representative,
+            tags=[Tag(name=t["name"], score=t["score"]) for t in tags],
+            caption=caption,
+        ),
     )
 
 
