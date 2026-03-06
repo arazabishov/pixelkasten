@@ -241,5 +241,3 @@ class TestReadSidecar:
             RuntimeError, match="Failed to read sidecar file at /nonexistent/path.json"
         ):
             read_sidecar("/nonexistent/path.json")
-
-
