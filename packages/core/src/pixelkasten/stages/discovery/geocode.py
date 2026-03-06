@@ -36,7 +36,7 @@ def reverse_geocode(manifest: list[ManifestEntry]) -> None:
 
     # Batch resolve all unique coordinates in one call.
     coords_list = list(coord_to_entries.keys())
-    results = rg.search(coords_list)
+    results = rg.search(coords_list, verbose=False)
 
     for coord, result in zip(coords_list, results):
         city = result.get("name", "")
