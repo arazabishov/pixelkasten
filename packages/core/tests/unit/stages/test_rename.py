@@ -3,7 +3,7 @@ Tests for the rename stage — ported from packages/core/test/stages/rename.test
 
 All path expectations adapted for no-month format:
   Loose:  YYYY/yyyymmdd-hhmmss.ext
-  Album:  YYYY/yyyymmdd - Album Name/yyyymmdd-hhmmss.ext
+  Album:  YYYY/yyyymmdd-Album Name/yyyymmdd-hhmmss.ext
 """
 
 from pixelkasten.manifest import Dedupe, DedupeResult, ManifestEntry, Metadata, Source, Status
@@ -201,7 +201,7 @@ class TestRenameAlbums:
         ]
         rename(manifest)
 
-        assert manifest[0].rename.target_path == "2024/20240415 - Trip to Japan/20240415-103000.jpg"
+        assert manifest[0].rename.target_path == "2024/20240415-Trip to Japan/20240415-103000.jpg"
 
     def test_uses_earliest_album_date_for_folder(self):
         manifest = [
@@ -221,8 +221,8 @@ class TestRenameAlbums:
         rename(manifest)
 
         # Both use earliest date (March 18) for folder
-        assert manifest[0].rename.target_path == "2024/20240318 - Vacation/20240320-150000.jpg"
-        assert manifest[1].rename.target_path == "2024/20240318 - Vacation/20240318-090000.jpg"
+        assert manifest[0].rename.target_path == "2024/20240318-Vacation/20240320-150000.jpg"
+        assert manifest[1].rename.target_path == "2024/20240318-Vacation/20240318-090000.jpg"
 
     def test_cross_month_album_uses_earliest_month(self):
         manifest = [
@@ -242,8 +242,8 @@ class TestRenameAlbums:
         rename(manifest)
 
         # Both go to December (earliest)
-        assert manifest[0].rename.target_path == "2023/20231231 - New Year Trip/20240102-120000.jpg"
-        assert manifest[1].rename.target_path == "2023/20231231 - New Year Trip/20231231-230000.jpg"
+        assert manifest[0].rename.target_path == "2023/20231231-New Year Trip/20240102-120000.jpg"
+        assert manifest[1].rename.target_path == "2023/20231231-New Year Trip/20231231-230000.jpg"
 
     def test_handles_mix_of_album_and_loose(self):
         manifest = [
@@ -257,7 +257,7 @@ class TestRenameAlbums:
         ]
         rename(manifest)
 
-        assert manifest[0].rename.target_path == "2024/20240510 - Birthday/20240510-140000.jpg"
+        assert manifest[0].rename.target_path == "2024/20240510-Birthday/20240510-140000.jpg"
         assert manifest[1].rename.target_path == "2024/20240510-143000.jpg"
 
     def test_handles_collisions_within_album(self):
@@ -277,5 +277,5 @@ class TestRenameAlbums:
         ]
         rename(manifest)
 
-        assert manifest[0].rename.target_path == "2024/20240601 - Party/20240601-200000.jpg"
-        assert manifest[1].rename.target_path == "2024/20240601 - Party/20240601-200000-1.jpg"
+        assert manifest[0].rename.target_path == "2024/20240601-Party/20240601-200000.jpg"
+        assert manifest[1].rename.target_path == "2024/20240601-Party/20240601-200000-1.jpg"
