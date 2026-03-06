@@ -13,7 +13,6 @@ Prerequisites:
     - A vision model pulled (`ollama pull llava`)
 """
 
-from pathlib import Path
 from typing import Callable
 
 import ollama as ollama_client
@@ -49,7 +48,7 @@ def check_ollama(model: str) -> None:
         )
 
 
-def caption_image(model: str, image_path: Path, prompt: str) -> str | None:
+def caption_image(model: str, image_path: str, prompt: str) -> str | None:
     """
     Send a single image to Ollama and return the caption text.
 
@@ -63,7 +62,7 @@ def caption_image(model: str, image_path: Path, prompt: str) -> str | None:
                 {
                     "role": "user",
                     "content": prompt,
-                    "images": [str(image_path)],
+                    "images": [image_path],
                 },
             ],
         )
@@ -107,7 +106,7 @@ def caption_representatives(
 
     captions = {}
     for i, entry in enumerate(representatives):
-        caption = caption_image(model, Path(entry.media_path), prompt)
+        caption = caption_image(model, entry.media_path, prompt)
 
         if caption is not None:
             captions[entry.media_path] = caption

@@ -1,6 +1,13 @@
 """Shared test utilities."""
 
+from contextlib import nullcontext
+
 from pixelkasten.configuration import DiscoveryOptions, Options
+
+
+def noop_progress(label: str, total: int):
+    """No-op progress context manager for tests."""
+    return nullcontext()
 
 
 def make_options(**overrides) -> Options:

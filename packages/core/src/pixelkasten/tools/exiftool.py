@@ -8,7 +8,6 @@ Prerequisites:
 import json
 import os
 import subprocess
-from pathlib import Path
 
 
 def check_exiftool() -> None:
@@ -89,7 +88,7 @@ def read_metadata(
     return {os.path.normpath(entry.get("SourceFile", "")): entry for entry in entries}
 
 
-def write_metadata(file_path: str | Path, tags: list[str]) -> None:
+def write_metadata(file_path: str, tags: list[str]) -> None:
     """
     Write metadata tags to a file using exiftool.
 
@@ -111,7 +110,7 @@ def write_metadata(file_path: str | Path, tags: list[str]) -> None:
     for tag in tags:
         args.append(f"-{tag}")
 
-    args.append(str(file_path))
+    args.append(file_path)
 
     result = subprocess.run(
         args,

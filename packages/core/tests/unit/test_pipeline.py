@@ -7,9 +7,9 @@ All I/O-bound stages are mocked.
 
 from unittest.mock import MagicMock, patch
 
-from helpers import make_options
+from helpers import make_options, noop_progress
 from pixelkasten.manifest import ManifestEntry, Source
-from pixelkasten.configuration import Hooks, _noop_progress
+from pixelkasten.configuration import Hooks
 
 PATCH_PREFIX = "pixelkasten.pipeline"
 
@@ -26,7 +26,7 @@ class TestPipeline:
     def _run(self, options, hooks=None):
         from pixelkasten.pipeline import run_pipeline
 
-        return run_pipeline(options, hooks or Hooks(), progress=_noop_progress)
+        return run_pipeline(options, hooks or Hooks(), progress=noop_progress)
 
     def test_runs_all_stages(
         self,

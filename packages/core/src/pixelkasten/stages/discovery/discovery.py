@@ -9,7 +9,6 @@ manifest but don't get cluster labels, captions, or album assignments.
 """
 
 from collections.abc import Callable
-from pathlib import Path
 
 from pixelkasten.manifest import Discovery, ManifestEntry, Status, Tag
 from pixelkasten.stages.discovery.caption import caption_representatives
@@ -39,8 +38,8 @@ def run_discovery(
     Mutates manifest entries' source field when albums are discovered.
     Non-image entries are ignored.
     """
-    image_entries = [e for e in manifest if is_image(Path(e.media_path))]
-    image_paths = [Path(e.media_path) for e in image_entries]
+    image_entries = [e for e in manifest if is_image(e.media_path)]
+    image_paths = [e.media_path for e in image_entries]
 
     if not image_paths:
         return manifest

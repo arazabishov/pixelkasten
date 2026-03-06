@@ -106,13 +106,13 @@ Comments should explain *why*, not *what*. Don't restate what the code already s
 
 Never coerce `None` to a default value with `or` (e.g., `destination = options.destination or ""`). Handle `None` explicitly — either check and branch, or assert non-`None` when the pipeline guarantees the value is set.
 
-#### pathlib vs os.path
+#### os.path only — no pathlib
 
-Use `pathlib` by default. Use `os.path` only when pathlib's normalization would corrupt data (e.g., link stage's Takeout filename parsing with double extensions like `.MP.jpg`). Document the reason in the file header when using `os.path`.
+All path manipulation MUST use `os.path`. Do not use `pathlib.Path` anywhere in the codebase. The link stage requires `os.path` because pathlib normalizes double extensions (`.MP.jpg`) and duplicate markers `(1)`, which breaks Takeout filename parsing. All other stages use `os.path` for consistency. File paths are represented as plain strings throughout the pipeline — in `ManifestEntry`, in function signatures, and in return values.
 
 #### Typing at boundaries
 
-Stages are the type boundary, not individual functions within a stage. Internal helpers (exiftool, sidecar, handlers) can freely use raw dicts — they never leave the stage. But when a stage writes to `ManifestEntry`, it must use the typed structures from `core/types.py` (e.g., `Geo`, `Metadata`, `Dedupe`). This keeps typing focused where it matters (the manifest contract between stages) without fighting Python's dynamic nature inside stage internals.
+Stages are the type boundary, not individual functions within a stage. Internal helpers (exiftool, sidecar, handlers) can freely use raw dicts — they never leave the stage. But when a stage writes to `ManifestEntry`, it must use the typed structures from `manifest.py` (e.g., `Geo`, `Metadata`, `Dedupe`). This keeps typing focused where it matters (the manifest contract between stages) without fighting Python's dynamic nature inside stage internals.
 
 ### Testing
 
@@ -122,18 +122,17 @@ Every assertion should have a descriptive comment explaining what it verifies:
 
 ```python
 def test_queues_timestamp_write_when_missing_from_disk(self):
-    manifest = [{"mediaPath": "/path/image.jpg"}]
-
-    reconcile(manifest, {})
+    manifest = [_entry("/tmp/image.jpg", "/tmp/image.json")]
+    reconcile(manifest, make_options())
 
     # Verify entry was marked for processing
-    assert manifest[0]["metadata"]["status"] == "processed"
+    assert manifest[0].metadata.status == Status.PROCESSED
 
-    # Verify one tag was queued for writing
-    assert len(manifest[0]["metadata"]["writeTags"]) == 1
+    # Verify at least one tag was queued for writing
+    assert len(manifest[0].metadata.write_tags) >= 1
 
-    # Verify timestamp was added to dates
-    assert manifest[0]["metadata"]["dates"][0] == "2023-01-01T12:00:00.000Z"
+    # Verify timestamp was prepended to dates
+    assert manifest[0].metadata.dates[0] == "2023-01-01T12:00:00"
 ```
 
 Keep test setup minimal. If the code under test doesn't reach a function, don't mock it.

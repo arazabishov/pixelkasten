@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import pytest
 
 from pixelkasten.handlers import is_image, is_video
@@ -8,28 +6,28 @@ from pixelkasten.stages.scan import scan
 
 class TestIsImage:
     def test_recognizes_supported_extensions(self):
-        assert is_image(Path("photo.jpg")) is True
-        assert is_image(Path("photo.jpeg")) is True
-        assert is_image(Path("photo.heic")) is True
-        assert is_image(Path("photo.png")) is True
+        assert is_image("photo.jpg") is True
+        assert is_image("photo.jpeg") is True
+        assert is_image("photo.heic") is True
+        assert is_image("photo.png") is True
 
     def test_rejects_non_image_extensions(self):
-        assert is_image(Path("video.mp4")) is False
-        assert is_image(Path("readme.txt")) is False
-        assert is_image(Path("data.json")) is False
+        assert is_image("video.mp4") is False
+        assert is_image("readme.txt") is False
+        assert is_image("data.json") is False
 
     def test_case_insensitive(self):
-        assert is_image(Path("PHOTO.JPG")) is True
-        assert is_image(Path("Photo.Jpeg")) is True
+        assert is_image("PHOTO.JPG") is True
+        assert is_image("Photo.Jpeg") is True
 
 
 class TestIsVideo:
     def test_recognizes_video_extensions(self):
-        assert is_video(Path("clip.mp4")) is True
-        assert is_video(Path("clip.mov")) is True
+        assert is_video("clip.mp4") is True
+        assert is_video("clip.mov") is True
 
     def test_rejects_non_video(self):
-        assert is_video(Path("photo.jpg")) is False
+        assert is_video("photo.jpg") is False
 
 
 class TestScan:

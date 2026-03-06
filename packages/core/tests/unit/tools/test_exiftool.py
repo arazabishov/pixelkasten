@@ -95,7 +95,7 @@ class TestWriteMetadataIntegration:
         shutil.copy2(src, dest)
 
         # Write a timestamp
-        write_metadata(dest, ["SubSecDateTimeOriginal=2024:01:01 12:00:00+00:00"])
+        write_metadata(str(dest), ["SubSecDateTimeOriginal=2024:01:01 12:00:00+00:00"])
 
         # Read it back to verify
         result = subprocess.run(

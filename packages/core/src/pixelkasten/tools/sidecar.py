@@ -7,10 +7,9 @@ timestamps and geo data.
 """
 
 import json
-from pathlib import Path
 
 
-def read_sidecar(json_path: str | Path | None) -> dict | None:
+def read_sidecar(json_path: str | None) -> dict | None:
     """
     Read a Google Photos JSON sidecar file.
 
