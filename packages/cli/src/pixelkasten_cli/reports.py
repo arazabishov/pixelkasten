@@ -194,6 +194,43 @@ def render_rename_table(console: Console, manifest: list[ManifestEntry]) -> None
     console.print()
 
 
+def render_discover_table(console: Console, manifest: list[ManifestEntry]) -> None:
+    """Render the discovery stage summary table."""
+    with_discovery = [e for e in manifest if e.discovery]
+
+    n_processed = sum(
+        1 for e in with_discovery if e.discovery and e.discovery.status == Status.PROCESSED
+    )
+    n_error = sum(1 for e in with_discovery if e.discovery and e.discovery.status == Status.ERROR)
+
+    clustered = [
+        e
+        for e in with_discovery
+        if e.discovery
+        and e.discovery.status == Status.PROCESSED
+        and e.discovery.cluster is not None
+        and e.discovery.cluster != -1
+    ]
+    n_noise = n_processed - len(clustered)
+    n_clusters = len({e.discovery.cluster for e in clustered if e.discovery})
+    album_names = {
+        e.source.name for e in clustered if e.source and e.source.type == "album" and e.source.name
+    }
+
+    table = _make_table("Discovery")
+    table.add_row("Images processed", str(n_processed))
+    table.add_row("Clusters", str(n_clusters))
+    if n_noise:
+        table.add_row("Noise", str(n_noise))
+    if album_names:
+        table.add_row("Albums proposed", str(len(album_names)))
+    if n_error:
+        table.add_row("[red]Errors[/red]", f"[red]{n_error}[/red]")
+
+    console.print(table)
+    console.print()
+
+
 def render_apply_table(console: Console, manifest: list[ManifestEntry]) -> None:
     """Render the apply stage summary table."""
     n_skipped = sum(1 for e in manifest if e.dedupe and e.dedupe.result == DedupeResult.DELETE)
@@ -225,6 +262,9 @@ def render_error_table(console: Console, manifest: list[ManifestEntry]) -> None:
 
         if entry.metadata and entry.metadata.status == Status.ERROR:
             errors.append((filename, "Reconcile", entry.metadata.error or "unknown"))
+
+        if entry.discovery and entry.discovery.status == Status.ERROR:
+            errors.append((filename, "Discovery", entry.discovery.error or "unknown"))
 
         if entry.rename and entry.rename.status == Status.ERROR:
             errors.append((filename, "Rename", entry.rename.error or "unknown"))
