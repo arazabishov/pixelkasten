@@ -3,7 +3,7 @@ Rename stage — compute target paths for media files.
 
 Ported from packages/core/src/stages/rename.js with intentional divergence:
 no month directories. Format is YYYY/yyyymmdd-hhmmss.ext (loose) or
-YYYY/yyyymmdd - Album Name/yyyymmdd-hhmmss.ext (album).
+YYYY/yyyymmdd-Album Name/yyyymmdd-hhmmss.ext (album).
 """
 
 import os
@@ -104,7 +104,7 @@ def _resolve_target_path(
 
     if album_name:
         dir_prefix = dir_date.strftime("%Y%m%d")
-        base_path = f"{dir_date.year}/{dir_prefix} - {album_name}/{timestamp}{ext}"
+        base_path = f"{dir_date.year}/{dir_prefix}-{album_name}/{timestamp}{ext}"
     else:
         base_path = f"{parsed.year}/{timestamp}{ext}"
 
