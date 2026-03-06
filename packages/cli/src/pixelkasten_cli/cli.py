@@ -154,11 +154,11 @@ def main(
     discovery_opts = (
         DiscoveryOptions(
             clip_model=clip_model,
+            caption_model=caption_model,
+            organize_model=organize_model,
             batch_size=batch_size,
             min_cluster_size=min_cluster_size,
             classify_threshold=classify_threshold,
-            caption_model=caption_model,
-            organize_model=organize_model,
             skip_caption=skip_caption,
             skip_refine=skip_refine,
         )
@@ -169,6 +169,7 @@ def main(
     options = Options(
         source=str(source),
         destination=str(destination) if destination else None,
+        discovery=discovery_opts,
         dry_run=dry_run,
         skip_dedupe=skip_dedupe,
         skip_embed=skip_embed,
@@ -176,7 +177,6 @@ def main(
         prefer=prefer,
         fuzzy=fuzzy,
         fuzzy_threshold=fuzzy_threshold,
-        discovery=discovery_opts,
     )
 
     console.print(f"\n[bold]Processing photos from {source}...[/bold]")
