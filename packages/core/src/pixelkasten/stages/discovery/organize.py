@@ -3,8 +3,7 @@ LLM-powered album naming for photo clusters.
 
 Feeds cluster summaries (captions, EXIF dates, GPS locations, tags) to a
 local text LLM via Ollama to propose album names. The LLM never sees image
-bytes — it works entirely with structured text, making it cheap and leveraging
-what LLMs are best at: reasoning about categories and naming.
+bytes — it works entirely with structured text.
 
 Prerequisites:
     - Ollama installed and running (`ollama serve`)
@@ -15,9 +14,8 @@ import json
 from collections import Counter
 from typing import Callable
 
-import ollama as ollama_client
-
 from pixelkasten.configuration import DiscoveryOptions
+from pixelkasten.manifest import ManifestEntry, Source, Status
 
 DEFAULT_MODEL = "qwen3.5:35b"
 
@@ -52,36 +50,35 @@ No explanation, no markdown fences, no extra text. Example:
 """
 
 
-def build_cluster_summary_text(manifest: dict) -> str:
+def build_cluster_summary_text(entries: list[ManifestEntry]) -> str:
     """
     Build a text summary of all clusters for the LLM prompt.
 
     Aggregates captions, tags, date ranges, and locations from entries.
-
-    Returns a formatted text block ready to embed in the LLM prompt.
     """
-    clusters = manifest.get("clusters", {})
-    if not clusters:
-        return "(No clusters found in manifest.)"
+    # Group entries by cluster, skipping noise and non-discovery entries.
+    by_cluster: dict[int, list[ManifestEntry]] = {}
+    clustered = [
+        e
+        for e in entries
+        if e.discovery
+        and e.discovery.status == Status.PROCESSED
+        and e.discovery.cluster is not None
+        and e.discovery.cluster != -1
+    ]
+    for entry in clustered:
+        assert entry.discovery is not None
+        assert entry.discovery.cluster is not None
+        by_cluster.setdefault(entry.discovery.cluster, []).append(entry)
 
-    entries = manifest.get("entries", [])
-
-    # Group entries by cluster for efficient single-pass aggregation.
-    entries_by_cluster: dict[str, list] = {}
-    for entry in entries:
-        if not entry.discovery:
-            continue
-        cid = str(entry.discovery.cluster if entry.discovery.cluster is not None else -1)
-        if cid in clusters:
-            entries_by_cluster.setdefault(cid, []).append(entry)
+    if not by_cluster:
+        return "(No clusters found.)"
 
     lines = []
-    for cluster_id in sorted(clusters.keys(), key=lambda x: int(x)):
-        cluster = clusters[cluster_id]
-        size = cluster.get("size", 0)
+    for cluster_id in sorted(by_cluster.keys()):
+        cluster_entries = by_cluster[cluster_id]
+        size = len(cluster_entries)
         lines.append(f"Cluster {cluster_id} ({size} images):")
-
-        cluster_entries = entries_by_cluster.get(cluster_id, [])
 
         # Captions from representative images.
         captions = [
@@ -104,7 +101,7 @@ def build_cluster_summary_text(manifest: dict) -> str:
             top_tags = [name for name, _ in tag_counts.most_common(5)]
             lines.append(f"  Top tags: {', '.join(top_tags)}")
 
-        # Date range from metadata timestamps (populated by reconcile).
+        # Date range from metadata timestamps.
         timestamps = []
         for entry in cluster_entries:
             dates = entry.metadata.dates if entry.metadata else []
@@ -114,14 +111,13 @@ def build_cluster_summary_text(manifest: dict) -> str:
             timestamps.sort()
             lines.append(f"  Date range: {timestamps[0]} to {timestamps[-1]}")
 
-        # Location info: collect cities and regions, filtering out outliers.
-        # If 90%+ of geotagged images are in one region, stray GPS from
-        # transit or metadata errors gets ignored.
+        # Location info with outlier filtering.
+        geotagged = [e for e in cluster_entries if e.location]
+
         city_counts: Counter = Counter()
         region_counts: Counter = Counter()
-        for entry in cluster_entries:
-            if not entry.location:
-                continue
+        for entry in geotagged:
+            assert entry.location is not None
             if entry.location.name:
                 city = entry.location.name.split(",")[0].strip()
                 city_counts[city] += 1
@@ -134,9 +130,8 @@ def build_cluster_summary_text(manifest: dict) -> str:
                 r for r, c in region_counts.items() if c / total_geotagged >= 0.1
             ]
             significant_cities = []
-            for entry in cluster_entries:
-                if not entry.location:
-                    continue
+            for entry in geotagged:
+                assert entry.location is not None
                 if entry.location.region in significant_regions:
                     city = entry.location.name.split(",")[0].strip() if entry.location.name else ""
                     if city and city not in significant_cities:
@@ -152,57 +147,42 @@ def build_cluster_summary_text(manifest: dict) -> str:
     return "\n".join(lines)
 
 
-def propose_albums(manifest: dict, options: DiscoveryOptions) -> None:
+def propose_albums(entries: list[ManifestEntry], options: DiscoveryOptions) -> None:
     """
     Call LLM to propose album names, then mutate manifest entries.
 
-    For each cluster that the LLM names, sets
-    entry["source"] = {"type": "album", "name": name}.
-
-    Entries not in any cluster (noise, cluster=-1) or in clusters the LLM
-    didn't name are left as-is (typically source.type = "loose").
-
-    Args:
-        manifest: Manifest dict with "entries" list and "clusters" dict.
-        options: Dict with optional "model" key for Ollama model name.
+    Sets entry.source = Source(type="album", name=name) for each entry
+    in a cluster the LLM named.
     """
-    album_names = _propose_organization(manifest, model=options.organize_model)
+    album_names = _propose_organization(entries, model=options.organize_model)
 
-    from pixelkasten.manifest import Source
-
-    for entry in manifest.get("entries", []):
-        if not entry.discovery:
-            continue
-        cluster_id = str(entry.discovery.cluster if entry.discovery.cluster is not None else -1)
-
-        if cluster_id not in album_names or cluster_id == "-1":
-            continue
-
-        name = album_names[cluster_id]
+    clustered = [
+        e
+        for e in entries
+        if e.discovery and e.discovery.cluster is not None and e.discovery.cluster != -1
+    ]
+    for entry in clustered:
+        assert entry.discovery is not None
+        cluster_id = str(entry.discovery.cluster)
+        name = album_names.get(cluster_id)
         if name:
             entry.source = Source(type="album", name=name)
 
 
 def _propose_organization(
-    manifest: dict,
+    entries: list[ManifestEntry],
     model: str = DEFAULT_MODEL,
     on_progress: Callable[[str], None] | None = None,
 ) -> dict[str, str]:
     """
     Send cluster summaries to the LLM and get back album name proposals.
-
-    Args:
-        manifest: Manifest dict with entries and clusters.
-        model: Ollama text model name.
-        on_progress: Optional callback for status updates.
-
-    Returns:
-        Dict mapping cluster_id (string) to proposed album name.
     """
+    import ollama as ollama_client
+
     if on_progress:
         on_progress("Building cluster summaries...")
 
-    summary_text = build_cluster_summary_text(manifest)
+    summary_text = build_cluster_summary_text(entries)
     prompt = PROMPT_TEMPLATE.format(cluster_summary=summary_text)
 
     if on_progress:
@@ -235,18 +215,15 @@ def _parse_llm_response(raw: str) -> dict[str, str]:
     """
     cleaned = raw.strip()
 
-    # Strip markdown fences if present.
     if cleaned.startswith("```"):
         cleaned = cleaned.split("\n", 1)[1] if "\n" in cleaned else cleaned[3:]
     if cleaned.endswith("```"):
         cleaned = cleaned[:-3]
     cleaned = cleaned.strip()
 
-    # Try direct parse first.
     try:
         result = json.loads(cleaned)
     except json.JSONDecodeError:
-        # Last resort: find the first { ... } block.
         start = cleaned.find("{")
         end = cleaned.rfind("}") + 1
         if start == -1 or end == 0:
@@ -256,5 +233,4 @@ def _parse_llm_response(raw: str) -> dict[str, str]:
     if not isinstance(result, dict):
         raise ValueError(f"Expected a JSON object, got: {type(result)}")
 
-    # Ensure all keys and values are strings.
     return {str(k): str(v) for k, v in result.items()}
