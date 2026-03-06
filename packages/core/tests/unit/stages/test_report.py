@@ -33,7 +33,9 @@ def _entry(
     apply_target=None,
 ):
     """Helper to build ManifestEntry for report tests."""
-    sidecar = Sidecar(path=sidecar_path, confidence=sidecar_confidence) if sidecar_path else None
+    sidecar = (
+        Sidecar(path=sidecar_path, confidence=sidecar_confidence or 0) if sidecar_path else None
+    )
     dedupe = None
     if dedupe_result is not None:
         dedupe = Dedupe(status=Status.PROCESSED, result=dedupe_result, hash="abc")

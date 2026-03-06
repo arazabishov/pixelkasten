@@ -24,13 +24,16 @@ class TestDedupeResolve:
                 _entry("/tmp/p3.jpg", "loose", hash_val="hash3"),
             ]
             dedupe_resolve(manifest, make_options())
-            assert all(e.dedupe.result == DedupeResult.KEEP for e in manifest)
+            for e in manifest:
+                assert e.dedupe is not None
+                assert e.dedupe.result == DedupeResult.KEEP
 
         def test_marks_unique_regardless_of_preference(self):
             for prefer in ["album", "loose"]:
                 for source_type in ["album", "loose"]:
                     m = [_entry("/tmp/p.jpg", source_type, hash_val="h1")]
                     dedupe_resolve(m, make_options(prefer=prefer))
+                    assert m[0].dedupe is not None
                     assert m[0].dedupe.result == DedupeResult.KEEP
 
     class TestPreferAlbum:
@@ -40,7 +43,9 @@ class TestDedupeResolve:
                 _entry("/tmp/loose/p.jpg", "loose", hash_val="h1"),
             ]
             dedupe_resolve(manifest, make_options(prefer="album"))
+            assert manifest[0].dedupe is not None
             assert manifest[0].dedupe.result == DedupeResult.KEEP
+            assert manifest[1].dedupe is not None
             assert manifest[1].dedupe.result == DedupeResult.DELETE
 
         def test_keeps_multiple_albums_deletes_loose(self):
@@ -50,8 +55,11 @@ class TestDedupeResolve:
                 _entry("/tmp/loose/p.jpg", "loose", hash_val="h1"),
             ]
             dedupe_resolve(manifest, make_options(prefer="album"))
+            assert manifest[0].dedupe is not None
             assert manifest[0].dedupe.result == DedupeResult.KEEP
+            assert manifest[1].dedupe is not None
             assert manifest[1].dedupe.result == DedupeResult.KEEP
+            assert manifest[2].dedupe is not None
             assert manifest[2].dedupe.result == DedupeResult.DELETE
 
         def test_handles_multiple_loose_duplicates(self):
@@ -61,8 +69,11 @@ class TestDedupeResolve:
                 _entry("/tmp/l2/p.jpg", "loose", hash_val="h1"),
             ]
             dedupe_resolve(manifest, make_options(prefer="album"))
+            assert manifest[0].dedupe is not None
             assert manifest[0].dedupe.result == DedupeResult.KEEP
+            assert manifest[1].dedupe is not None
             assert manifest[1].dedupe.result == DedupeResult.DELETE
+            assert manifest[2].dedupe is not None
             assert manifest[2].dedupe.result == DedupeResult.DELETE
 
     class TestPreferLoose:
@@ -72,7 +83,9 @@ class TestDedupeResolve:
                 _entry("/tmp/l/p.jpg", "loose", hash_val="h1"),
             ]
             dedupe_resolve(manifest, make_options(prefer="loose"))
+            assert manifest[0].dedupe is not None
             assert manifest[0].dedupe.result == DedupeResult.DELETE
+            assert manifest[1].dedupe is not None
             assert manifest[1].dedupe.result == DedupeResult.KEEP
 
         def test_keeps_multiple_loose_deletes_album(self):
@@ -82,8 +95,11 @@ class TestDedupeResolve:
                 _entry("/tmp/l2/p.jpg", "loose", hash_val="h1"),
             ]
             dedupe_resolve(manifest, make_options(prefer="loose"))
+            assert manifest[0].dedupe is not None
             assert manifest[0].dedupe.result == DedupeResult.DELETE
+            assert manifest[1].dedupe is not None
             assert manifest[1].dedupe.result == DedupeResult.KEEP
+            assert manifest[2].dedupe is not None
             assert manifest[2].dedupe.result == DedupeResult.KEEP
 
         def test_deletes_all_albums_when_mixed(self):
@@ -93,8 +109,11 @@ class TestDedupeResolve:
                 _entry("/tmp/l/p.jpg", "loose", hash_val="h1"),
             ]
             dedupe_resolve(manifest, make_options(prefer="loose"))
+            assert manifest[0].dedupe is not None
             assert manifest[0].dedupe.result == DedupeResult.DELETE
+            assert manifest[1].dedupe is not None
             assert manifest[1].dedupe.result == DedupeResult.DELETE
+            assert manifest[2].dedupe is not None
             assert manifest[2].dedupe.result == DedupeResult.KEEP
 
     class TestSameTypeDuplicates:
@@ -104,7 +123,9 @@ class TestDedupeResolve:
                 _entry("/tmp/a2/p.jpg", "album", "A2", hash_val="h1"),
             ]
             dedupe_resolve(manifest, make_options(prefer="album"))
-            assert all(e.dedupe.result == DedupeResult.KEEP for e in manifest)
+            for e in manifest:
+                assert e.dedupe is not None
+                assert e.dedupe.result == DedupeResult.KEEP
 
         def test_keeps_all_when_all_loose(self):
             manifest = [
@@ -112,7 +133,9 @@ class TestDedupeResolve:
                 _entry("/tmp/l2/p.jpg", "loose", hash_val="h1"),
             ]
             dedupe_resolve(manifest, make_options(prefer="album"))
-            assert all(e.dedupe.result == DedupeResult.KEEP for e in manifest)
+            for e in manifest:
+                assert e.dedupe is not None
+                assert e.dedupe.result == DedupeResult.KEEP
 
     class TestMultipleHashGroups:
         def test_handles_independent_groups(self):
@@ -125,12 +148,17 @@ class TestDedupeResolve:
             ]
             dedupe_resolve(manifest, make_options(prefer="album"))
             # Group h1: album keep, loose delete
+            assert manifest[0].dedupe is not None
             assert manifest[0].dedupe.result == DedupeResult.KEEP
+            assert manifest[1].dedupe is not None
             assert manifest[1].dedupe.result == DedupeResult.DELETE
             # Group h2: same
+            assert manifest[2].dedupe is not None
             assert manifest[2].dedupe.result == DedupeResult.KEEP
+            assert manifest[3].dedupe is not None
             assert manifest[3].dedupe.result == DedupeResult.DELETE
             # Group h3: unique, keep
+            assert manifest[4].dedupe is not None
             assert manifest[4].dedupe.result == DedupeResult.KEEP
 
     class TestEdgeCases:
@@ -142,6 +170,7 @@ class TestDedupeResolve:
         def test_handles_single_file(self):
             manifest = [_entry("/tmp/p.jpg", "loose")]
             dedupe_resolve(manifest, make_options())
+            assert manifest[0].dedupe is not None
             assert manifest[0].dedupe.result == DedupeResult.KEEP
 
 
@@ -154,6 +183,7 @@ class TestDedupeHash:
         dedupe_hash(manifest)
 
         expected = hashlib.sha256(b"hello world").hexdigest()
+        assert manifest[0].dedupe is not None
         assert manifest[0].dedupe.hash == expected
         assert manifest[0].dedupe.status == Status.PENDING
 
@@ -161,6 +191,7 @@ class TestDedupeHash:
         manifest = [ManifestEntry(media_path="/nonexistent/file.jpg", source=Source(type="loose"))]
         dedupe_hash(manifest)
 
+        assert manifest[0].dedupe is not None
         assert manifest[0].dedupe.hash is None
         assert manifest[0].dedupe.status == Status.ERROR
         assert manifest[0].dedupe.error is not None

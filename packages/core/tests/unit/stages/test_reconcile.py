@@ -74,6 +74,8 @@ class TestReconcile:
         manifest = [_entry("/tmp/image.jpg", "/tmp/image.json")]
         reconcile(manifest, make_options())
 
+        assert manifest[0].metadata is not None
+
         # Verify no metadata changes were needed
         assert manifest[0].metadata.status == Status.PROCESSED
 
@@ -94,6 +96,8 @@ class TestReconcile:
         manifest = [_entry("/tmp/image.jpg", "/tmp/image.json")]
         reconcile(manifest, make_options())
 
+        assert manifest[0].metadata is not None
+
         # Disk already has DateTimeOriginal -- processed with no writes
         assert manifest[0].metadata.status == Status.PROCESSED
 
@@ -109,6 +113,8 @@ class TestReconcile:
 
         manifest = [_entry("/tmp/image.jpg", "/tmp/image.json")]
         reconcile(manifest, make_options())
+
+        assert manifest[0].metadata is not None
 
         # Verify entry was marked for processing
         assert manifest[0].metadata.status == Status.PROCESSED
@@ -134,6 +140,8 @@ class TestReconcile:
         manifest = [_entry("/tmp/image.jpg", "/tmp/image.json")]
         reconcile(manifest, make_options())
 
+        assert manifest[0].metadata is not None
+
         # Verify entry was marked for processing
         assert manifest[0].metadata.status == Status.PROCESSED
 
@@ -151,6 +159,8 @@ class TestReconcile:
 
         manifest = [_entry("/tmp/image.jpg", "/tmp/image.json")]
         reconcile(manifest, make_options())
+
+        assert manifest[0].metadata is not None
 
         # Verify entry was marked for processing
         assert manifest[0].metadata.status == Status.PROCESSED
@@ -196,6 +206,8 @@ class TestReconcile:
         manifest = [_entry("/tmp/missing.jpg", "/tmp/missing.json")]
         reconcile(manifest, make_options())
 
+        assert manifest[0].metadata is not None
+
         # Verify error was recorded without throwing
         assert manifest[0].metadata.status == Status.ERROR
 
@@ -208,10 +220,13 @@ class TestReconcile:
         manifest = [_entry("/tmp/file.unknown")]
         reconcile(manifest, make_options())
 
+        assert manifest[0].metadata is not None
+
         # Verify unsupported file type was skipped
         assert manifest[0].metadata.status == Status.SKIPPED
 
         # Verify error message is set
+        assert manifest[0].metadata.error is not None
         assert "No metadata handler for .unknown" in manifest[0].metadata.error
 
         # Verify empty write_tags and dates
@@ -229,6 +244,8 @@ class TestReconcile:
 
         manifest = [_entry("/tmp/image.jpg", "/tmp/image.json")]
         reconcile(manifest, make_options(skip_embed=True))
+
+        assert manifest[0].metadata is not None
 
         # No write_tags queued due to skip_embed
         assert manifest[0].metadata.write_tags == []

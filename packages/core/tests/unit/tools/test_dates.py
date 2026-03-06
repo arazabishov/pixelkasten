@@ -59,7 +59,7 @@ class TestNormalizeDiskDate:
         assert normalize_disk_date("") is None
 
     def test_returns_none_for_non_string(self):
-        assert normalize_disk_date(12345) is None
+        assert normalize_disk_date(12345) is None  # pyright: ignore[reportArgumentType]
 
     def test_returns_none_for_invalid_format(self):
         assert normalize_disk_date("invalid date") is None
@@ -71,7 +71,7 @@ class TestNormalizeDiskDate:
         assert normalize_disk_date("2023:05 14:30:00") is None
 
     def test_returns_none_for_boolean(self):
-        assert normalize_disk_date(True) is None
+        assert normalize_disk_date(True) is None  # pyright: ignore[reportArgumentType]
 
     def test_handles_leap_year(self):
         assert normalize_disk_date("2024:02:29 12:00:00") == "2024-02-29T12:00:00"

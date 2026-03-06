@@ -38,6 +38,7 @@ class TestReadSidecar:
         )
 
         result = read_sidecar(path)
+        assert result is not None
 
         # Unix epoch string returned as-is
         assert result["timestamp"] == "1719935787"
@@ -51,6 +52,7 @@ class TestReadSidecar:
         )
 
         result = read_sidecar(path)
+        assert result is not None
 
         assert result["timestamp"] is None
 
@@ -77,6 +79,7 @@ class TestReadSidecar:
         )
 
         result = read_sidecar(path)
+        assert result is not None
 
         # geoDataExif coordinates used, not geoData
         assert result["geo"] == {
@@ -101,6 +104,7 @@ class TestReadSidecar:
         )
 
         result = read_sidecar(path)
+        assert result is not None
 
         assert result["geo"] == {
             "latitude": 40.6892,
@@ -124,6 +128,7 @@ class TestReadSidecar:
         )
 
         result = read_sidecar(path)
+        assert result is not None
 
         # (0, 0) treated as no geo data (Google's default for missing location)
         assert result["geo"] is None
@@ -139,6 +144,7 @@ class TestReadSidecar:
         )
 
         result = read_sidecar(path)
+        assert result is not None
 
         assert result["geo"] is None
 
@@ -157,6 +163,7 @@ class TestReadSidecar:
         )
 
         result = read_sidecar(path)
+        assert result is not None
 
         # geoData used because geoDataExif has zeroed coordinates
         assert result["geo"] == {
@@ -181,6 +188,8 @@ class TestReadSidecar:
         )
 
         result = read_sidecar(path)
+        assert result is not None
+        assert result["geo"] is not None
 
         # Span fields not included in output
         assert "latitudeSpan" not in result["geo"]
@@ -200,6 +209,8 @@ class TestReadSidecar:
         )
 
         result = read_sidecar(path)
+        assert result is not None
+        assert result["geo"] is not None
 
         # Negative altitude preserved (below sea level)
         assert result["geo"]["altitude"] == -11.19
@@ -220,6 +231,7 @@ class TestReadSidecar:
         )
 
         result = read_sidecar(path)
+        assert result is not None
 
         # Only timestamp and geo returned
         assert result["timestamp"] == "1719935787"
