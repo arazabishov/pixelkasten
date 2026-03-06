@@ -30,63 +30,50 @@ def report(manifest: list[ManifestEntry], options: Options) -> str:
         writer.writerow(["media", "metadata", "confidence", "status", "reason"])
 
         for entry in manifest:
-            # Use forward slashes in CSV output (portable, matches Node.js behavior)
-            media = os.path.relpath(entry.media_path, options.source).replace("\\", "/")
-
-            metadata = ""
-            if entry.sidecar and entry.sidecar.path:
-                metadata = os.path.relpath(entry.sidecar.path, options.source).replace("\\", "/")
-
-            confidence = ""
-            if entry.sidecar and entry.sidecar.confidence is not None:
-                confidence = str(entry.sidecar.confidence)
-
-            status_info = resolve_status(entry)
+            status, reason = _resolve_status(entry)
 
             writer.writerow(
                 [
-                    media,
-                    metadata,
-                    confidence,
-                    status_info["status"],
-                    status_info["reason"],
+                    _relpath(entry.media_path, options.source),
+                    _relpath(entry.sidecar.path, options.source) if entry.sidecar else "",
+                    str(entry.sidecar.confidence) if entry.sidecar else "",
+                    status,
+                    reason,
                 ]
             )
 
     return report_path
 
 
-def resolve_status(entry: ManifestEntry) -> dict:
+def _resolve_status(entry: ManifestEntry) -> tuple[str, str]:
     """
-    Walk the entry's stage properties to find its terminal status.
-
-    Priority order:
-    1. apply.result == EMBEDDED
-    2. apply.result == COPIED
-    3. apply.status == ERROR
-    4. metadata.status == SKIPPED
-    5. dedupe.result == DELETE
-    6. dedupe.status == ERROR
-    7. Fallback: error/unknown
+    Determine what happened to an entry by checking stages in reverse
+    pipeline order. Later stages take priority because they represent
+    the final outcome — an apply error overrides a successful dedupe.
     """
     if entry.apply is not None:
         if entry.apply.result == ApplyResult.EMBEDDED:
-            return {"status": "embedded", "reason": ""}
+            return ("embedded", "")
 
         if entry.apply.result == ApplyResult.COPIED:
-            return {"status": "copied", "reason": ""}
+            return ("copied", "")
 
         if entry.apply.status == Status.ERROR:
-            return {"status": "error", "reason": entry.apply.error or ""}
+            return ("error", entry.apply.error or "")
 
     if entry.metadata is not None and entry.metadata.status == Status.SKIPPED:
-        return {"status": "skipped", "reason": entry.metadata.error or ""}
+        return ("skipped", entry.metadata.error or "")
 
     if entry.dedupe is not None:
         if entry.dedupe.result == DedupeResult.DELETE:
-            return {"status": "deleted", "reason": ""}
+            return ("deleted", "")
 
         if entry.dedupe.status == Status.ERROR:
-            return {"status": "error", "reason": entry.dedupe.error or ""}
+            return ("error", entry.dedupe.error or "")
 
-    return {"status": "error", "reason": "Unknown state"}
+    return ("error", "Unknown state")
+
+
+def _relpath(path: str, base: str) -> str:
+    """Relative path with forward slashes for portable CSV output."""
+    return os.path.relpath(path, base).replace("\\", "/")
