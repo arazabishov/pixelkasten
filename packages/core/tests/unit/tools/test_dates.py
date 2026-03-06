@@ -1,15 +1,13 @@
 """
-Tests for the datetime module — ported from packages/core/test/core/datetime.test.js.
+Tests for the dates module — ported from packages/core/test/core/datetime.test.js.
 
-Covers normalize_disk_date (24 tests), parse_photo_taken_time (13 tests),
-and parse_iso_date (5 tests).
+Covers normalize_disk_date (24 tests) and parse_photo_taken_time (13 tests).
 """
 
 import pytest
 
 from pixelkasten.tools.dates import (
     normalize_disk_date,
-    parse_iso_date,
     parse_photo_taken_time,
 )
 
@@ -153,28 +151,3 @@ class TestParsePhotoTakenTime:
         assert result["iso"] == "2024-01-01T00:00:00"
 
 
-class TestParseIsoDate:
-    def test_parses_standard_iso_string(self):
-        result = parse_iso_date("2024-03-15T14:30:45")
-        assert result == {
-            "year": 2024,
-            "month": 3,
-            "day": 15,
-            "hour": 14,
-            "minute": 30,
-            "second": 45,
-        }
-
-    def test_returns_year_as_int(self):
-        result = parse_iso_date("2024-01-01T00:00:00")
-        assert isinstance(result["year"], int)
-        assert result["year"] == 2024
-
-    def test_returns_none_for_none(self):
-        assert parse_iso_date(None) is None
-
-    def test_returns_none_for_empty_string(self):
-        assert parse_iso_date("") is None
-
-    def test_returns_none_for_invalid_string(self):
-        assert parse_iso_date("not a date") is None

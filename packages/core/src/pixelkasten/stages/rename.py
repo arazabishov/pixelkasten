@@ -7,8 +7,8 @@ YYYY/yyyymmdd - Album Name/yyyymmdd-hhmmss.ext (album).
 """
 
 import os
+from datetime import datetime
 
-from pixelkasten.tools.dates import parse_iso_date
 from pixelkasten.manifest import ManifestEntry, Rename, Status
 
 
@@ -42,45 +42,45 @@ def rename(manifest: list[ManifestEntry]) -> None:
             entry.rename = Rename(status=Status.ERROR, error=str(e))
 
 
-def _resolve_album_dates(candidates: list[ManifestEntry]) -> dict[str, dict]:
+def _resolve_album_dates(candidates: list[ManifestEntry]) -> dict[str, datetime]:
     """Resolve the earliest valid date for each album."""
-    album_dates: dict[str, dict] = {}
+    album_dates: dict[str, datetime] = {}
 
     for entry in candidates:
         if entry.source.type != "album":
             continue
 
         dates = entry.metadata.dates if entry.metadata else []
-        parsed = None
-        for d in dates:
-            parsed = parse_iso_date(d)
-            if parsed:
-                break
+        parsed = _first_valid_date(dates)
 
         if not parsed:
             continue
 
         album_name = entry.source.name
-        existing = album_dates.get(album_name)
+        if not album_name:
+            continue
 
-        if not existing or _is_earlier_date(parsed, existing):
+        existing = album_dates.get(album_name)
+        if not existing or parsed < existing:
             album_dates[album_name] = parsed
 
     return album_dates
 
 
-def _is_earlier_date(a: dict, b: dict) -> bool:
-    """Returns True if date a is earlier than date b."""
-    for field in ["year", "month", "day", "hour", "minute", "second"]:
-        if a[field] != b[field]:
-            return a[field] < b[field]
-    return False
+def _first_valid_date(dates: list[str]) -> datetime | None:
+    """Return the first parseable date from the list, or None."""
+    for d in dates:
+        try:
+            return datetime.fromisoformat(d)
+        except (ValueError, TypeError):
+            pass
+    return None
 
 
 def _resolve_target_path(
     entry: ManifestEntry,
     used_paths: set[str],
-    album_dates: dict[str, dict],
+    album_dates: dict[str, datetime],
 ) -> Rename:
     """Resolve the target path for a single manifest entry."""
     dates = entry.metadata.dates if entry.metadata else []
@@ -88,41 +88,25 @@ def _resolve_target_path(
     if not dates:
         raise ValueError(f"No timestamp available for {entry.media_path}")
 
-    # Try each date in order until one parses
-    parsed = None
-    for d in dates:
-        parsed = parse_iso_date(d)
-        if parsed:
-            break
-
+    parsed = _first_valid_date(dates)
     if not parsed:
         raise ValueError(f"No valid date format found for {entry.media_path}")
 
-    year = str(parsed["year"]).zfill(4)
-    month = str(parsed["month"]).zfill(2)
-    day = str(parsed["day"]).zfill(2)
-    hour = str(parsed["hour"]).zfill(2)
-    minute = str(parsed["minute"]).zfill(2)
-    second = str(parsed["second"]).zfill(2)
-
-    timestamp = f"{year}{month}{day}-{hour}{minute}{second}"
+    timestamp = parsed.strftime("%Y%m%d-%H%M%S")
     ext = os.path.splitext(entry.media_path)[1].lower()
 
     # Determine directory structure
-    is_album = entry.source.type == "album"
-    album_date = album_dates.get(entry.source.name) if is_album else None
+    album_name = entry.source.name if entry.source.type == "album" else None
+    album_date = album_dates.get(album_name) if album_name else None
 
     # Use album's earliest date for directory, or entry's own date
     dir_date = album_date or parsed
-    dir_year = str(dir_date["year"]).zfill(4)
-    dir_month = str(dir_date["month"]).zfill(2)
-    dir_day = str(dir_date["day"]).zfill(2)
 
-    if is_album:
-        album_date_prefix = f"{dir_year}{dir_month}{dir_day}"
-        base_path = f"{dir_year}/{album_date_prefix} - {entry.source.name}/{timestamp}{ext}"
+    if album_name:
+        dir_prefix = dir_date.strftime("%Y%m%d")
+        base_path = f"{dir_date.year}/{dir_prefix} - {album_name}/{timestamp}{ext}"
     else:
-        base_path = f"{dir_year}/{timestamp}{ext}"
+        base_path = f"{parsed.year}/{timestamp}{ext}"
 
     target_path = _resolve_collision(base_path, used_paths)
     used_paths.add(target_path)

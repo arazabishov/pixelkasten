@@ -37,37 +37,6 @@ def normalize_disk_date(date: str | None) -> str | None:
     return f"{y}-{mo}-{d}T{h}:{mi}:{s}"
 
 
-def parse_iso_date(iso_date: str) -> dict | None:
-    """
-    Parse an ISO date string into its components.
-
-    Returns a dict with:
-        - year: int
-        - month: int (1-12)
-        - day: int (1-31)
-        - hour: int (0-23)
-        - minute: int (0-59)
-        - second: int (0-59)
-
-    Returns None for non-string, None, empty, or unparseable input.
-    """
-    if not isinstance(iso_date, str) or not iso_date:
-        return None
-
-    try:
-        dt = datetime.fromisoformat(iso_date)
-    except ValueError:
-        return None
-
-    return {
-        "year": dt.year,
-        "month": dt.month,
-        "day": dt.day,
-        "hour": dt.hour,
-        "minute": dt.minute,
-        "second": dt.second,
-    }
-
 
 def parse_photo_taken_time(timestamp: str | int) -> dict:
     """
