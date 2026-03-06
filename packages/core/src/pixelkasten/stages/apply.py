@@ -39,39 +39,33 @@ def apply(
 
     for i, entry in enumerate(keepers):
         try:
-            # Resolve destination path: use rename target_path or fall back to original filename
-            target_path = (entry.rename.target_path if entry.rename else None) or os.path.basename(
-                entry.media_path
-            )
-            dest_path = os.path.join(destination, target_path)
-
-            # Ensure directory exists
-            os.makedirs(os.path.dirname(dest_path), exist_ok=True)
-
-            # Copy file to destination
-            shutil.copy2(entry.media_path, dest_path)
-
-            # Embed metadata if write_tags exist
-            write_tags = entry.metadata.write_tags if entry.metadata else []
-            if write_tags:
-                write_metadata(dest_path, write_tags)
-                entry.apply = Apply(
-                    status=Status.PROCESSED,
-                    result=ApplyResult.EMBEDDED,
-                    target_path=dest_path,
-                )
-            else:
-                entry.apply = Apply(
-                    status=Status.PROCESSED,
-                    result=ApplyResult.COPIED,
-                    target_path=dest_path,
-                )
-
-            # Copy sidecar when embedding is skipped and a sidecar exists
-            if options.skip_embed and entry.sidecar:
-                shutil.copy2(entry.sidecar.path, dest_path + ".json")
-
+            entry.apply = _apply_entry(entry, destination, options)
         except Exception as e:
             entry.apply = Apply(status=Status.ERROR, error=str(e))
         if on_progress is not None:
             on_progress(i + 1)
+
+
+def _apply_entry(entry: ManifestEntry, destination: str, options: Options) -> Apply:
+    """Copy a single file to destination, embed metadata if needed."""
+    target_path = (entry.rename.target_path if entry.rename else None) or os.path.basename(
+        entry.media_path
+    )
+    dest_path = os.path.join(destination, target_path)
+
+    os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+    shutil.copy2(entry.media_path, dest_path)
+
+    write_tags = entry.metadata.write_tags if entry.metadata else []
+    if write_tags:
+        write_metadata(dest_path, write_tags)
+
+    # Copy sidecar when embedding is skipped and a sidecar exists
+    if options.skip_embed and entry.sidecar:
+        shutil.copy2(entry.sidecar.path, dest_path + ".json")
+
+    return Apply(
+        status=Status.PROCESSED,
+        result=ApplyResult.EMBEDDED if write_tags else ApplyResult.COPIED,
+        target_path=dest_path,
+    )
