@@ -138,11 +138,7 @@ def build_cluster_summary_text(manifest: dict) -> str:
                 if not entry.location:
                     continue
                 if entry.location.region in significant_regions:
-                    city = (
-                        entry.location.name.split(",")[0].strip()
-                        if entry.location.name
-                        else ""
-                    )
+                    city = entry.location.name.split(",")[0].strip() if entry.location.name else ""
                     if city and city not in significant_cities:
                         significant_cities.append(city)
 

@@ -69,10 +69,7 @@ def _resolve(
 
     # If there is no handler for a file type, skip it.
     if not handler:
-        return Metadata(
-            status=Status.SKIPPED,
-            error=f"No metadata handler for {ext}",
-        )
+        return Metadata(status=Status.SKIPPED, error=f"No metadata handler for {ext}")
 
     # If exiftool has not reported on a file, something went wrong.
     if raw_disk_tags is None:
@@ -81,48 +78,41 @@ def _resolve(
     # Normalize raw, file-type-specific tags to a common shape.
     disk_data = handler.parse(raw_disk_tags)
 
-    write_tags: list[str] = []
-    dates = list(disk_data["dates"])
-    raw_geo = disk_data["geo"]
-
-    # Retrieve and parse sidecar data.
-    sidecar_data = read_sidecar(json_path)
-
-    # If there is sidecar data, resolve missing metadata.
-    if sidecar_data:
-        # If there is no primary timestamp on disk, use the value from sidecar.
-        if not disk_data["timestamp"] and sidecar_data.get("timestamp"):
-            ptt = parse_photo_taken_time(sidecar_data["timestamp"])
-
-            # Queue timestamp for writing if embedding is enabled.
-            if not options.skip_embed:
-                write_tags.extend(handler.timestamp(ptt["exif"]))
-
-            # Make sure that timestamp is stored as the primary date (needed for rename).
-            dates.insert(0, ptt["iso"])
-
-        # Queue geo data for writing if embedding is enabled.
-        if not options.skip_embed and not disk_data["geo"] and sidecar_data.get("geo"):
-            write_tags.extend(handler.geo(sidecar_data["geo"]))
-
-        # Use sidecar geo if disk has none (for downstream geocoding).
-        if not raw_geo and sidecar_data.get("geo"):
-            raw_geo = sidecar_data["geo"]
-
-    # Convert raw geo dict to typed Geo at the stage boundary.
-    geo = (
-        Geo(
-            latitude=raw_geo["latitude"],
-            longitude=raw_geo["longitude"],
-            altitude=raw_geo.get("altitude"),
-        )
-        if raw_geo
-        else None
-    )
-
-    return Metadata(
+    metadata = Metadata(
         status=Status.PROCESSED,
-        write_tags=write_tags,
-        dates=dates,
-        geo=geo,
+        dates=list(disk_data["dates"]),
+        geo=_to_geo(disk_data["geo"]),
     )
+
+    # Retrieve and parse sidecar data. If absent, nothing to resolve.
+    sidecar_data = read_sidecar(json_path)
+    if not sidecar_data:
+        return metadata
+
+    # If there is no primary timestamp on disk, use the value from sidecar.
+    if not disk_data["timestamp"] and sidecar_data.get("timestamp"):
+        ptt = parse_photo_taken_time(sidecar_data["timestamp"])
+
+        # Queue timestamp for writing if embedding is enabled.
+        if not options.skip_embed:
+            metadata.write_tags.extend(handler.timestamp(ptt["exif"]))
+
+        # Make sure that timestamp is stored as the primary date (needed for rename).
+        metadata.dates.insert(0, ptt["iso"])
+
+    # Queue geo data for writing if embedding is enabled.
+    if not options.skip_embed and not disk_data["geo"] and sidecar_data.get("geo"):
+        metadata.write_tags.extend(handler.geo(sidecar_data["geo"]))
+
+    # Use sidecar geo if disk has none (for downstream geocoding).
+    if not metadata.geo and sidecar_data.get("geo"):
+        metadata.geo = _to_geo(sidecar_data["geo"])
+
+    return metadata
+
+
+def _to_geo(raw: dict | None) -> Geo | None:
+    """Convert a raw geo dict to a typed Geo at the stage boundary."""
+    if not raw:
+        return None
+    return Geo(latitude=raw["latitude"], longitude=raw["longitude"], altitude=raw.get("altitude"))

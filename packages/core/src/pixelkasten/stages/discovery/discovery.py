@@ -103,7 +103,11 @@ def run_discovery(
     if not discovery_opts.skip_refine:
         new_labels, _ = refine_clusters(discovery_manifest, embeddings)
         for i, entry in enumerate(image_entries):
-            if entry.discovery and i < len(new_labels) and entry.discovery.status == Status.PROCESSED:
+            if (
+                entry.discovery
+                and i < len(new_labels)
+                and entry.discovery.status == Status.PROCESSED
+            ):
                 entry.discovery.cluster = int(new_labels[i])
         representatives = find_representatives(embeddings, new_labels)
         summary = cluster_summary(new_labels)
@@ -116,7 +120,9 @@ def run_discovery(
         n_reps = sum(
             1
             for entry in image_entries
-            if entry.discovery and entry.discovery.is_representative and entry.discovery.status == Status.PROCESSED
+            if entry.discovery
+            and entry.discovery.is_representative
+            and entry.discovery.status == Status.PROCESSED
         )
         with progress("Captioning images", n_reps) as tick:
             captions = caption_representatives(
