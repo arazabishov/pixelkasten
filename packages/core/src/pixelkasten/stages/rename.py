@@ -8,9 +8,8 @@ YYYY/yyyymmdd - Album Name/yyyymmdd-hhmmss.ext (album).
 
 import os
 
-from pixelkasten.core.datetime import parse_iso_date
-from pixelkasten.core.manifest import can_keep
-from pixelkasten.core.types import ManifestEntry, Rename, Status
+from pixelkasten.tools.dates import parse_iso_date
+from pixelkasten.manifest import ManifestEntry, Rename, Status
 
 
 def rename(manifest: list[ManifestEntry]) -> None:
@@ -24,7 +23,7 @@ def rename(manifest: list[ManifestEntry]) -> None:
     candidates = [
         e
         for e in manifest
-        if can_keep(e) and (e.metadata is None or e.metadata.status != Status.SKIPPED)
+        if e.can_keep() and (e.metadata is None or e.metadata.status != Status.SKIPPED)
     ]
 
     if not candidates:

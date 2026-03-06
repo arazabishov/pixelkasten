@@ -6,7 +6,7 @@ All path expectations adapted for no-month format:
   Album:  YYYY/yyyymmdd - Album Name/yyyymmdd-hhmmss.ext
 """
 
-from pixelkasten.core.types import Dedupe, DedupeResult, ManifestEntry, Metadata, Source, Status
+from pixelkasten.manifest import Dedupe, DedupeResult, ManifestEntry, Metadata, Source, Status
 from pixelkasten.stages.rename import rename
 
 

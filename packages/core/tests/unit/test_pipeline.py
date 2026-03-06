@@ -8,7 +8,7 @@ All I/O-bound stages are mocked.
 from unittest.mock import MagicMock, patch
 
 from helpers import make_options
-from pixelkasten.core.types import ManifestEntry, Source
+from pixelkasten.manifest import ManifestEntry, Source
 from pixelkasten.configuration import Hooks, _noop_progress
 
 PATCH_PREFIX = "pixelkasten.pipeline"

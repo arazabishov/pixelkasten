@@ -32,7 +32,7 @@ def read_sidecar(json_path: str | Path | None) -> dict | None:
         geo_data_exif = data.get("geoDataExif")
         geo_data = data.get("geoData")
 
-        geo = get_geo_data(geo_data_exif, geo_data)
+        geo = _get_geo_data(geo_data_exif, geo_data)
 
         return {
             "timestamp": photo_taken_time.get("timestamp") if photo_taken_time else None,
@@ -42,7 +42,7 @@ def read_sidecar(json_path: str | Path | None) -> dict | None:
         raise RuntimeError(f"Failed to read sidecar file at {json_path}: {e}") from e
 
 
-def get_geo_data(
+def _get_geo_data(
     geo_data_exif: dict | None,
     geo_data: dict | None,
 ) -> dict | None:

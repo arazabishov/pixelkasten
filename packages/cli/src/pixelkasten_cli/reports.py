@@ -20,8 +20,7 @@ from rich.progress import (
 )
 from rich.table import Column, Table
 
-from pixelkasten.core.manifest import can_keep
-from pixelkasten.core.types import ApplyResult, DedupeResult, ManifestEntry, Status
+from pixelkasten.manifest import ApplyResult, DedupeResult, ManifestEntry, Status
 
 # Shared width for tables and progress bars so they align visually.
 UI_WIDTH = 58
@@ -132,7 +131,7 @@ def render_link_table(console: Console, result: dict) -> None:
 
 def render_reconcile_table(console: Console, manifest: list[ManifestEntry]) -> None:
     """Render the reconcile stage summary table."""
-    keepers = [e for e in manifest if can_keep(e)]
+    keepers = [e for e in manifest if e.can_keep()]
 
     n_processed = sum(
         1
@@ -178,7 +177,7 @@ def render_dedupe_table(console: Console, manifest: list[ManifestEntry]) -> None
 
 def render_rename_table(console: Console, manifest: list[ManifestEntry]) -> None:
     """Render the rename stage summary table."""
-    keepers = [e for e in manifest if can_keep(e)]
+    keepers = [e for e in manifest if e.can_keep()]
 
     n_processed = sum(1 for e in keepers if e.rename and e.rename.status == Status.PROCESSED)
     n_skipped = sum(1 for e in keepers if e.rename is None)

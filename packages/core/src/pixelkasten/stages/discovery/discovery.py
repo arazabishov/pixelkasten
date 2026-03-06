@@ -11,7 +11,7 @@ manifest but don't get cluster labels, captions, or album assignments.
 from collections.abc import Callable
 from pathlib import Path
 
-from pixelkasten.core.types import ManifestEntry
+from pixelkasten.manifest import DiscoveryEntry, ManifestEntry, Status, Tag
 from pixelkasten.stages.discovery.caption import caption_representatives
 from pixelkasten.stages.discovery.classify import (
     DEFAULT_LABEL_SETS,
@@ -26,7 +26,6 @@ from pixelkasten.stages.discovery.cluster import (
 from pixelkasten.stages.discovery.embed import embed_images, embed_texts, load_model
 from pixelkasten.stages.discovery.organize import propose_albums
 from pixelkasten.stages.discovery.refine import refine_clusters
-from pixelkasten.stages.discovery.types import DiscoveryEntry, Status, Tag
 from pixelkasten.handlers import is_image
 from pixelkasten.configuration import Options
 

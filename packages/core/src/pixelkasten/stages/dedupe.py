@@ -7,7 +7,7 @@ Ported from packages/core/src/stages/dedupe.js.
 import hashlib
 from collections.abc import Callable
 
-from pixelkasten.core.types import Dedupe, DedupeResult, ManifestEntry, Status
+from pixelkasten.manifest import Dedupe, DedupeResult, ManifestEntry, Status
 from pixelkasten.configuration import Options
 
 

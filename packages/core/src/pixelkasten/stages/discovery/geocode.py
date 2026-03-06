@@ -6,7 +6,7 @@ No API calls, no rate limits. Batch-resolves all unique coordinates in
 a single call for efficiency.
 """
 
-from pixelkasten.core.types import Location, ManifestEntry
+from pixelkasten.manifest import Location, ManifestEntry
 
 
 def reverse_geocode(manifest: list[ManifestEntry]) -> None:

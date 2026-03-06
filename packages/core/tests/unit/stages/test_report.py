@@ -6,8 +6,8 @@ import csv
 import os
 
 from helpers import make_options
-from pixelkasten.core.report import report, resolve_status
-from pixelkasten.core.types import (
+from pixelkasten.stages.report import report, resolve_status
+from pixelkasten.manifest import (
     Apply,
     ApplyResult,
     Dedupe,
