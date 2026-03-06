@@ -192,7 +192,7 @@ def _split_by_temporal_gaps(
     for cluster_id in cluster_ids:
         split_points, timed = _find_split_points(labels, cluster_id, timestamps, gap_seconds)
         if not split_points:
-            pass  # no gaps to split
+            pass
         else:
             segments = _chop_segments(timed, split_points)
             # First segment keeps original ID, rest get new IDs.

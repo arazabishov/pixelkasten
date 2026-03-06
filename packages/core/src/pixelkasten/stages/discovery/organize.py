@@ -177,7 +177,7 @@ def _propose_organization(
     """
     Send cluster summaries to the LLM and get back album name proposals.
     """
-    import ollama as ollama_client
+    from pixelkasten.tools.ollama import chat
 
     if on_progress:
         on_progress("Building cluster summaries...")
@@ -188,18 +188,7 @@ def _propose_organization(
     if on_progress:
         on_progress("Sending to LLM...")
 
-    response = ollama_client.chat(
-        model=model,
-        messages=[
-            {
-                "role": "user",
-                "content": prompt,
-            },
-        ],
-    )
-
-    content = response.message.content
-    raw_response = content.strip() if content else ""
+    raw_response = chat(model, prompt) or ""
 
     if on_progress:
         on_progress("Parsing response...")
