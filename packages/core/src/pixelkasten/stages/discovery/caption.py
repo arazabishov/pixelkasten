@@ -98,16 +98,19 @@ def caption_representatives(
     from pixelkasten.manifest import Status
 
     representatives = [
-        de for de in manifest["entries"] if de.is_representative and de.status == Status.PROCESSED
+        entry
+        for entry in manifest["entries"]
+        if entry.discovery
+        and entry.discovery.is_representative
+        and entry.discovery.status == Status.PROCESSED
     ]
 
     captions = {}
-    for i, de in enumerate(representatives):
-        image_path = de.entry.media_path
-        caption = caption_image(model, Path(image_path), prompt)
+    for i, entry in enumerate(representatives):
+        caption = caption_image(model, Path(entry.media_path), prompt)
 
         if caption is not None:
-            captions[image_path] = caption
+            captions[entry.media_path] = caption
 
         if on_progress is not None:
             on_progress(i + 1)

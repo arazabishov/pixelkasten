@@ -113,6 +113,26 @@ class Tag:
 
 
 @dataclass
+class Discovery:
+    # tracks progress through discovery stages
+    status: Status = Status.PENDING
+
+    # HDBSCAN cluster assignment — None until clustering runs
+    cluster: int | None = None
+
+    # whether this entry represents its cluster in captioning
+    is_representative: bool = False
+
+    # zero-shot classification results from CLIP
+    tags: list[Tag] = field(default_factory=list)
+
+    # VLM-generated description of the image
+    caption: str | None = None
+
+    error: str | None = None
+
+
+@dataclass
 class Rename:
     # tracks whether path resolution succeeded
     status: Status
@@ -165,6 +185,9 @@ class ManifestEntry:
     # final outcome — copied/embedded result and actual disk path
     apply: Apply | None = None
 
+    # cluster assignment, tags, caption — set by discovery stages
+    discovery: Discovery | None = None
+
     def can_keep(self) -> bool:
         """
         Returns True if the entry should be processed (not deleted or errored during dedupe).
@@ -174,26 +197,3 @@ class ManifestEntry:
         if self.dedupe is None:
             return True
         return self.dedupe.result != DedupeResult.DELETE and self.dedupe.status != Status.ERROR
-
-
-@dataclass
-class DiscoveryEntry:
-    # the underlying pipeline entry
-    entry: ManifestEntry
-
-    # tracks progress through discovery stages
-    status: Status = Status.PENDING
-
-    # HDBSCAN cluster assignment — None until clustering runs
-    cluster: int | None = None
-
-    # whether this entry represents its cluster in captioning
-    is_representative: bool = False
-
-    # zero-shot classification results from CLIP
-    tags: list[Tag] = field(default_factory=list)
-
-    # VLM-generated description of the image
-    caption: str | None = None
-
-    error: str | None = None

@@ -68,15 +68,15 @@ def refine_clusters(
     regions = {}
     has_metadata = {}
     embed_index = 0
-    for de in manifest["entries"]:
-        if de.status != Status.PROCESSED:
+    for entry in manifest["entries"]:
+        if not entry.discovery or entry.discovery.status != Status.PROCESSED:
             continue
-        dates = de.entry.metadata.dates if de.entry.metadata else []
+        dates = entry.metadata.dates if entry.metadata else []
         has_metadata[embed_index] = bool(dates)
         if dates:
             timestamps[embed_index] = dates[0]
-        if de.entry.location and de.entry.location.region:
-            regions[embed_index] = de.entry.location.region
+        if entry.location and entry.location.region:
+            regions[embed_index] = entry.location.region
         embed_index += 1
 
     # Extract current labels from manifest.
@@ -138,10 +138,10 @@ def _extract_labels(manifest: dict) -> np.ndarray:
     from pixelkasten.manifest import Status
 
     labels = []
-    for de in manifest["entries"]:
-        if de.status != Status.PROCESSED:
+    for entry in manifest["entries"]:
+        if not entry.discovery or entry.discovery.status != Status.PROCESSED:
             continue
-        labels.append(de.cluster if de.cluster is not None else -1)
+        labels.append(entry.discovery.cluster if entry.discovery.cluster is not None else -1)
     return np.array(labels, dtype=int)
 
 

@@ -11,7 +11,7 @@ manifest but don't get cluster labels, captions, or album assignments.
 from collections.abc import Callable
 from pathlib import Path
 
-from pixelkasten.manifest import DiscoveryEntry, ManifestEntry, Status, Tag
+from pixelkasten.manifest import Discovery, ManifestEntry, Status, Tag
 from pixelkasten.stages.discovery.caption import caption_representatives
 from pixelkasten.stages.discovery.classify import (
     DEFAULT_LABEL_SETS,
@@ -72,14 +72,12 @@ def run_discovery(
         embeddings, label_embeddings, prefixed_names, threshold=discovery_opts.classify_threshold
     )
 
-    # Build discovery entries — the sub-pipeline's local manifest
+    # Populate discovery field on each image entry
     ok_indices = [i for i in range(len(image_paths)) if i not in failed_indices]
     reps_flat = {r for reps in representatives.values() for r in reps}
-    discovery_entries: list[DiscoveryEntry] = []
     for i, entry in enumerate(image_entries):
         if i < len(ok_indices):
-            de = DiscoveryEntry(
-                entry=entry,
+            entry.discovery = Discovery(
                 status=Status.PROCESSED,
                 cluster=int(labels[ok_indices[i]]),
                 is_representative=ok_indices[i] in reps_flat,
@@ -88,12 +86,11 @@ def run_discovery(
                 ],
             )
         else:
-            de = DiscoveryEntry(entry=entry, status=Status.ERROR)
-        discovery_entries.append(de)
+            entry.discovery = Discovery(status=Status.ERROR)
 
     summary = cluster_summary(labels)
     discovery_manifest = {
-        "entries": discovery_entries,
+        "entries": image_entries,
         "clusters": {str(k): {"size": v} for k, v in summary.get("cluster_sizes", {}).items()},
     }
 
@@ -105,9 +102,9 @@ def run_discovery(
     # Refine (optional)
     if not discovery_opts.skip_refine:
         new_labels, _ = refine_clusters(discovery_manifest, embeddings)
-        for i, de in enumerate(discovery_entries):
-            if i < len(new_labels) and de.status == Status.PROCESSED:
-                de.cluster = int(new_labels[i])
+        for i, entry in enumerate(image_entries):
+            if entry.discovery and i < len(new_labels) and entry.discovery.status == Status.PROCESSED:
+                entry.discovery.cluster = int(new_labels[i])
         representatives = find_representatives(embeddings, new_labels)
         summary = cluster_summary(new_labels)
         discovery_manifest["clusters"] = {
@@ -117,7 +114,9 @@ def run_discovery(
     # Caption (optional)
     if not discovery_opts.skip_caption:
         n_reps = sum(
-            1 for de in discovery_entries if de.is_representative and de.status == Status.PROCESSED
+            1
+            for entry in image_entries
+            if entry.discovery and entry.discovery.is_representative and entry.discovery.status == Status.PROCESSED
         )
         with progress("Captioning images", n_reps) as tick:
             captions = caption_representatives(
@@ -127,9 +126,9 @@ def run_discovery(
                 on_progress=tick,
             )
         for path, cap in captions.items():
-            for de in discovery_entries:
-                if de.entry.media_path == path:
-                    de.caption = cap
+            for entry in image_entries:
+                if entry.media_path == path and entry.discovery:
+                    entry.discovery.caption = cap
 
     # Propose albums (requires Ollama)
     with progress("Proposing albums", 1) as tick:
