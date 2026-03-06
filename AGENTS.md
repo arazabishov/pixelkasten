@@ -114,6 +114,10 @@ All path manipulation MUST use `os.path`. Do not use `pathlib.Path` anywhere in 
 
 Stages are the type boundary, not individual functions within a stage. Internal helpers (exiftool, sidecar, handlers) can freely use raw dicts — they never leave the stage. But when a stage writes to `ManifestEntry`, it must use the typed structures from `manifest.py` (e.g., `Geo`, `Metadata`, `Dedupe`). This keeps typing focused where it matters (the manifest contract between stages) without fighting Python's dynamic nature inside stage internals.
 
+#### Stage structure
+
+Each mutating stage follows the same shape: filter keepers, iterate entries, try/except per entry, set the stage's field on `ManifestEntry`. The try body should be extracted into a private helper that returns the result type — this keeps the main function flat and the per-entry logic testable. See `_resolve` in reconcile and `_apply_entry` in apply for examples.
+
 ### Testing
 
 Tests use pytest. Test names should describe observable behavior, not implementation details. Treat functions as black boxes and verify what you can observe externally (e.g., `test_does_not_perform_disk_operations_when_manifest_is_empty`, not `test_filters_out_entries_marked_for_deletion`).
