@@ -3,7 +3,7 @@ Ollama integration — chat with local LLMs and VLMs via Ollama.
 
 Prerequisites:
     - Ollama installed and running (`ollama serve`)
-    - Required models pulled (`ollama pull llava`, `ollama pull qwen3.5:35b`)
+    - Required models pulled (`ollama pull qwen3.5:9b`, `ollama pull qwen3.5:35b`)
 """
 
 
@@ -39,7 +39,7 @@ def chat(model: str, prompt: str, images: list[str] | None = None) -> str | None
     Send a chat message to Ollama and return the response text.
 
     Args:
-        model: Ollama model name (e.g. "llava", "qwen3.5:35b").
+        model: Ollama model name (e.g. "qwen3.5:9b", "qwen3.5:35b").
         prompt: The text prompt to send.
         images: Optional list of image paths for vision models.
 
