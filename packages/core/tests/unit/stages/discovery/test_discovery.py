@@ -288,12 +288,8 @@ class TestDiscoveryRefineIntegration:
         # Refine splits into two clusters.
         mock_refine.return_value = (np.array([0, 0, 1, 1]), {"splits": 1})
 
-        # After refine, find_representatives is called again with new labels.
-        # The mock needs to return different results for the second call.
-        mock_find_reps.side_effect = [
-            {0: [0]},  # First call (before refine)
-            {0: [0], 1: [2]},  # Second call (after refine)
-        ]
+        # Representatives are computed once after refine, on the final labels.
+        mock_find_reps.return_value = {0: [0], 1: [2]}
 
         options = _make_options(skip_refine=False, skip_caption=True)
         run_discovery(entries, options, progress=_noop_progress)
