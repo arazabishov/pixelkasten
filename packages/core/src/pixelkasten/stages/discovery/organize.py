@@ -25,10 +25,12 @@ similar photos and propose a descriptive album name for each cluster.
 ## Album Naming Guidelines
 
 - Album names should be concise but descriptive (2-5 words)
+- Use sentence-style capitalization: capitalize the first word and proper nouns \
+only (e.g., "Vacation in France", "Walk in the park", "Christmas dinner in Berlin")
 - Derive the name from the captions, tags, and location data
 - When a cluster spans multiple cities in the same region, use a broader \
-geographic name (e.g., "Bay Area Trip" for San Francisco + Sunnyvale, \
-or "California Road Trip" if cities are spread across the state)
+geographic name (e.g., "Bay Area trip" for San Francisco + Sunnyvale, \
+or "California road trip" if cities are spread across the state)
 - When a cluster is in a single city, include that city name
 - Name the album after the primary location — if most photos are in one \
 region, use that region even if a few photos are from elsewhere
@@ -44,7 +46,7 @@ For each cluster, propose a descriptive album name.
 Respond with ONLY a JSON object mapping cluster_id to album name. \
 No explanation, no markdown fences, no extra text. Example:
 
-{{"7": "Beach Vacation in Antalya", "12": "Christmas Dinner"}}
+{{"7": "Beach vacation in Antalya", "12": "Christmas dinner"}}
 """
 
 
