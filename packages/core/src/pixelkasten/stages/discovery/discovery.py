@@ -44,9 +44,8 @@ def run_discovery(
 
     if options.discovery is None:
         raise ValueError("discovery options are required for run_discovery")
-    discovery_opts = options.discovery
 
-    model, preprocess, tokenizer, device = load_model(model_name=discovery_opts.clip_model)
+    model, preprocess, tokenizer, device = load_model(model_name=options.discovery.clip_model)
 
     with progress("Embedding images", len(image_paths)) as tick:
         embeddings, failed_indices = embed_images(
@@ -54,19 +53,19 @@ def run_discovery(
             preprocess,
             image_paths,
             device,
-            batch_size=discovery_opts.batch_size,
+            batch_size=options.discovery.batch_size,
             on_progress=tick,
         )
 
     # Cluster
-    labels = cluster_embeddings(embeddings, min_cluster_size=discovery_opts.min_cluster_size)
+    labels = cluster_embeddings(embeddings, min_cluster_size=options.discovery.min_cluster_size)
     representatives = find_representatives(embeddings, labels)
 
     # Classify
     prefixed_names, raw_labels = build_label_list(DEFAULT_LABEL_SETS)
     label_embeddings = embed_texts(model, tokenizer, raw_labels, device)
     all_tags = classify(
-        embeddings, label_embeddings, prefixed_names, threshold=discovery_opts.classify_threshold
+        embeddings, label_embeddings, prefixed_names, threshold=options.discovery.classify_threshold
     )
 
     # Map image_entries index → embedding row index.
@@ -100,7 +99,7 @@ def run_discovery(
     reverse_geocode(manifest)
 
     # Refine (optional).
-    if not discovery_opts.skip_refine:
+    if not options.discovery.skip_refine:
         new_labels, _ = refine_clusters(image_entries, embeddings)
         for i, entry in enumerate(image_entries):
             if i in entry_to_row and entry.discovery and entry.discovery.status == Status.PROCESSED:
@@ -113,7 +112,7 @@ def run_discovery(
                 entry.discovery.is_representative = entry_to_row[i] in reps_flat
 
     # Caption (optional).
-    if not discovery_opts.skip_caption:
+    if not options.discovery.skip_caption:
         from pixelkasten.stages.discovery.caption import caption_representatives
 
         n_reps = sum(
@@ -126,7 +125,7 @@ def run_discovery(
         with progress("Captioning images", n_reps) as tick:
             captions = caption_representatives(
                 image_entries,
-                discovery_opts.caption_model,
+                options.discovery.caption_model,
                 on_progress=tick,
             )
         entries_by_path = {e.media_path: e for e in image_entries}
@@ -137,7 +136,7 @@ def run_discovery(
 
     # Propose albums (requires Ollama).
     with progress("Proposing albums", 1) as tick:
-        propose_albums(image_entries, discovery_opts)
+        propose_albums(image_entries, options.discovery)
         if tick:
             tick(1)
 
