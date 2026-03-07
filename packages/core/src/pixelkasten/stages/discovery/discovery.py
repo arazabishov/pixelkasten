@@ -59,7 +59,6 @@ def run_discovery(
 
     # Cluster
     labels = cluster_embeddings(embeddings, min_cluster_size=options.discovery.min_cluster_size)
-    representatives = find_representatives(embeddings, labels)
 
     # Classify
     prefixed_names, raw_labels = build_label_list(DEFAULT_LABEL_SETS)
@@ -68,48 +67,40 @@ def run_discovery(
         embeddings, label_embeddings, prefixed_names, threshold=options.discovery.classify_threshold
     )
 
-    # Map image_entries index → embedding row index.
-    # Failed images don't have a row in the embeddings array, so we
-    # skip them and track which entry index maps to which row.
+    # Create Discovery objects early so downstream stages never see None.
+    # embedded_entries[i] aligns with embeddings row i.
     failed = set(failed_indices)
-    entry_to_row: dict[int, int] = {}
-    row = 0
-    for i in range(len(image_paths)):
-        if i not in failed:
-            entry_to_row[i] = row
-            row += 1
-
-    # Populate discovery field on each image entry.
-    reps_flat = {r for reps in representatives.values() for r in reps}
+    embedded_entries = []
     for i, entry in enumerate(image_entries):
-        if i in entry_to_row:
-            embed_row = entry_to_row[i]
-            entry.discovery = Discovery(
-                status=Status.PROCESSED,
-                cluster=int(labels[embed_row]),
-                is_representative=embed_row in reps_flat,
-                tags=[Tag(name=name, score=round(score, 3)) for name, score in all_tags[embed_row]],
-            )
-        else:
+        if i in failed:
             entry.discovery = Discovery(status=Status.ERROR)
+        else:
+            entry.discovery = Discovery(status=Status.PROCESSED)
+            embedded_entries.append(entry)
+
+    # Populate cluster and tags.
+    for i, entry in enumerate(embedded_entries):
+        entry.discovery.cluster = int(labels[i])
+        entry.discovery.tags = [Tag(name=name, score=round(score, 3)) for name, score in all_tags[i]]
 
     # Resolve GPS → location names (used by refine and organize).
     from pixelkasten.stages.discovery.geocode import reverse_geocode
 
     reverse_geocode(manifest)
 
-    # Refine (optional).
+    # Refine (optional) — update labels before representative selection.
     if not options.discovery.skip_refine:
-        new_labels, _ = refine_clusters(image_entries, embeddings)
-        for i, entry in enumerate(image_entries):
-            if i in entry_to_row and entry.discovery and entry.discovery.status == Status.PROCESSED:
-                entry.discovery.cluster = int(new_labels[entry_to_row[i]])
-        # Recompute representatives after refinement.
-        representatives = find_representatives(embeddings, new_labels)
-        reps_flat = {r for reps in representatives.values() for r in reps}
-        for i, entry in enumerate(image_entries):
-            if i in entry_to_row and entry.discovery:
-                entry.discovery.is_representative = entry_to_row[i] in reps_flat
+        labels, _ = refine_clusters(embedded_entries, embeddings)
+        for i, entry in enumerate(embedded_entries):
+            if entry.discovery is not None:
+                entry.discovery.cluster = int(labels[i])
+
+    # Representatives — computed once on final labels.
+    representatives = find_representatives(embeddings, labels)
+    reps_flat = {r for reps in representatives.values() for r in reps}
+    for i, entry in enumerate(embedded_entries):
+        if entry.discovery is not None:
+            entry.discovery.is_representative = i in reps_flat
 
     # Caption (optional).
     if not options.discovery.skip_caption:
