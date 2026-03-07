@@ -8,7 +8,7 @@ from pixelkasten.stages.discovery.refine import (
     _eject_metadataless,
     _split_by_temporal_gaps,
     _merge_similar_clusters,
-    _infer_home_location,
+    infer_home_region,
     _absorb_noise_by_location,
     _absorb_noise_by_similarity,
     _renumber_labels,
@@ -290,22 +290,22 @@ class TestMergeSimilarClusters:
 
 class TestInferHomeLocation:
     def test_returns_most_frequent_region(self):
-        locations = {
-            0: "California, US",
-            1: "California, US",
-            2: "California, US",
-            3: "California, US",
-            4: "California, US",
-            5: "Oslo, Norway",
-        }
-        assert _infer_home_location(locations) == "California, US"
+        regions = [
+            "California, US",
+            "California, US",
+            "California, US",
+            "California, US",
+            "California, US",
+            "Oslo, Norway",
+        ]
+        assert infer_home_region(regions) == "California, US"
 
     def test_returns_none_for_fewer_than_5_images(self):
-        locations = {0: "Oslo, Norway", 1: "Oslo, Norway", 2: "Oslo, Norway"}
-        assert _infer_home_location(locations) is None
+        regions = ["Oslo, Norway", "Oslo, Norway", "Oslo, Norway"]
+        assert infer_home_region(regions) is None
 
-    def test_returns_none_for_empty_dict(self):
-        assert _infer_home_location({}) is None
+    def test_returns_none_for_empty_list(self):
+        assert infer_home_region([]) is None
 
 
 class TestAbsorbNoiseByLocation:

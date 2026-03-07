@@ -34,6 +34,7 @@ def refine_clusters(
     split_gap_hours: float = 48.0,
     merge_similarity: float = 0.5,
     merge_time_hours: float = 168.0,
+    home_region: str | None = None,
 ) -> tuple[np.ndarray, dict]:
     """
     Refine cluster assignments using EXIF timestamps and embedding similarity.
@@ -54,7 +55,6 @@ def refine_clusters(
         regions,
     )
 
-    home_region = _infer_home_location(regions)
     labels, n_absorbed_loc = _absorb_noise_by_location(labels, timestamps, regions, home_region)
     labels, n_absorbed_vis = _absorb_noise_by_similarity(
         labels,
@@ -438,24 +438,24 @@ def _find_temporal_candidates(
     ]
 
 
-def _infer_home_location(locations: dict[int, str]) -> str | None:
+def infer_home_region(regions: list[str]) -> str | None:
     """
-    Infer the user's home location from the most frequent region.
+    Infer the user's home region from the most frequent region.
 
-    Returns the most common location if it appears 5+ times, else None.
+    Returns the most common region if it appears 5+ times, else None.
     """
-    if not locations:
+    if not regions:
         return None
 
     from collections import Counter
 
-    counts = Counter(locations.values())
-    most_common = counts.most_common(1)[0]
+    counts = Counter(regions)
+    most_common, count = counts.most_common(1)[0]
 
-    if most_common[1] < 5:
+    if count < 5:
         return None
 
-    return most_common[0]
+    return most_common
 
 
 def _parse_timestamp(ts: str | None) -> datetime | None:
