@@ -112,7 +112,7 @@ def main(
         help="Zero-shot classification confidence threshold.",
     ),
     caption_model: str = typer.Option(
-        "llava",
+        "qwen3.5:9b",
         "--caption-model",
         help="Ollama vision model for captioning.",
     ),

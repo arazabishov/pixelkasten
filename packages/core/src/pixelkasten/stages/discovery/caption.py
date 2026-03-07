@@ -6,7 +6,7 @@ Sends cluster representative images to a local vision-language model
 
 Prerequisites:
     - Ollama installed and running (`ollama serve`)
-    - A vision model pulled (`ollama pull llava`)
+    - A vision model pulled (`ollama pull qwen3.5:9b`)
 """
 
 from typing import Callable
