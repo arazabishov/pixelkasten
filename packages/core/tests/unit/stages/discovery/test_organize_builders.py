@@ -6,6 +6,7 @@ Unit tests for the organize module's pure logic functions:
 
 import pytest
 
+from pixelkasten.manifest import Discovery, Location, ManifestEntry, Metadata, Source, Status, Tag
 from pixelkasten.stages.discovery.organize import (
     _parse_llm_response,
     build_cluster_summary_text,
@@ -63,6 +64,50 @@ class TestBuildClusterSummaryText:
         # Cluster 0 has entries with location_name including San Francisco.
         assert "San Francisco" in text
         assert "California" in text
+
+    def test_excludes_clusters_smaller_than_min_size(self, sample_entries):
+        """Clusters with fewer entries than min_cluster_size should be excluded."""
+        # Cluster 0 has 5 entries, cluster 1 has 3 entries.
+        text = build_cluster_summary_text(sample_entries, min_cluster_size=4)
+
+        # Cluster 0 should be included.
+        assert "A beach scene" in text
+
+        # Cluster 1 should be excluded.
+        assert "A dinner gathering" not in text
+
+    def test_excludes_home_location_clusters(self):
+        """Clusters where the majority of entries are at the home location should be excluded."""
+        home = Location(name="Oslo, Oslo, NO", region="Oslo, NO", country="NO")
+        travel = Location(name="Antalya, Antalya, TR", region="Antalya, TR", country="TR")
+
+        def _entry(path, cluster, location):
+            return ManifestEntry(
+                media_path=path,
+                source=Source(type="loose"),
+                metadata=Metadata(status=Status.PROCESSED, dates=["2019-07-15T14:00:00"]),
+                location=location,
+                discovery=Discovery(status=Status.PROCESSED, cluster=cluster),
+            )
+
+        entries = [
+            # Cluster 0: travel (Antalya) — should be included.
+            _entry("/photos/a1.jpg", 0, travel),
+            _entry("/photos/a2.jpg", 0, travel),
+            _entry("/photos/a3.jpg", 0, travel),
+            # Cluster 1: home (Oslo) — should be excluded.
+            _entry("/photos/h1.jpg", 1, home),
+            _entry("/photos/h2.jpg", 1, home),
+            _entry("/photos/h3.jpg", 1, home),
+        ]
+
+        text = build_cluster_summary_text(entries, home_region="Oslo, NO")
+
+        # Travel cluster should be present.
+        assert "Cluster 0" in text
+
+        # Home cluster should be filtered out.
+        assert "Cluster 1" not in text
 
     def test_no_noise_section(self, sample_entries):
         """Noise images should not appear in the cluster summary."""

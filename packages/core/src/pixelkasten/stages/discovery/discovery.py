@@ -22,7 +22,7 @@ from pixelkasten.stages.discovery.cluster import (
 )
 from pixelkasten.stages.discovery.embed import embed_images, embed_texts, load_model
 from pixelkasten.stages.discovery.organize import propose_albums
-from pixelkasten.stages.discovery.refine import refine_clusters
+from pixelkasten.stages.discovery.refine import infer_home_region, refine_clusters
 from pixelkasten.handlers import is_image
 from pixelkasten.configuration import Options
 
@@ -81,16 +81,22 @@ def run_discovery(
     # Populate cluster and tags.
     for i, entry in enumerate(embedded_entries):
         entry.discovery.cluster = int(labels[i])
-        entry.discovery.tags = [Tag(name=name, score=round(score, 3)) for name, score in all_tags[i]]
+        entry.discovery.tags = [
+            Tag(name=name, score=round(score, 3)) for name, score in all_tags[i]
+        ]
 
     # Resolve GPS → location names (used by refine and organize).
     from pixelkasten.stages.discovery.geocode import reverse_geocode
 
     reverse_geocode(manifest)
 
+    # Infer home region once — used by refine (noise absorption) and organize (album filtering).
+    regions = [e.location.region for e in image_entries if e.location and e.location.region]
+    home_region = infer_home_region(regions)
+
     # Refine (optional) — update labels before representative selection.
     if not options.discovery.skip_refine:
-        labels, _ = refine_clusters(embedded_entries, embeddings)
+        labels, _ = refine_clusters(embedded_entries, embeddings, home_region=home_region)
         for i, entry in enumerate(embedded_entries):
             if entry.discovery is not None:
                 entry.discovery.cluster = int(labels[i])
@@ -127,7 +133,7 @@ def run_discovery(
 
     # Propose albums (requires Ollama).
     with progress("Proposing albums", 1) as tick:
-        propose_albums(image_entries, options.discovery)
+        propose_albums(image_entries, options.discovery, home_region=home_region)
         if tick:
             tick(1)
 

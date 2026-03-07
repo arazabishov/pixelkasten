@@ -50,11 +50,16 @@ No explanation, no markdown fences, no extra text. Example:
 """
 
 
-def build_cluster_summary_text(entries: list[ManifestEntry]) -> str:
+def build_cluster_summary_text(
+    entries: list[ManifestEntry],
+    min_cluster_size: int = 1,
+    home_region: str | None = None,
+) -> str:
     """
     Build a text summary of all clusters for the LLM prompt.
 
     Aggregates captions, tags, date ranges, and locations from entries.
+    Clusters smaller than min_cluster_size or at the home region are excluded.
     """
     # Group entries by cluster, skipping noise and non-discovery entries.
     by_cluster: dict[int, list[ManifestEntry]] = {}
@@ -70,6 +75,19 @@ def build_cluster_summary_text(entries: list[ManifestEntry]) -> str:
         assert entry.discovery is not None
         assert entry.discovery.cluster is not None
         by_cluster.setdefault(entry.discovery.cluster, []).append(entry)
+
+    # Drop clusters that are too small to form a meaningful album.
+    by_cluster = {
+        cid: members for cid, members in by_cluster.items() if len(members) >= min_cluster_size
+    }
+
+    # Drop home-location clusters — routine photos shouldn't become albums.
+    if home_region:
+        by_cluster = {
+            cid: members
+            for cid, members in by_cluster.items()
+            if not _is_home_cluster(members, home_region)
+        }
 
     if not by_cluster:
         return "(No clusters found.)"
@@ -147,14 +165,23 @@ def build_cluster_summary_text(entries: list[ManifestEntry]) -> str:
     return "\n".join(lines)
 
 
-def propose_albums(entries: list[ManifestEntry], options: DiscoveryOptions) -> None:
+def propose_albums(
+    entries: list[ManifestEntry],
+    options: DiscoveryOptions,
+    home_region: str | None = None,
+) -> None:
     """
     Call LLM to propose album names, then mutate manifest entries.
 
     Sets entry.source = Source(type="album", name=name) for each entry
     in a cluster the LLM named.
     """
-    album_names = _propose_organization(entries, model=options.organize_model)
+    album_names = _propose_organization(
+        entries,
+        model=options.organize_model,
+        min_cluster_size=options.min_cluster_size,
+        home_region=home_region,
+    )
 
     clustered = [
         e
@@ -170,14 +197,19 @@ def propose_albums(entries: list[ManifestEntry], options: DiscoveryOptions) -> N
 
 
 def _propose_organization(
-    entries: list[ManifestEntry], model: str = DEFAULT_MODEL
+    entries: list[ManifestEntry],
+    model: str = DEFAULT_MODEL,
+    min_cluster_size: int = 1,
+    home_region: str | None = None,
 ) -> dict[str, str]:
     """
     Send cluster summaries to the LLM and get back album name proposals.
     """
     from pixelkasten.tools.ollama import chat
 
-    summary_text = build_cluster_summary_text(entries)
+    summary_text = build_cluster_summary_text(
+        entries, min_cluster_size=min_cluster_size, home_region=home_region
+    )
     prompt = PROMPT_TEMPLATE.format(cluster_summary=summary_text)
     raw_response = chat(model, prompt) or ""
     return _parse_llm_response(raw_response)
@@ -210,3 +242,15 @@ def _parse_llm_response(raw: str) -> dict[str, str]:
         raise ValueError(f"Expected a JSON object, got: {type(result)}")
 
     return {str(k): str(v) for k, v in result.items()}
+
+
+def _is_home_cluster(members: list[ManifestEntry], home_region: str) -> bool:
+    """
+    Returns True if the majority of geotagged entries in the cluster
+    are at the home region.
+    """
+    geotagged = [e for e in members if e.location and e.location.region]
+    if not geotagged:
+        return False
+    home_count = sum(1 for e in geotagged if e.location and e.location.region == home_region)
+    return home_count / len(geotagged) > 0.5

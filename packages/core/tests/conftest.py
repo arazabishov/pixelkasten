@@ -68,6 +68,11 @@ def sample_entries():
         region="California, US",
         country="US",
     )
+    oslo_location = Location(
+        name="Oslo, Oslo, NO",
+        region="Oslo, NO",
+        country="NO",
+    )
 
     return [
         _entry(
@@ -111,7 +116,6 @@ def sample_entries():
             tags=[],
             dates=["2019-07-17T11:00:00"],
             geo={"latitude": 37.80, "longitude": -122.41},
-            location=sf_location,
         ),
         _entry(
             "/photos/img_006.jpg",
@@ -119,6 +123,7 @@ def sample_entries():
             tags=[{"name": "event:dinner gathering", "score": 0.22}],
             dates=["2019-08-20T19:00:00"],
             geo=None,
+            location=oslo_location,
             caption="A dinner gathering",
             is_representative=True,
         ),
@@ -128,6 +133,7 @@ def sample_entries():
             tags=[{"name": "event:dinner gathering", "score": 0.20}],
             dates=["2019-08-20T20:30:00"],
             geo=None,
+            location=oslo_location,
         ),
         _entry(
             "/photos/img_008.jpg",
@@ -135,6 +141,7 @@ def sample_entries():
             tags=[],
             dates=["2019-08-20T21:00:00"],
             geo=None,
+            location=oslo_location,
         ),
         _entry(
             "/photos/img_009.jpg",
