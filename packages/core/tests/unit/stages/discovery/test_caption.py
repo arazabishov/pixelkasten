@@ -24,24 +24,30 @@ def _entry(path, is_representative=False, status=Status.PROCESSED):
 
 
 class TestCaptionImage:
+    @patch("pixelkasten.stages.discovery.caption._downscale", return_value=b"fake-jpeg")
     @patch("pixelkasten.stages.discovery.caption.chat")
-    def test_returns_caption(self, mock_chat):
+    def test_returns_caption(self, mock_chat, mock_downscale):
         mock_chat.return_value = "A sunset over the ocean."
 
         result = caption_image("llava", "/photos/img.jpg", "Describe this.")
 
         assert result == "A sunset over the ocean."
 
+        # Verify downscaled bytes were passed to chat.
+        mock_chat.assert_called_once_with("llava", "Describe this.", images=[b"fake-jpeg"])
+
+    @patch("pixelkasten.stages.discovery.caption._downscale", return_value=b"fake-jpeg")
     @patch("pixelkasten.stages.discovery.caption.chat")
-    def test_returns_none_on_exception(self, mock_chat):
+    def test_returns_none_on_exception(self, mock_chat, mock_downscale):
         mock_chat.side_effect = RuntimeError("Connection refused")
 
         result = caption_image("llava", "/photos/img.jpg", "Describe this.")
 
         assert result is None
 
+    @patch("pixelkasten.stages.discovery.caption._downscale", return_value=b"fake-jpeg")
     @patch("pixelkasten.stages.discovery.caption.chat")
-    def test_returns_none_for_empty_content(self, mock_chat):
+    def test_returns_none_for_empty_content(self, mock_chat, mock_downscale):
         mock_chat.return_value = None
 
         result = caption_image("llava", "/photos/img.jpg", "Describe this.")

@@ -69,4 +69,9 @@ def run_pipeline(options: Options, hooks: Hooks, progress: Callable) -> list[Man
 
     hooks.on_errors(manifest)
 
+    if options.write_manifest:
+        from pixelkasten.tools.serialize import write_manifest
+
+        write_manifest(manifest, options)
+
     return manifest

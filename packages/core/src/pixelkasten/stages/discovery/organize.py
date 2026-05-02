@@ -1,7 +1,7 @@
 """
 LLM-powered album naming for photo clusters.
 
-Feeds cluster summaries (captions, EXIF dates, GPS locations, tags) to a
+Feeds cluster summaries (captions, EXIF dates, GPS locations) to a
 local text LLM via Ollama to propose album names. The LLM never sees image
 bytes — it works entirely with structured text.
 
@@ -27,7 +27,7 @@ similar photos and propose a descriptive album name for each cluster.
 - Album names should be concise but descriptive (2-5 words)
 - Use sentence-style capitalization: capitalize the first word and proper nouns \
 only (e.g., "Vacation in France", "Walk in the park", "Christmas dinner in Berlin")
-- Derive the name from the captions, tags, and location data
+- Derive the name from the captions and location data
 - When a cluster spans multiple cities in the same region, use a broader \
 geographic name (e.g., "Bay Area trip" for San Francisco + Sunnyvale, \
 or "California road trip" if cities are spread across the state)
@@ -58,7 +58,7 @@ def build_cluster_summary_text(
     """
     Build a text summary of all clusters for the LLM prompt.
 
-    Aggregates captions, tags, date ranges, and locations from entries.
+    Aggregates captions, date ranges, and locations from entries.
     Clusters smaller than min_cluster_size or at the home region are excluded.
     """
     # Group entries by cluster, skipping noise and non-discovery entries.
@@ -108,16 +108,6 @@ def build_cluster_summary_text(
             lines.append("  Captions:")
             for cap in captions:
                 lines.append(f'    - "{cap}"')
-
-        # Tags aggregated from all entries in the cluster.
-        tag_counts: Counter = Counter()
-        for entry in cluster_entries:
-            if entry.discovery:
-                for tag in entry.discovery.tags:
-                    tag_counts[tag.name] += 1
-        if tag_counts:
-            top_tags = [name for name, _ in tag_counts.most_common(5)]
-            lines.append(f"  Top tags: {', '.join(top_tags)}")
 
         # Date range from metadata timestamps.
         timestamps = []

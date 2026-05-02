@@ -19,9 +19,6 @@ This means you can directly compare an image vector against a text vector:
 - Embed a photo of a birthday → get a 768-dimensional vector
 - Compute cosine similarity between them → high score (they're related)
 
-This is what powers zero-shot classification (see classify.py) — we compare
-images against text labels without any training or labeled data.
-
 # How this module works
 
 1. load_model() downloads and loads a CLIP model (ViT-L/14 by default).
@@ -31,9 +28,6 @@ images against text labels without any training or labeled data.
 2. embed_images() takes a batch of image file paths, preprocesses them
    (resize, normalize pixel values to what CLIP expects), and runs them
    through the model to produce one 768-dimensional vector per image.
-
-3. embed_texts() does the same for text strings — used to embed label
-   names for zero-shot classification.
 
 All vectors are L2-normalized (unit length), which means cosine similarity
 between any two vectors is simply their dot product.
@@ -66,7 +60,7 @@ def load_model(
     device: str | None = None,
 ):
     """
-    Load a CLIP model, its image preprocessing transform, and its tokenizer.
+    Load a CLIP model and its image preprocessing transform.
 
     Args:
         model_name: Which CLIP architecture to use. "ViT-L-14" is a good
@@ -78,33 +72,38 @@ def load_model(
         device: Compute device ("mps", "cuda", "cpu"). Auto-detected if None.
 
     Returns:
-        A tuple of (model, preprocess, tokenizer, device_str):
+        A tuple of (model, preprocess, device_str):
         - model: The CLIP neural network.
         - preprocess: A function that converts a PIL Image into the tensor
           format the model expects (resize, crop, normalize).
-        - tokenizer: A function that converts text strings into token IDs
-          the model expects.
         - device: The device string that was selected.
     """
-    import open_clip
+    import os
 
     if device is None:
         device = detect_device()
 
-    # create_model_and_transforms returns (model, train_preprocess, val_preprocess).
-    # We only need val_preprocess — the one used for inference, not training.
-    model, _, preprocess = open_clip.create_model_and_transforms(
-        model_name, pretrained=pretrained, device=device, force_quick_gelu=True
-    )
+    # Set offline mode before importing open_clip so huggingface_hub
+    # sees it at import time. Falls back to online if not cached yet.
+    os.environ["HF_HUB_OFFLINE"] = "1"
+    import open_clip
 
-    tokenizer = open_clip.get_tokenizer(model_name)
+    try:
+        model, _, preprocess = open_clip.create_model_and_transforms(
+            model_name, pretrained=pretrained, device=device, force_quick_gelu=True
+        )
+    except Exception:
+        del os.environ["HF_HUB_OFFLINE"]
+        model, _, preprocess = open_clip.create_model_and_transforms(
+            model_name, pretrained=pretrained, device=device, force_quick_gelu=True
+        )
 
     # Set the model to evaluation mode. This disables training-specific
     # behaviors like dropout (randomly zeroing neurons). During inference,
     # we want deterministic, full-precision results.
     model.eval()
 
-    return model, preprocess, tokenizer, device
+    return model, preprocess, device
 
 
 def embed_images(
@@ -205,43 +204,3 @@ def embed_images(
 
     # Vertically stack all batch results into one big (N, 768) array.
     return np.vstack(all_embeddings), failed_indices
-
-
-def embed_texts(
-    model,
-    tokenizer,
-    texts: list[str],
-    device: str,
-) -> np.ndarray:
-    """
-    Generate CLIP embeddings for a list of text strings.
-
-    Used for zero-shot classification: embed label names like "beach" or
-    "birthday party", then compare against image embeddings to classify
-    images into categories.
-
-    Args:
-        model: The CLIP model from load_model().
-        tokenizer: The tokenizer from load_model().
-        texts: List of text strings to embed.
-        device: Compute device string.
-
-    Returns:
-        A numpy array of shape (M, embedding_dim) where M = len(texts).
-        Each row is a 768-dimensional unit vector.
-    """
-    import torch
-
-    # Tokenize: convert text strings into sequences of integer token IDs
-    # that the model understands. Handles padding, truncation, etc.
-    tokens = tokenizer(texts).to(device)
-
-    with torch.no_grad():
-        # Run through CLIP's text encoder.
-        # Output shape: (M, 768) — one embedding per text string.
-        embeddings = model.encode_text(tokens)
-
-        # L2-normalize, same as images.
-        embeddings = embeddings / embeddings.norm(dim=-1, keepdim=True)
-
-    return embeddings.cpu().numpy()

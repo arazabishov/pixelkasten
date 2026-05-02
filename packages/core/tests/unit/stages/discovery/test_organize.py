@@ -27,7 +27,6 @@ def _options(model="qwen3.5:35b"):
         organize_model=model,
         batch_size=32,
         min_cluster_size=5,
-        classify_threshold=0.2,
         skip_caption=True,
         skip_refine=True,
     )

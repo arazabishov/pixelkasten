@@ -29,7 +29,6 @@ def _make_options(
             organize_model="qwen3.5:35b",
             batch_size=32,
             min_cluster_size=5,
-            classify_threshold=0.2,
             skip_caption=skip_caption,
             skip_refine=skip_refine,
         ),
@@ -71,9 +70,6 @@ class TestDiscoveryIndexMapping:
 
     @patch("pixelkasten.stages.discovery.geocode.reverse_geocode")
     @patch(f"{EMBED_MOD}.propose_albums")
-    @patch(f"{EMBED_MOD}.classify")
-    @patch(f"{EMBED_MOD}.embed_texts")
-    @patch(f"{EMBED_MOD}.build_label_list")
     @patch(f"{EMBED_MOD}.find_representatives")
     @patch(f"{EMBED_MOD}.cluster_embeddings")
     @patch(f"{EMBED_MOD}.embed_images")
@@ -84,9 +80,6 @@ class TestDiscoveryIndexMapping:
         mock_embed_images,
         mock_cluster,
         mock_find_reps,
-        mock_build_labels,
-        mock_embed_texts,
-        mock_classify,
         mock_propose,
         mock_geocode,
     ):
@@ -95,7 +88,7 @@ class TestDiscoveryIndexMapping:
         embeddings = _make_embeddings(4)  # 4 successful
         failed_indices = [2]
 
-        mock_load_model.return_value = (MagicMock(), MagicMock(), MagicMock(), "cpu")
+        mock_load_model.return_value = (MagicMock(), MagicMock(), "cpu")
         mock_embed_images.return_value = (embeddings, failed_indices)
 
         # Cluster: 4 images → labels [0, 0, 1, 1]
@@ -103,17 +96,6 @@ class TestDiscoveryIndexMapping:
 
         # Representatives: embedding row 0 and row 2
         mock_find_reps.return_value = {0: [0], 1: [2]}
-
-        mock_build_labels.return_value = (["scene:beach"], ["a photo of beach"])
-        mock_embed_texts.return_value = _make_embeddings(1)
-
-        # Classify returns one tag list per embedding row.
-        mock_classify.return_value = [
-            [("scene:beach", 0.3)],
-            [("scene:beach", 0.25)],
-            [("scene:mountain", 0.28)],
-            [("scene:mountain", 0.22)],
-        ]
 
         options = _make_options(skip_refine=True, skip_caption=True)
         run_discovery(entries, options, progress=_noop_progress)
@@ -123,7 +105,6 @@ class TestDiscoveryIndexMapping:
         assert entries[0].discovery.status == Status.PROCESSED
         assert entries[0].discovery.cluster == 0
         assert entries[0].discovery.is_representative is True
-        assert entries[0].discovery.tags[0].name == "scene:beach"
 
         # Entry 1 → embed row 1 → cluster 0, not representative
         assert entries[1].discovery is not None
@@ -140,7 +121,6 @@ class TestDiscoveryIndexMapping:
         assert entries[3].discovery.status == Status.PROCESSED
         assert entries[3].discovery.cluster == 1
         assert entries[3].discovery.is_representative is True
-        assert entries[3].discovery.tags[0].name == "scene:mountain"
 
         # Entry 4 → embed row 3 → cluster 1, not representative
         assert entries[4].discovery is not None
@@ -149,9 +129,6 @@ class TestDiscoveryIndexMapping:
 
     @patch("pixelkasten.stages.discovery.geocode.reverse_geocode")
     @patch(f"{EMBED_MOD}.propose_albums")
-    @patch(f"{EMBED_MOD}.classify")
-    @patch(f"{EMBED_MOD}.embed_texts")
-    @patch(f"{EMBED_MOD}.build_label_list")
     @patch(f"{EMBED_MOD}.find_representatives")
     @patch(f"{EMBED_MOD}.cluster_embeddings")
     @patch(f"{EMBED_MOD}.embed_images")
@@ -162,22 +139,16 @@ class TestDiscoveryIndexMapping:
         mock_embed_images,
         mock_cluster,
         mock_find_reps,
-        mock_build_labels,
-        mock_embed_texts,
-        mock_classify,
         mock_propose,
         mock_geocode,
     ):
         entries = [_make_entry(f"/photos/img_{i}.jpg") for i in range(3)]
         embeddings = _make_embeddings(3)
 
-        mock_load_model.return_value = (MagicMock(), MagicMock(), MagicMock(), "cpu")
+        mock_load_model.return_value = (MagicMock(), MagicMock(), "cpu")
         mock_embed_images.return_value = (embeddings, [])
         mock_cluster.return_value = np.array([0, 0, 0])
         mock_find_reps.return_value = {0: [0]}
-        mock_build_labels.return_value = (["scene:beach"], ["a photo of beach"])
-        mock_embed_texts.return_value = _make_embeddings(1)
-        mock_classify.return_value = [[("scene:beach", 0.3)]] * 3
 
         options = _make_options()
         run_discovery(entries, options, progress=_noop_progress)
@@ -190,9 +161,6 @@ class TestDiscoveryIndexMapping:
 
     @patch("pixelkasten.stages.discovery.geocode.reverse_geocode")
     @patch(f"{EMBED_MOD}.propose_albums")
-    @patch(f"{EMBED_MOD}.classify")
-    @patch(f"{EMBED_MOD}.embed_texts")
-    @patch(f"{EMBED_MOD}.build_label_list")
     @patch(f"{EMBED_MOD}.find_representatives")
     @patch(f"{EMBED_MOD}.cluster_embeddings")
     @patch(f"{EMBED_MOD}.embed_images")
@@ -203,9 +171,6 @@ class TestDiscoveryIndexMapping:
         mock_embed_images,
         mock_cluster,
         mock_find_reps,
-        mock_build_labels,
-        mock_embed_texts,
-        mock_classify,
         mock_propose,
         mock_geocode,
     ):
@@ -216,13 +181,10 @@ class TestDiscoveryIndexMapping:
         ]
         embeddings = _make_embeddings(2)
 
-        mock_load_model.return_value = (MagicMock(), MagicMock(), MagicMock(), "cpu")
+        mock_load_model.return_value = (MagicMock(), MagicMock(), "cpu")
         mock_embed_images.return_value = (embeddings, [])
         mock_cluster.return_value = np.array([0, 0])
         mock_find_reps.return_value = {0: [0]}
-        mock_build_labels.return_value = (["scene:beach"], ["a photo of beach"])
-        mock_embed_texts.return_value = _make_embeddings(1)
-        mock_classify.return_value = [[("scene:beach", 0.3)]] * 2
 
         options = _make_options()
         run_discovery(entries, options, progress=_noop_progress)
@@ -252,9 +214,6 @@ class TestDiscoveryRefineIntegration:
     @patch("pixelkasten.stages.discovery.geocode.reverse_geocode")
     @patch(f"{EMBED_MOD}.propose_albums")
     @patch(f"{EMBED_MOD}.refine_clusters")
-    @patch(f"{EMBED_MOD}.classify")
-    @patch(f"{EMBED_MOD}.embed_texts")
-    @patch(f"{EMBED_MOD}.build_label_list")
     @patch(f"{EMBED_MOD}.find_representatives")
     @patch(f"{EMBED_MOD}.cluster_embeddings")
     @patch(f"{EMBED_MOD}.embed_images")
@@ -265,9 +224,6 @@ class TestDiscoveryRefineIntegration:
         mock_embed_images,
         mock_cluster,
         mock_find_reps,
-        mock_build_labels,
-        mock_embed_texts,
-        mock_classify,
         mock_refine,
         mock_propose,
         mock_geocode,
@@ -275,15 +231,12 @@ class TestDiscoveryRefineIntegration:
         entries = [_make_entry(f"/photos/img_{i}.jpg") for i in range(4)]
         embeddings = _make_embeddings(4)
 
-        mock_load_model.return_value = (MagicMock(), MagicMock(), MagicMock(), "cpu")
+        mock_load_model.return_value = (MagicMock(), MagicMock(), "cpu")
         mock_embed_images.return_value = (embeddings, [])
 
         # Initial clustering: all in cluster 0.
         mock_cluster.return_value = np.array([0, 0, 0, 0])
         mock_find_reps.return_value = {0: [0]}
-        mock_build_labels.return_value = (["scene:beach"], ["a photo of beach"])
-        mock_embed_texts.return_value = _make_embeddings(1)
-        mock_classify.return_value = [[("scene:beach", 0.3)]] * 4
 
         # Refine splits into two clusters.
         mock_refine.return_value = (np.array([0, 0, 1, 1]), {"splits": 1})

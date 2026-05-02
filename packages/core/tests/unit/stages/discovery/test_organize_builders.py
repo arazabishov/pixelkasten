@@ -6,7 +6,7 @@ Unit tests for the organize module's pure logic functions:
 
 import pytest
 
-from pixelkasten.manifest import Discovery, Location, ManifestEntry, Metadata, Source, Status, Tag
+from pixelkasten.manifest import Discovery, Location, ManifestEntry, Metadata, Source, Status
 from pixelkasten.stages.discovery.organize import (
     _parse_llm_response,
     build_cluster_summary_text,
@@ -36,15 +36,12 @@ class TestParseLlmResponse:
 
 
 class TestBuildClusterSummaryText:
-    def test_output_includes_captions_tags_and_date_range(self, sample_entries):
-        """The summary text must contain captions, tags, and date range for each cluster."""
+    def test_output_includes_captions_and_date_range(self, sample_entries):
+        """The summary text must contain captions and date range for each cluster."""
         text = build_cluster_summary_text(sample_entries)
 
         # Cluster 0 caption (from entry-level caption field).
         assert "A beach scene" in text
-
-        # Cluster 0 tags (aggregated from entry-level tags).
-        assert "scene:beach" in text
 
         # Cluster 0 date range (computed from entry timestamps).
         assert "2019-07-15T14:30:00" in text

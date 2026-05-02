@@ -106,13 +106,8 @@ def main(
         "--min-cluster-size",
         help="Minimum cluster size for HDBSCAN.",
     ),
-    classify_threshold: float = typer.Option(
-        0.15,
-        "--classify-threshold",
-        help="Zero-shot classification confidence threshold.",
-    ),
     caption_model: str = typer.Option(
-        "qwen3.5:9b",
+        "llava",
         "--caption-model",
         help="Ollama vision model for captioning.",
     ),
@@ -120,6 +115,11 @@ def main(
         "qwen3.5:35b",
         "--organize-model",
         help="Ollama text model for album naming.",
+    ),
+    write_manifest: bool = typer.Option(
+        False,
+        "--write-manifest",
+        help="Save manifest as JSON in destination for debugging.",
     ),
 ):
     """
@@ -158,7 +158,6 @@ def main(
             organize_model=organize_model,
             batch_size=batch_size,
             min_cluster_size=min_cluster_size,
-            classify_threshold=classify_threshold,
             skip_caption=skip_caption,
             skip_refine=skip_refine,
         )
@@ -177,6 +176,7 @@ def main(
         prefer=prefer,
         fuzzy=fuzzy,
         fuzzy_threshold=fuzzy_threshold,
+        write_manifest=write_manifest,
     )
 
     console.print(f"\n[bold]Processing photos from {source}...[/bold]")
