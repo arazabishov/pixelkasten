@@ -25,9 +25,6 @@ class DiscoveryOptions:
     # smallest group HDBSCAN will form
     min_cluster_size: int
 
-    # zero-shot classification confidence cutoff
-    classify_threshold: float
-
     # skip VLM captioning
     skip_caption: bool
 
@@ -66,6 +63,9 @@ class Options:
 
     # minimum filename length for fuzzy matching
     fuzzy_threshold: int
+
+    # save manifest as JSON for debugging
+    write_manifest: bool = False
 
 
 @dataclass

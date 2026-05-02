@@ -2,18 +2,21 @@
 VLM captioning via Ollama.
 
 Sends cluster representative images to a local vision-language model
-(LLaVA, Moondream, etc.) running on Ollama to generate free-form captions.
+running on Ollama to generate free-form captions. Images are downscaled
+before sending to reduce vision encoder processing time.
 
 Prerequisites:
     - Ollama installed and running (`ollama serve`)
-    - A vision model pulled (`ollama pull qwen3.5:9b`)
+    - A vision model pulled (`ollama pull llava`)
 """
 
+import io
 from typing import Callable
 
 from pixelkasten.manifest import ManifestEntry, Status
 from pixelkasten.tools.ollama import chat
 
+MAX_EDGE = 768
 
 DEFAULT_PROMPT = (
     "Describe this photograph in 1-2 sentences. "
@@ -21,14 +24,32 @@ DEFAULT_PROMPT = (
 )
 
 
+def _downscale(image_path: str) -> bytes:
+    """
+    Load an image, downscale to MAX_EDGE preserving aspect ratio,
+    and return JPEG bytes. Skips resizing if already small enough.
+    """
+    from PIL import Image
+
+    img = Image.open(image_path).convert("RGB")
+    if max(img.size) > MAX_EDGE:
+        img.thumbnail((MAX_EDGE, MAX_EDGE))
+
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=85)
+    return buf.getvalue()
+
+
 def caption_image(model: str, image_path: str, prompt: str) -> str | None:
     """
     Send a single image to Ollama and return the caption text.
 
+    Downscales the image before sending to speed up inference.
     Returns None if captioning fails so the pipeline can continue.
     """
     try:
-        return chat(model, prompt, images=[image_path])
+        image_bytes = _downscale(image_path)
+        return chat(model, prompt, images=[image_bytes])
     except Exception:
         return None
 

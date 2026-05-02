@@ -8,14 +8,12 @@ from pixelkasten.manifest import (
     Metadata,
     Source,
     Status,
-    Tag,
 )
 
 
 def _entry(
     media_path,
     cluster,
-    tags,
     dates,
     geo=None,
     location=None,
@@ -43,7 +41,6 @@ def _entry(
             status=Status.ERROR if failed else Status.PROCESSED,
             cluster=cluster,
             is_representative=is_representative,
-            tags=[Tag(name=t["name"], score=t["score"]) for t in tags],
             caption=caption,
         ),
     )
@@ -78,7 +75,6 @@ def sample_entries():
         _entry(
             "/photos/img_001.jpg",
             cluster=0,
-            tags=[{"name": "scene:beach", "score": 0.31}],
             dates=["2019-07-15T14:30:00"],
             geo={"latitude": 37.80, "longitude": -122.41},
             location=sf_location,
@@ -88,7 +84,6 @@ def sample_entries():
         _entry(
             "/photos/img_002.jpg",
             cluster=0,
-            tags=[{"name": "scene:beach", "score": 0.28}],
             dates=["2019-07-15T16:00:00"],
             geo={"latitude": 37.79, "longitude": -122.44},
             location=sf_location,
@@ -96,7 +91,6 @@ def sample_entries():
         _entry(
             "/photos/img_003.jpg",
             cluster=0,
-            tags=[{"name": "scene:city street", "score": 0.25}],
             dates=["2019-07-16T10:00:00"],
             geo={"latitude": 37.40, "longitude": -122.03},
             location=sunnyvale_location,
@@ -104,7 +98,6 @@ def sample_entries():
         _entry(
             "/photos/img_004.jpg",
             cluster=0,
-            tags=[],
             dates=["2019-07-17T09:00:00"],
             geo={"latitude": 37.80, "longitude": -122.41},
             location=sf_location,
@@ -113,14 +106,12 @@ def sample_entries():
         _entry(
             "/photos/img_005.jpg",
             cluster=0,
-            tags=[],
             dates=["2019-07-17T11:00:00"],
             geo={"latitude": 37.80, "longitude": -122.41},
         ),
         _entry(
             "/photos/img_006.jpg",
             cluster=1,
-            tags=[{"name": "event:dinner gathering", "score": 0.22}],
             dates=["2019-08-20T19:00:00"],
             geo=None,
             location=oslo_location,
@@ -130,7 +121,6 @@ def sample_entries():
         _entry(
             "/photos/img_007.jpg",
             cluster=1,
-            tags=[{"name": "event:dinner gathering", "score": 0.20}],
             dates=["2019-08-20T20:30:00"],
             geo=None,
             location=oslo_location,
@@ -138,7 +128,6 @@ def sample_entries():
         _entry(
             "/photos/img_008.jpg",
             cluster=1,
-            tags=[],
             dates=["2019-08-20T21:00:00"],
             geo=None,
             location=oslo_location,
@@ -146,14 +135,12 @@ def sample_entries():
         _entry(
             "/photos/img_009.jpg",
             cluster=-1,
-            tags=[],
             dates=["2019-09-01T12:00:00"],
             geo=None,
         ),
         _entry(
             "/photos/img_010.jpg",
             cluster=None,
-            tags=[],
             dates=None,
             failed=True,
         ),

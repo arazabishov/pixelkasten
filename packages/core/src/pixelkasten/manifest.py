@@ -104,15 +104,6 @@ class Location:
 
 
 @dataclass
-class Tag:
-    # zero-shot classification label
-    name: str
-
-    # classification confidence
-    score: float
-
-
-@dataclass
 class Discovery:
     # tracks progress through discovery stages
     status: Status = Status.PENDING
@@ -122,9 +113,6 @@ class Discovery:
 
     # whether this entry represents its cluster in captioning
     is_representative: bool = False
-
-    # zero-shot classification results from CLIP
-    tags: list[Tag] = field(default_factory=list)
 
     # VLM-generated description of the image
     caption: str | None = None
@@ -185,7 +173,7 @@ class ManifestEntry:
     # final outcome — copied/written result and actual disk path
     apply: Apply | None = None
 
-    # cluster assignment, tags, caption — set by discovery stages
+    # cluster assignment, caption — set by discovery stages
     discovery: Discovery | None = None
 
     def can_keep(self) -> bool:
