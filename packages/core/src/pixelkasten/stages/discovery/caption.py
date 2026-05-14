@@ -13,6 +13,7 @@ Prerequisites:
 import io
 from typing import Callable
 
+from pixelkasten.configuration import DiscoveryOptions
 from pixelkasten.manifest import ManifestEntry, Status
 from pixelkasten.tools.ollama import chat
 
@@ -56,15 +57,14 @@ def caption_image(model: str, image_path: str, prompt: str) -> str | None:
 
 def caption_representatives(
     entries: list[ManifestEntry],
-    model: str,
-    prompt: str = DEFAULT_PROMPT,
+    options: DiscoveryOptions,
     on_progress: Callable[[int], None] | None = None,
-) -> dict[str, str]:
+) -> None:
     """
-    Caption all representative images.
+    Caption all representative images, writing results to entry.discovery.caption.
 
-    Returns a dict mapping image path to caption text for successfully
-    captioned images.
+    Reads `caption_model` from options. Skips entries where captioning fails
+    so the pipeline can continue.
     """
     representatives = [
         entry
@@ -74,14 +74,11 @@ def caption_representatives(
         and entry.discovery.status == Status.PROCESSED
     ]
 
-    captions = {}
     for i, entry in enumerate(representatives):
-        caption = caption_image(model, entry.media_path, prompt)
+        caption = caption_image(options.caption_model, entry.media_path, DEFAULT_PROMPT)
 
-        if caption is not None:
-            captions[entry.media_path] = caption
+        if caption is not None and entry.discovery is not None:
+            entry.discovery.caption = caption
 
         if on_progress is not None:
             on_progress(i + 1)
-
-    return captions

@@ -15,7 +15,7 @@ from pixelkasten.stages.discovery.cluster import (
     cluster_embeddings,
     find_representatives,
 )
-from pixelkasten.stages.discovery.embed import embed_images, load_model
+from pixelkasten.stages.discovery.embed import embed_images
 from pixelkasten.stages.discovery.organize import propose_albums
 from pixelkasten.stages.discovery.refine import infer_home_region, refine_clusters
 from pixelkasten.handlers import is_image
@@ -40,20 +40,11 @@ def run_discovery(
     if options.discovery is None:
         raise ValueError("discovery options are required for run_discovery")
 
-    model, preprocess, device = load_model(model_name=options.discovery.clip_model)
-
     with progress("Embedding images", len(image_paths)) as tick:
-        embeddings, failed_indices = embed_images(
-            model,
-            preprocess,
-            image_paths,
-            device,
-            batch_size=options.discovery.batch_size,
-            on_progress=tick,
-        )
+        embeddings, failed_indices = embed_images(image_paths, options.discovery, on_progress=tick)
 
     # Cluster
-    labels = cluster_embeddings(embeddings, min_cluster_size=options.discovery.min_cluster_size)
+    labels = cluster_embeddings(embeddings, options.discovery)
 
     # Create Discovery objects early so downstream stages never see None.
     # embedded_entries[i] aligns with embeddings row i.
@@ -79,19 +70,12 @@ def run_discovery(
     regions = [e.location.region for e in image_entries if e.location and e.location.region]
     home_region = infer_home_region(regions)
 
-    # Refine (optional) — update labels before representative selection.
+    # Refine (optional) — updates entry.discovery.cluster.
     if not options.discovery.skip_refine:
-        labels, _ = refine_clusters(embedded_entries, embeddings, home_region=home_region)
-        for i, entry in enumerate(embedded_entries):
-            if entry.discovery is not None:
-                entry.discovery.cluster = int(labels[i])
+        refine_clusters(embedded_entries, embeddings, home_region=home_region)
 
-    # Representatives — computed once on final labels.
-    representatives = find_representatives(embeddings, labels)
-    reps_flat = {r for reps in representatives.values() for r in reps}
-    for i, entry in enumerate(embedded_entries):
-        if entry.discovery is not None:
-            entry.discovery.is_representative = i in reps_flat
+    # Pick representatives — reads final cluster from entries, writes is_representative.
+    find_representatives(embedded_entries, embeddings)
 
     # Caption (optional).
     if not options.discovery.skip_caption:
@@ -105,16 +89,7 @@ def run_discovery(
             and entry.discovery.status == Status.PROCESSED
         )
         with progress("Captioning images", n_reps) as tick:
-            captions = caption_representatives(
-                image_entries,
-                options.discovery.caption_model,
-                on_progress=tick,
-            )
-        entries_by_path = {e.media_path: e for e in image_entries}
-        for path, cap in captions.items():
-            entry = entries_by_path.get(path)
-            if entry and entry.discovery:
-                entry.discovery.caption = cap
+            caption_representatives(image_entries, options.discovery, on_progress=tick)
 
     # Propose albums (requires Ollama).
     with progress("Proposing albums", 1) as tick:

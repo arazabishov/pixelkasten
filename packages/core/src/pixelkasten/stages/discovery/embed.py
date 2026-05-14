@@ -21,19 +21,18 @@ This means you can directly compare an image vector against a text vector:
 
 # How this module works
 
-1. load_model() downloads and loads a CLIP model (ViT-L/14 by default).
-   The model runs on GPU if available (MPS on Apple Silicon, CUDA on NVIDIA)
-   for much faster inference than CPU.
-
-2. embed_images() takes a batch of image file paths, preprocesses them
-   (resize, normalize pixel values to what CLIP expects), and runs them
-   through the model to produce one 768-dimensional vector per image.
+embed_images() loads a CLIP model (ViT-L/14 by default), preprocesses each
+image (resize, normalize pixel values to what CLIP expects), and runs them
+through the model to produce one 768-dimensional vector per image. The model
+runs on GPU if available (MPS on Apple Silicon, CUDA on NVIDIA).
 
 All vectors are L2-normalized (unit length), which means cosine similarity
 between any two vectors is simply their dot product.
 """
 
 import numpy as np
+
+from pixelkasten.configuration import DiscoveryOptions
 
 
 def detect_device() -> str:
@@ -54,7 +53,7 @@ def detect_device() -> str:
     return "cpu"
 
 
-def load_model(
+def _load_model(
     model_name: str = "ViT-L-14",
     pretrained: str = "openai",
     device: str | None = None,
@@ -62,21 +61,9 @@ def load_model(
     """
     Load a CLIP model and its image preprocessing transform.
 
-    Args:
-        model_name: Which CLIP architecture to use. "ViT-L-14" is a good
-            balance of accuracy and speed. "ViT-B-32" is faster but less
-            accurate. See open_clip.list_pretrained() for all options.
-        pretrained: Which pretrained weights to load. "openai" uses OpenAI's
-            original weights. Other options include "laion2b_s32b_b82k" for
-            weights trained on LAION-2B (larger, sometimes better).
-        device: Compute device ("mps", "cuda", "cpu"). Auto-detected if None.
-
-    Returns:
-        A tuple of (model, preprocess, device_str):
-        - model: The CLIP neural network.
-        - preprocess: A function that converts a PIL Image into the tensor
-          format the model expects (resize, crop, normalize).
-        - device: The device string that was selected.
+    Returns (model, preprocess, device_str). `device` is auto-detected
+    when None. `pretrained` selects the weights ("openai" or alternatives
+    like "laion2b_s32b_b82k").
     """
     import os
 
@@ -107,42 +94,29 @@ def load_model(
 
 
 def embed_images(
-    model,
-    preprocess,
     image_paths: list[str],
-    device: str,
-    batch_size: int = 32,
+    options: DiscoveryOptions,
     on_progress=None,
 ) -> tuple[np.ndarray, list[int]]:
     """
     Generate CLIP embeddings for a list of images.
 
-    Processes images in batches for efficiency. Each image is:
+    Loads the model, then processes images in batches. Each image is:
     1. Loaded from disk as a PIL Image
     2. Preprocessed (resized to 224x224, pixel values normalized)
     3. Fed through the CLIP vision encoder
     4. L2-normalized to unit length
 
-    Args:
-        model: The CLIP model from load_model().
-        preprocess: The preprocessing transform from load_model().
-        image_paths: List of file paths to embed.
-        device: Compute device string.
-        batch_size: How many images to process at once. Larger = faster but
-            uses more memory. 32 is safe for most GPUs with 8GB+.
-        on_progress: Optional callback called after each batch with the
-            number of images processed so far. Used for progress bars.
-
-    Returns:
-        A tuple of (embeddings, failed_indices):
-        - embeddings: A numpy array of shape (N, embedding_dim) where N is
-          the number of successfully embedded images. Each row is a
-          768-dimensional unit vector.
-        - failed_indices: Indices of images that could not be loaded (corrupt
-          files, unsupported formats, etc.). These are skipped, not errored.
+    Reads `clip_model` and `batch_size` from options. Returns
+    (embeddings, failed_indices). Failed indices are positions in
+    `image_paths` that couldn't be loaded (corrupt files, unsupported
+    formats); they're skipped, not errored.
     """
     import torch
     from PIL import Image
+
+    model, preprocess, device = _load_model(options.clip_model)
+    batch_size = options.batch_size
 
     all_embeddings = []
     failed_indices = []
