@@ -25,8 +25,8 @@ def _make_options(
         destination="/out",
         discovery=DiscoveryOptions(
             clip_model="ViT-L-14",
-            caption_model="llava",
-            organize_model="qwen3.5:35b",
+            caption_model="gemma4:e4b",
+            organize_model="gemma4:31b",
             batch_size=32,
             min_cluster_size=5,
             skip_caption=skip_caption,

@@ -20,10 +20,10 @@ def _entry(cluster, status=Status.PROCESSED):
     )
 
 
-def _options(model="qwen3.5:35b"):
+def _options(model="gemma4:31b"):
     return DiscoveryOptions(
         clip_model="ViT-L-14",
-        caption_model="llava",
+        caption_model="gemma4:e4b",
         organize_model=model,
         batch_size=32,
         min_cluster_size=5,
