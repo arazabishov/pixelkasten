@@ -9,6 +9,7 @@ from pixelkasten.stages.discovery.caption import (
     caption_image,
     caption_representatives,
 )
+from tests.helpers import make_discovery_options
 
 
 def _entry(path, is_representative=False, status=Status.PROCESSED):
@@ -21,6 +22,9 @@ def _entry(path, is_representative=False, status=Status.PROCESSED):
             is_representative=is_representative,
         ),
     )
+
+
+_OPTIONS = make_discovery_options(caption_model="gemma4:e4b")
 
 
 class TestCaptionImage:
@@ -66,13 +70,15 @@ class TestCaptionRepresentatives:
             _entry("/photos/c.jpg", is_representative=True),
         ]
 
-        captions = caption_representatives(entries, "gemma4:e4b")
+        caption_representatives(entries, _OPTIONS)
 
-        # Only representatives should be captioned.
-        assert len(captions) == 2
-        assert "/photos/a.jpg" in captions
-        assert "/photos/c.jpg" in captions
-        assert "/photos/b.jpg" not in captions
+        # Only representatives have captions written.
+        assert entries[0].discovery is not None
+        assert entries[1].discovery is not None
+        assert entries[2].discovery is not None
+        assert entries[0].discovery.caption == "A beach scene."
+        assert entries[1].discovery.caption is None
+        assert entries[2].discovery.caption == "A beach scene."
 
     @patch("pixelkasten.stages.discovery.caption.caption_image")
     def test_skips_failed_entries(self, mock_caption):
@@ -83,11 +89,13 @@ class TestCaptionRepresentatives:
             _entry("/photos/b.jpg", is_representative=True, status=Status.PROCESSED),
         ]
 
-        captions = caption_representatives(entries, "gemma4:e4b")
+        caption_representatives(entries, _OPTIONS)
 
-        # Only the processed entry should be captioned.
-        assert len(captions) == 1
-        assert "/photos/b.jpg" in captions
+        # ERROR entries are not captioned; PROCESSED ones are.
+        assert entries[0].discovery is not None
+        assert entries[1].discovery is not None
+        assert entries[0].discovery.caption is None
+        assert entries[1].discovery.caption == "A beach scene."
 
     @patch("pixelkasten.stages.discovery.caption.caption_image")
     def test_excludes_failed_captions(self, mock_caption):
@@ -98,11 +106,13 @@ class TestCaptionRepresentatives:
             _entry("/photos/b.jpg", is_representative=True),
         ]
 
-        captions = caption_representatives(entries, "gemma4:e4b")
+        caption_representatives(entries, _OPTIONS)
 
-        # Only successfully captioned images appear.
-        assert len(captions) == 1
-        assert "/photos/b.jpg" in captions
+        # A None caption result leaves the field untouched.
+        assert entries[0].discovery is not None
+        assert entries[1].discovery is not None
+        assert entries[0].discovery.caption is None
+        assert entries[1].discovery.caption == "A dinner scene."
 
     @patch("pixelkasten.stages.discovery.caption.caption_image")
     def test_calls_progress_callback(self, mock_caption):
@@ -114,8 +124,6 @@ class TestCaptionRepresentatives:
             _entry("/photos/b.jpg", is_representative=True),
         ]
 
-        caption_representatives(
-            entries, "gemma4:e4b", on_progress=lambda n: progress_calls.append(n)
-        )
+        caption_representatives(entries, _OPTIONS, on_progress=lambda n: progress_calls.append(n))
 
         assert progress_calls == [1, 2]

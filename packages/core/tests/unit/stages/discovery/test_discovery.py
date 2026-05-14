@@ -6,7 +6,7 @@ the wiring: that the orchestrator correctly maps between image entries,
 embedding rows, and manifest fields.
 """
 
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from contextlib import contextmanager
 
 import numpy as np
@@ -73,10 +73,8 @@ class TestDiscoveryIndexMapping:
     @patch(f"{EMBED_MOD}.find_representatives")
     @patch(f"{EMBED_MOD}.cluster_embeddings")
     @patch(f"{EMBED_MOD}.embed_images")
-    @patch(f"{EMBED_MOD}.load_model")
     def test_maps_entries_to_correct_embedding_rows_with_failures(
         self,
-        mock_load_model,
         mock_embed_images,
         mock_cluster,
         mock_find_reps,
@@ -88,14 +86,19 @@ class TestDiscoveryIndexMapping:
         embeddings = _make_embeddings(4)  # 4 successful
         failed_indices = [2]
 
-        mock_load_model.return_value = (MagicMock(), MagicMock(), "cpu")
         mock_embed_images.return_value = (embeddings, failed_indices)
 
         # Cluster: 4 images → labels [0, 0, 1, 1]
         mock_cluster.return_value = np.array([0, 0, 1, 1])
 
-        # Representatives: embedding row 0 and row 2
-        mock_find_reps.return_value = {0: [0], 1: [2]}
+        # Representatives: embedding rows 0 and 2.
+        def _find_reps(entries, embeddings, n_per_cluster=3):
+            rep_positions = {0, 2}
+            for i, entry in enumerate(entries):
+                if entry.discovery is not None:
+                    entry.discovery.is_representative = i in rep_positions
+
+        mock_find_reps.side_effect = _find_reps
 
         options = _make_options(skip_refine=True, skip_caption=True)
         run_discovery(entries, options, progress=_noop_progress)
@@ -132,10 +135,8 @@ class TestDiscoveryIndexMapping:
     @patch(f"{EMBED_MOD}.find_representatives")
     @patch(f"{EMBED_MOD}.cluster_embeddings")
     @patch(f"{EMBED_MOD}.embed_images")
-    @patch(f"{EMBED_MOD}.load_model")
     def test_all_entries_processed_when_no_failures(
         self,
-        mock_load_model,
         mock_embed_images,
         mock_cluster,
         mock_find_reps,
@@ -145,10 +146,8 @@ class TestDiscoveryIndexMapping:
         entries = [_make_entry(f"/photos/img_{i}.jpg") for i in range(3)]
         embeddings = _make_embeddings(3)
 
-        mock_load_model.return_value = (MagicMock(), MagicMock(), "cpu")
         mock_embed_images.return_value = (embeddings, [])
         mock_cluster.return_value = np.array([0, 0, 0])
-        mock_find_reps.return_value = {0: [0]}
 
         options = _make_options()
         run_discovery(entries, options, progress=_noop_progress)
@@ -164,10 +163,8 @@ class TestDiscoveryIndexMapping:
     @patch(f"{EMBED_MOD}.find_representatives")
     @patch(f"{EMBED_MOD}.cluster_embeddings")
     @patch(f"{EMBED_MOD}.embed_images")
-    @patch(f"{EMBED_MOD}.load_model")
     def test_non_image_entries_are_ignored(
         self,
-        mock_load_model,
         mock_embed_images,
         mock_cluster,
         mock_find_reps,
@@ -181,10 +178,8 @@ class TestDiscoveryIndexMapping:
         ]
         embeddings = _make_embeddings(2)
 
-        mock_load_model.return_value = (MagicMock(), MagicMock(), "cpu")
         mock_embed_images.return_value = (embeddings, [])
         mock_cluster.return_value = np.array([0, 0])
-        mock_find_reps.return_value = {0: [0]}
 
         options = _make_options()
         run_discovery(entries, options, progress=_noop_progress)
@@ -217,10 +212,8 @@ class TestDiscoveryRefineIntegration:
     @patch(f"{EMBED_MOD}.find_representatives")
     @patch(f"{EMBED_MOD}.cluster_embeddings")
     @patch(f"{EMBED_MOD}.embed_images")
-    @patch(f"{EMBED_MOD}.load_model")
     def test_refine_updates_cluster_assignments(
         self,
-        mock_load_model,
         mock_embed_images,
         mock_cluster,
         mock_find_reps,
@@ -231,18 +224,29 @@ class TestDiscoveryRefineIntegration:
         entries = [_make_entry(f"/photos/img_{i}.jpg") for i in range(4)]
         embeddings = _make_embeddings(4)
 
-        mock_load_model.return_value = (MagicMock(), MagicMock(), "cpu")
         mock_embed_images.return_value = (embeddings, [])
 
         # Initial clustering: all in cluster 0.
         mock_cluster.return_value = np.array([0, 0, 0, 0])
-        mock_find_reps.return_value = {0: [0]}
 
-        # Refine splits into two clusters.
-        mock_refine.return_value = (np.array([0, 0, 1, 1]), {"splits": 1})
+        # Refine splits into two clusters by mutating entry.discovery.cluster.
+        def _refine(entries, embeddings, home_region=None):
+            new_clusters = [0, 0, 1, 1]
+            for i, entry in enumerate(entries):
+                if entry.discovery is not None:
+                    entry.discovery.cluster = new_clusters[i]
+            return {"splits": 1}
 
-        # Representatives are computed once after refine, on the final labels.
-        mock_find_reps.return_value = {0: [0], 1: [2]}
+        mock_refine.side_effect = _refine
+
+        # Representatives are computed once after refine, on the final clusters.
+        def _find_reps(entries, embeddings, n_per_cluster=3):
+            rep_positions = {0, 2}
+            for i, entry in enumerate(entries):
+                if entry.discovery is not None:
+                    entry.discovery.is_representative = i in rep_positions
+
+        mock_find_reps.side_effect = _find_reps
 
         options = _make_options(skip_refine=False, skip_caption=True)
         run_discovery(entries, options, progress=_noop_progress)

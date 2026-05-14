@@ -54,15 +54,18 @@ class TestRefineClustersFull:
         for i in range(3):
             embeddings[i] /= np.linalg.norm(embeddings[i])
 
-        labels, stats = refine_clusters(entries, embeddings)
+        stats = refine_clusters(entries, embeddings)
 
         # Entry 1 should be ejected to noise.
-        assert labels[1] == -1
+        assert entries[1].discovery is not None
+        assert entries[1].discovery.cluster == -1
         assert stats["ejected"] == 1
 
         # Remaining entries stay clustered.
-        assert labels[0] >= 0
-        assert labels[2] >= 0
+        assert entries[0].discovery is not None
+        assert entries[2].discovery is not None
+        assert entries[0].discovery.cluster >= 0
+        assert entries[2].discovery.cluster >= 0
 
     def test_splits_cluster_at_temporal_gap(self):
         """A cluster spanning a >48h gap should be split."""
@@ -78,13 +81,15 @@ class TestRefineClustersFull:
         for i in range(4):
             embeddings[i] /= np.linalg.norm(embeddings[i])
 
-        labels, stats = refine_clusters(entries, embeddings)
+        stats = refine_clusters(entries, embeddings)
 
         assert stats["splits"] >= 1
         # First two and last two should be in different clusters.
-        assert labels[0] == labels[1]
-        assert labels[2] == labels[3]
-        assert labels[0] != labels[2]
+        d = [e.discovery for e in entries]
+        assert all(x is not None for x in d)
+        assert d[0].cluster == d[1].cluster  # type: ignore[union-attr]
+        assert d[2].cluster == d[3].cluster  # type: ignore[union-attr]
+        assert d[0].cluster != d[2].cluster  # type: ignore[union-attr]
 
     def test_preserves_noise_entries(self):
         """Noise entries should stay as noise throughout refinement."""
@@ -98,10 +103,11 @@ class TestRefineClustersFull:
         for i in range(2):
             embeddings[i] /= np.linalg.norm(embeddings[i])
 
-        labels, _ = refine_clusters(entries, embeddings)
+        refine_clusters(entries, embeddings)
 
         # Noise stays noise (no matching cluster to absorb into).
-        assert labels[1] == -1
+        assert entries[1].discovery is not None
+        assert entries[1].discovery.cluster == -1
 
     def test_skips_entries_without_discovery(self):
         """Entries without discovery status are excluded from refinement."""
@@ -120,10 +126,12 @@ class TestRefineClustersFull:
         embeddings /= np.linalg.norm(embeddings, axis=1, keepdims=True)
 
         # Should not crash with mixed entries.
-        labels, _ = refine_clusters([entry_with, entry_without], embeddings)
+        refine_clusters([entry_with, entry_without], embeddings)
 
-        # Only one entry in the embedding space.
-        assert len(labels) == 1
+        # Only the discovery-bearing entry gets a cluster assignment.
+        assert entry_with.discovery is not None
+        assert entry_with.discovery.cluster is not None
+        assert entry_without.discovery is None
 
 
 class TestExtractEntryData:

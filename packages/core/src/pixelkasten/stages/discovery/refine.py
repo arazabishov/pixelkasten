@@ -35,12 +35,13 @@ def refine_clusters(
     merge_similarity: float = 0.5,
     merge_time_hours: float = 168.0,
     home_region: str | None = None,
-) -> tuple[np.ndarray, dict]:
+) -> dict:
     """
     Refine cluster assignments using EXIF timestamps and embedding similarity.
 
     Operates on the embedding-index space: only entries with
     discovery.status == PROCESSED get a row in the labels/embeddings arrays.
+    Mutates entry.discovery.cluster with the refined assignments.
     """
     timestamps, regions, has_metadata, labels = _extract_entry_data(entries)
 
@@ -65,7 +66,16 @@ def refine_clusters(
 
     labels = _renumber_labels(labels)
 
-    stats = {
+    # Write refined assignments back. Aligned with the PROCESSED subset that
+    # _extract_entry_data filtered on.
+    processed_entries = [
+        e for e in entries if e.discovery and e.discovery.status == Status.PROCESSED
+    ]
+    for i, entry in enumerate(processed_entries):
+        assert entry.discovery is not None
+        entry.discovery.cluster = int(labels[i])
+
+    return {
         "ejected": n_ejected,
         "splits": n_splits,
         "merges": n_merges,
@@ -73,8 +83,6 @@ def refine_clusters(
         "absorbed_by_similarity": n_absorbed_vis,
         "home_location": home_region,
     }
-
-    return labels, stats
 
 
 def _extract_entry_data(

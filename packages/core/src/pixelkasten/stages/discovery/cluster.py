@@ -36,38 +36,27 @@ captioning) so we only need to caption a small fraction of the library.
 import numpy as np
 from sklearn.cluster import HDBSCAN
 
+from pixelkasten.configuration import DiscoveryOptions
+from pixelkasten.manifest import ManifestEntry
+
 
 def cluster_embeddings(
     embeddings: np.ndarray,
-    min_cluster_size: int = 5,
-    min_samples: int | None = None,
+    options: DiscoveryOptions,
 ) -> np.ndarray:
     """
-    Cluster image embeddings using HDBSCAN.
+    Cluster image embeddings using HDBSCAN with cosine distance.
 
-    Args:
-        embeddings: A numpy array of shape (N, D) where N is the number of
-            images and D is the embedding dimension (768 for CLIP ViT-L/14).
-        min_cluster_size: The smallest number of images that can form a
-            cluster. Smaller values create more fine-grained clusters.
-            - 5 is a reasonable default for small libraries (<1k images).
-            - 10-20 for medium libraries (1k-10k images).
-            - 20-50 for large libraries (10k+ images).
-        min_samples: Controls how conservative the clustering is. Higher
-            values make it harder for a point to be a core point, resulting
-            in more noise points. Defaults to min_cluster_size if not set.
+    Reads `min_cluster_size` from options. Returns an (N,) array of
+    integer labels — each image gets a cluster ID >= 0 or -1 (noise).
 
-    Returns:
-        A numpy array of shape (N,) with integer cluster labels. Each image
-        gets a label >= 0 (its cluster ID) or -1 (noise / unclustered).
+    Cosine distance is natural for CLIP embeddings: they're L2-normalized,
+    and cosine similarity captures semantic similarity better than
+    Euclidean distance in high-dimensional spaces.
     """
-    # HDBSCAN with cosine metric is natural for CLIP embeddings because
-    # they're L2-normalized — cosine distance captures semantic similarity
-    # better than Euclidean distance in high-dimensional spaces.
     # sklearn stubs say str for copy, but runtime only accepts bool
     clusterer = HDBSCAN(
-        min_cluster_size=min_cluster_size,
-        min_samples=min_samples,
+        min_cluster_size=options.min_cluster_size,
         metric="cosine",
         copy=True,  # pyright: ignore[reportArgumentType]
     )
@@ -77,64 +66,50 @@ def cluster_embeddings(
 
 
 def find_representatives(
+    entries: list[ManifestEntry],
     embeddings: np.ndarray,
-    labels: np.ndarray,
     n_per_cluster: int = 3,
-) -> dict[int, list[int]]:
+) -> None:
     """
-    Find representative images for each cluster.
+    Select top-N representative entries per cluster.
 
-    A "representative" is an image that's close to the cluster's centroid —
-    the average of all embeddings in the cluster. The image closest to the
-    centroid is the most "typical" member of the group.
+    A "representative" is an image close to its cluster's centroid — the
+    most "typical" member. We select multiple per cluster to give VLM
+    captioning a few diverse examples rather than only the most typical one.
 
-    We return multiple representatives per cluster (not just the centroid)
-    to capture some diversity within the group. This is useful for Phase 2
-    (VLM captioning) — captioning a few diverse examples gives a richer
-    description than captioning only the most typical image.
-
-    Args:
-        embeddings: The full embedding matrix, shape (N, D).
-        labels: Cluster labels from cluster_embeddings(), shape (N,).
-        n_per_cluster: How many representatives to select per cluster.
-
-    Returns:
-        A dict mapping cluster_id → list of indices into the original
-        embeddings array. Noise points (label = -1) are excluded.
+    Reads cluster assignments from entry.discovery.cluster and writes
+    entry.discovery.is_representative. Entries aligned by position with
+    rows in `embeddings`.
     """
-    representatives = {}
-    unique_labels = set(labels)
+    labels = np.array(
+        [
+            e.discovery.cluster if e.discovery and e.discovery.cluster is not None else -1
+            for e in entries
+        ]
+    )
 
-    for label in unique_labels:
+    rep_indices: set[int] = set()
+    for label in set(labels.tolist()):
         # Skip noise points — they don't belong to any cluster.
         if label == -1:
             continue
 
-        # Find all indices belonging to this cluster.
-        mask = labels == label
-        cluster_indices = np.where(mask)[0]
+        cluster_indices = np.where(labels == label)[0]
         cluster_vecs = embeddings[cluster_indices]
 
-        # Compute the centroid: the element-wise average of all vectors
-        # in the cluster. This represents the "center" of the group.
+        # Centroid: element-wise mean, L2-normalized so dot product is cosine similarity.
         centroid = cluster_vecs.mean(axis=0)
-
-        # L2-normalize the centroid so we can use dot product as similarity.
         centroid = centroid / np.linalg.norm(centroid)
 
-        # Compute cosine similarity between each cluster member and the
-        # centroid. Since both are normalized, this is just a dot product.
-        # Higher score = more similar to the centroid = more "typical."
+        # Top-N most similar to centroid.
         similarities = cluster_vecs @ centroid
-
-        # Pick the top-N most typical members.
         n = min(n_per_cluster, len(cluster_indices))
-        top_local_indices = np.argsort(similarities)[-n:][::-1]
+        top_local = np.argsort(similarities)[-n:][::-1]
+        rep_indices.update(cluster_indices[top_local].tolist())
 
-        # Map back from local cluster indices to global indices.
-        representatives[int(label)] = cluster_indices[top_local_indices].tolist()
-
-    return representatives
+    for i, entry in enumerate(entries):
+        if entry.discovery is not None:
+            entry.discovery.is_representative = i in rep_indices
 
 
 def cluster_summary(labels: np.ndarray) -> dict:
