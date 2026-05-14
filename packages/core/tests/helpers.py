@@ -34,8 +34,8 @@ def make_discovery_options(**overrides) -> DiscoveryOptions:
         "clip_model": "ViT-L-14",
         "batch_size": 32,
         "min_cluster_size": 5,
-        "caption_model": "llava",
-        "organize_model": "qwen3.5:35b",
+        "caption_model": "gemma4:e4b",
+        "organize_model": "gemma4:31b",
         "skip_caption": False,
         "skip_refine": False,
     }

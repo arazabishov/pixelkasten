@@ -7,7 +7,7 @@ before sending to reduce vision encoder processing time.
 
 Prerequisites:
     - Ollama installed and running (`ollama serve`)
-    - A vision model pulled (`ollama pull llava`)
+    - A vision model pulled (`ollama pull gemma4:e4b`)
 """
 
 import io

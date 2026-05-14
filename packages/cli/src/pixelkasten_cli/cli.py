@@ -107,12 +107,12 @@ def main(
         help="Minimum cluster size for HDBSCAN.",
     ),
     caption_model: str = typer.Option(
-        "llava",
+        "gemma4:e4b",
         "--caption-model",
         help="Ollama vision model for captioning.",
     ),
     organize_model: str = typer.Option(
-        "qwen3.5:35b",
+        "gemma4:31b",
         "--organize-model",
         help="Ollama text model for album naming.",
     ),

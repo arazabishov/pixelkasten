@@ -7,7 +7,7 @@ bytes — it works entirely with structured text.
 
 Prerequisites:
     - Ollama installed and running (`ollama serve`)
-    - A text model pulled (`ollama pull qwen3.5:35b`)
+    - A text model pulled (`ollama pull gemma4:31b`)
 """
 
 import json
@@ -15,7 +15,7 @@ from collections import Counter
 from pixelkasten.configuration import DiscoveryOptions
 from pixelkasten.manifest import ManifestEntry, Source, Status
 
-DEFAULT_MODEL = "qwen3.5:35b"
+DEFAULT_MODEL = "gemma4:31b"
 
 
 PROMPT_TEMPLATE = """\
