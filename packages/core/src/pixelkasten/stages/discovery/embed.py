@@ -30,6 +30,8 @@ All vectors are L2-normalized (unit length), which means cosine similarity
 between any two vectors is simply their dot product.
 """
 
+from typing import Any
+
 import numpy as np
 
 from pixelkasten.configuration import DiscoveryOptions
@@ -57,7 +59,7 @@ def _load_model(
     model_name: str = "ViT-L-14",
     pretrained: str = "openai",
     device: str | None = None,
-):
+) -> tuple[Any, Any, str]:
     """
     Load a CLIP model and its image preprocessing transform.
 
