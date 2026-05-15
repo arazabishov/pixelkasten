@@ -13,7 +13,7 @@ from pixelkasten.handlers.quicktime import QuickTimeHandler
 from pixelkasten.handlers.shared import Handler
 
 
-IMAGE_EXTENSIONS: frozenset[str] = frozenset({".jpg", ".jpeg", ".heic", ".png"})
+IMAGE_EXTENSIONS: frozenset[str] = frozenset({".jpg", ".jpeg", ".heic", ".png", ".mp"})
 VIDEO_EXTENSIONS: frozenset[str] = frozenset({".mp4", ".mov"})
 UNSUPPORTED_MEDIA_EXTENSIONS: frozenset[str] = frozenset({".avi", ".mkv", ".wmv", ".flv"})
 
