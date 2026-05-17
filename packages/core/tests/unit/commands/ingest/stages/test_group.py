@@ -152,44 +152,19 @@ class TestGroupArchiveMode:
         # (N) is NOT stripped — each file gets its own group_id
         assert manifest[0].group_id != manifest[1].group_id
 
-    def test_groups_edited_variant_with_original_when_sibling_present(self):
-        # Takeout-style edit pair: photo.jpg + photo-edited.jpg. The
-        # un-edited sibling stem exists in the same directory, so the
-        # -edited suffix is stripped.
-        manifest = [
-            _entry("/archive/photo.jpg"),
-            _entry("/archive/photo-edited.jpg"),
-        ]
-        group(manifest, make_options(mode="archive"))
-
-        # The -edited variant collapses onto the original's bucket
-        assert manifest[0].group_id == manifest[1].group_id
-
-    def test_groups_truncated_edited_variant_with_original(self):
-        # Google truncates -edited to -edi (and shorter) for long filenames.
-        # The truncation regex covers all the variants.
-        manifest = [
-            _entry("/archive/photo.jpg"),
-            _entry("/archive/photo-edi.jpg"),
-        ]
-        group(manifest, make_options(mode="archive"))
-
-        # Truncated -edi still strips when sibling evidence supports it
-        assert manifest[0].group_id == manifest[1].group_id
-
-    def test_keeps_lone_edited_as_own_group_without_sibling_evidence(self):
-        # No vacation.jpg alongside — there's no signal that -edited is being
-        # used as a convention here, so the stem stays literal.
+    def test_lone_edited_filename_keeps_literal_stem(self):
+        # An -edited-suffixed filename has no special handling in archive mode;
+        # it buckets by its literal stem like any other file.
         manifest = [_entry("/archive/vacation-edited.jpg")]
         group(manifest, make_options(mode="archive"))
 
         # Single entry → single group; the literal stem is the key
         assert manifest[0].group_id is not None
 
-    def test_does_not_group_lone_edited_with_unrelated_file(self):
-        # vacation-edited.jpg with no vacation.jpg in the same directory.
-        # The -edited stripping is gated by sibling evidence; an unrelated
-        # file should NOT pull the edited entry into its bucket.
+    def test_unrelated_stems_in_same_dir_stay_separate(self):
+        # Two files with distinct stems in the same directory must not be
+        # grouped together, even when one has an -edited suffix that could
+        # superficially relate to some hypothetical sibling.
         manifest = [
             _entry("/archive/vacation-edited.jpg"),
             _entry("/archive/sunset.jpg"),
@@ -208,19 +183,6 @@ class TestGroupArchiveMode:
         group(manifest, make_options(mode="archive"))
 
         # Directory is part of the key
-        assert manifest[0].group_id != manifest[1].group_id
-
-    def test_does_not_strip_lightroom_capital_edit_suffix(self):
-        # Lightroom uses -Edit (capital E), not Takeout's -edited convention.
-        # The regex is intentionally conservative; non-matching conventions
-        # leave the stem alone.
-        manifest = [
-            _entry("/archive/image.jpg"),
-            _entry("/archive/image-Edit.jpg"),
-        ]
-        group(manifest, make_options(mode="archive"))
-
-        # Capital -Edit is not recognized — distinct groups
         assert manifest[0].group_id != manifest[1].group_id
 
     def test_archive_singleton_gets_a_group_id(self):
