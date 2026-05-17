@@ -29,51 +29,48 @@ from pixelkasten.manifest import ManifestEntry
 
 @dataclass
 class IngestResult:
-    """Everything an ingest run produces, packaged for the renderer.
-
-    The manifest carries the post-pipeline state of every entry (dedupe,
-    metadata, group_id, emit outcome). ``raw_collections`` and ``link_stats``
-    aren't derivable from the manifest alone — they capture pre-link
-    counts and the set of unmatched files — so they're kept on the side.
-    """
+    """Manifest + the pre-link state the renderer needs (not derivable from the manifest alone)."""
 
     manifest: list[ManifestEntry]
     raw_collections: dict
     link_stats: dict
-    source: str
-    dry_run: bool
 
 
 def ingest(options: Options, progress: Callable) -> IngestResult:
     """Run the ingest pipeline; return an ``IngestResult`` covering every stage."""
 
+    # Walk the source and partition files into media / Takeout sidecars / album markers.
     raw_collections = scan(options.source)
 
+    # Match each media file to its Google Takeout sidecar (archive mode short-circuits).
     link_result = link(raw_collections, options)
-    manifest = link_result["manifest"]
-    link_stats = link_result["stats"]
+    manifest, link_stats = link_result["manifest"], link_result["stats"]
 
     if not options.skip_dedupe:
+        # SHA-256 hash every file, then resolve duplicates per --prefer (Takeout) or lex-smallest (archive).
         with progress("Hashing files", len(manifest)) as tick:
             dedupe_hash(manifest, on_progress=tick)
         dedupe_resolve(manifest, options)
 
+    # Read disk EXIF, queue write_tags for any metadata only the sidecar has.
     count = sum(1 for e in manifest if e.can_keep())
     with progress("Reading metadata", count) as tick:
         reconcile(manifest, options, on_progress=tick)
 
+    # Assign a shared group_id to logical asset groups (Live Photo siblings, edited variants).
     group(manifest, options)
 
     if not options.dry_run:
+        # Copy files to the destination, write per-asset records, apply queued EXIF tags.
         count = sum(1 for e in manifest if e.can_keep())
         with progress("Emitting working library", count) as tick:
             emit(manifest, options, on_progress=tick)
+
+        # Per-file CSV summary of what happened to each entry.
         report(manifest, options)
 
     return IngestResult(
         manifest=manifest,
         raw_collections=raw_collections,
         link_stats=link_stats,
-        source=options.source,
-        dry_run=options.dry_run,
     )

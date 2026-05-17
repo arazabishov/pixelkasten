@@ -2,10 +2,13 @@
 All Rich/terminal rendering for the CLI lives in this file.
 
 Convention: every command has exactly one public renderer named
-``render_<command>(console: Console, value) -> None``. ``value`` is whatever
-the command returned. The CLI's job is to capture the return value and call
-the matching renderer — nothing else. When you're looking for "how does X
-get displayed", grep this file for ``render_x``.
+``render_<command>(console, value, *extras) -> None``. ``value`` is what
+the command returned; ``*extras`` are whatever else the renderer needs to
+do its job — typically the command's ``options`` (so result types don't
+duplicate option fields) or other primitives. The CLI's job is to capture
+the return value and call the matching renderer — nothing else. When
+you're looking for "how does X get displayed", grep this file for
+``render_x``.
 
 Machine-output commands (``similar``, ``cluster``) write JSON to stdout via
 ``typer.echo`` instead of Rich; their renderers take ``console`` for
@@ -34,6 +37,7 @@ from rich.table import Column, Table
 from pixelkasten.commands.enrich import EnrichSummary
 from pixelkasten.commands.export import ExportSummary
 from pixelkasten.commands.ingest import IngestResult
+from pixelkasten.configuration import ExportOptions, Options
 from pixelkasten.manifest import ApplyResult, DedupeResult, ManifestEntry, Status
 
 # Progress bar labels are padded to this width so the bars start at the
@@ -53,9 +57,6 @@ _TABLE_LABEL_WIDTH = 30
 # Shared width for tables and the progress bar block so they align
 # visually. Computed: spinner(2) + label + bar + pct(5) + gaps(3).
 UI_WIDTH = _PROGRESS_LABEL_WIDTH + _BAR_WIDTH + 10
-
-
-# ---------- progress (used by long-running commands during the run) ----------
 
 
 def build_progress_factory(console: Console) -> Callable:
@@ -89,17 +90,14 @@ def build_progress_factory(console: Console) -> Callable:
     return factory
 
 
-# ---------- per-command renderers ----------
-
-
-def render_import(console: Console, result: IngestResult) -> None:
+def render_import(console: Console, result: IngestResult, options: Options) -> None:
     """Render every stage's summary table from one IngestResult."""
     _render_scan_table(console, result.raw_collections)
     _render_link_table(console, result.manifest, result.link_stats)
     if any(e.dedupe is not None for e in result.manifest):
         _render_dedupe_table(console, result.manifest)
     _render_reconcile_table(console, result.manifest)
-    if not result.dry_run:
+    if not options.dry_run:
         _render_apply_table(console, result.manifest)
     _render_error_table(console, result.manifest)
 
@@ -133,9 +131,9 @@ def render_enrich(console: Console, summary: EnrichSummary) -> None:
     console.print()
 
 
-def render_export(console: Console, summary: ExportSummary) -> None:
+def render_export(console: Console, summary: ExportSummary, options: ExportOptions) -> None:
     """One-line confirmation showing total + undated counts and destination."""
-    label = "Would export" if summary.dry_run else "Exported"
+    label = "Would export" if options.dry_run else "Exported"
     console.print(
         f"{label} {summary.total} file(s) to {summary.destination} ({summary.undated} undated)."
     )
@@ -161,9 +159,6 @@ def render_similar(console: Console, results: list[dict]) -> None:
 def render_cluster(console: Console, groups: dict[int, list[str]]) -> None:
     """Machine output: JSON dict of {label: [paths]} to stdout."""
     typer.echo(json.dumps({str(k): v for k, v in groups.items()}, indent=2))
-
-
-# ---------- private table builders ----------
 
 
 def _make_table(title: str, header_left: str = "Category") -> Table:

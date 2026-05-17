@@ -117,7 +117,7 @@ class TestReport:
         result_path = report(manifest, options)
 
         # Verify report path
-        assert result_path == os.path.join(str(tmp_path), "report.csv")
+        assert result_path == os.path.join(str(tmp_path), ".pixelkasten", "report.csv")
 
         # Verify file was written
         assert os.path.exists(result_path)
@@ -142,7 +142,7 @@ class TestReport:
 
         report(manifest, options)
 
-        with open(os.path.join(str(tmp_path), "report.csv")) as f:
+        with open(os.path.join(str(tmp_path), ".pixelkasten", "report.csv")) as f:
             reader = csv.reader(f)
             rows = list(reader)
 
@@ -164,7 +164,7 @@ class TestReport:
 
         report(manifest, options)
 
-        with open(os.path.join(str(tmp_path), "report.csv")) as f:
+        with open(os.path.join(str(tmp_path), ".pixelkasten", "report.csv")) as f:
             reader = csv.reader(f)
             rows = list(reader)
 
@@ -184,7 +184,7 @@ class TestReport:
 
         report(manifest, options)
 
-        with open(os.path.join(str(tmp_path), "report.csv")) as f:
+        with open(os.path.join(str(tmp_path), ".pixelkasten", "report.csv")) as f:
             reader = csv.reader(f)
             rows = list(reader)
 
@@ -211,7 +211,7 @@ class TestReport:
 
         report(manifest, options)
 
-        with open(os.path.join(str(tmp_path), "report.csv")) as f:
+        with open(os.path.join(str(tmp_path), ".pixelkasten", "report.csv")) as f:
             reader = csv.reader(f)
             rows = list(reader)
 
@@ -229,7 +229,7 @@ class TestReport:
 
         report(manifest, options)
 
-        with open(os.path.join(str(tmp_path), "report.csv")) as f:
+        with open(os.path.join(str(tmp_path), ".pixelkasten", "report.csv")) as f:
             reader = csv.reader(f)
             rows = list(reader)
 
@@ -250,7 +250,7 @@ class TestReport:
 
         report(manifest, options)
 
-        with open(os.path.join(str(tmp_path), "report.csv")) as f:
+        with open(os.path.join(str(tmp_path), ".pixelkasten", "report.csv")) as f:
             reader = csv.reader(f)
             rows = list(reader)
 
