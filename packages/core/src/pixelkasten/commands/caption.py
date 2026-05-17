@@ -14,7 +14,7 @@ import sys
 
 from pixelkasten.handlers import is_image, is_video
 from pixelkasten.utils.record import read_record, write_record
-from pixelkasten.utils.record import record_path, resolve_library
+from pixelkasten.utils.record import record_path, records_dir_home
 
 DEFAULT_MODEL = "gemma4:e4b"
 
@@ -36,7 +36,7 @@ def caption(
     re-used from the record), or None on failure. The record is left
     untouched on failure.
     """
-    library = resolve_library(path)
+    library = records_dir_home(path)
     rpath = record_path(library, os.path.basename(path))
     data = read_record(rpath)
 

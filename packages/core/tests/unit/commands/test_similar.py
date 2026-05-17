@@ -6,7 +6,7 @@ import os
 import numpy as np
 import pytest
 
-from pixelkasten.commands.similar import resolve_library, similar
+from pixelkasten.commands.similar import records_dir_home, similar
 
 
 def _make_library(tmp_path, embeddings: np.ndarray, paths: list[str]):
@@ -29,18 +29,18 @@ class TestResolveLibrary:
     def test_finds_library_from_file_inside_it(self, tmp_path):
         lib = _make_library(tmp_path, np.zeros((1, 4)), ["a.jpg"])
         # Walking up from a file inside the library finds the library root
-        assert resolve_library(os.path.join(lib, "a.jpg")) == lib
+        assert records_dir_home(os.path.join(lib, "a.jpg")) == lib
 
     def test_finds_library_from_subdir(self, tmp_path):
         lib = _make_library(tmp_path, np.zeros((1, 4)), ["a.jpg"])
         sub = os.path.join(lib, "sub")
         os.makedirs(sub)
         # Walking up from a deeper path still finds the library
-        assert resolve_library(sub) == lib
+        assert records_dir_home(sub) == lib
 
     def test_raises_when_no_library_found(self, tmp_path):
         with pytest.raises(RuntimeError, match="No .pixelkasten/"):
-            resolve_library(str(tmp_path))
+            records_dir_home(str(tmp_path))
 
 
 class TestSimilarInLibrary:
