@@ -16,7 +16,7 @@ EMBEDDINGS_PATHS_JSON = "embeddings.paths.json"
 
 
 @dataclass
-class Options:
+class IngestOptions:
     # root directory to scan
     source: str
 

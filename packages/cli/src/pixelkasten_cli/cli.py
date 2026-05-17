@@ -111,7 +111,7 @@ def import_cmd(
         console.print("[red]--destination is required (unless --dry-run is set)[/red]")
         raise typer.Exit(code=1)
 
-    from pixelkasten.configuration import Options
+    from pixelkasten.configuration import IngestOptions
     from pixelkasten.commands.ingest import ingest
 
     if mode == "takeout" and not skip_metadata_write:
@@ -123,7 +123,7 @@ def import_cmd(
             console.print(f"[red]{e}[/red]")
             raise typer.Exit(code=1)
 
-    options = Options(
+    options = IngestOptions(
         source=str(source),
         destination=str(destination) if destination else None,
         mode=mode,

@@ -37,7 +37,7 @@ from rich.table import Column, Table
 from pixelkasten.commands.enrich import EnrichResult
 from pixelkasten.commands.export import ExportResult
 from pixelkasten.commands.ingest import IngestResult
-from pixelkasten.configuration import ExportOptions, Options
+from pixelkasten.configuration import ExportOptions, IngestOptions
 from pixelkasten.manifest import ApplyResult, DedupeResult, ManifestEntry, Status
 
 # Progress bar labels are padded to this width so the bars start at the
@@ -90,7 +90,7 @@ def build_progress_factory(console: Console) -> Callable:
     return factory
 
 
-def render_import(console: Console, result: IngestResult, options: Options) -> None:
+def render_import(console: Console, result: IngestResult, options: IngestOptions) -> None:
     """Render every stage's summary table from one IngestResult."""
     _render_scan_table(console, result.raw_collections)
     _render_link_table(console, result.manifest, result.link_stats)

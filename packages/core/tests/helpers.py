@@ -2,7 +2,7 @@
 
 from contextlib import nullcontext
 
-from pixelkasten.configuration import Options
+from pixelkasten.configuration import IngestOptions
 
 
 def noop_progress(label: str, total: int):
@@ -10,8 +10,8 @@ def noop_progress(label: str, total: int):
     return nullcontext()
 
 
-def make_options(**overrides) -> Options:
-    """Build Options with test defaults. Override any field via kwargs."""
+def make_options(**overrides) -> IngestOptions:
+    """Build IngestOptions with test defaults. Override any field via kwargs."""
     defaults = {
         "source": "/src",
         "destination": "/dest",
@@ -24,4 +24,4 @@ def make_options(**overrides) -> Options:
         "fuzzy_threshold": 40,
     }
     defaults.update(overrides)
-    return Options(**defaults)
+    return IngestOptions(**defaults)

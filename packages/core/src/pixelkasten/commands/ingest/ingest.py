@@ -23,7 +23,7 @@ from pixelkasten.commands.ingest.stages.link import link
 from pixelkasten.commands.ingest.stages.reconcile import reconcile
 from pixelkasten.commands.ingest.stages.report import report
 from pixelkasten.commands.ingest.stages.scan import scan
-from pixelkasten.configuration import Options
+from pixelkasten.configuration import IngestOptions
 from pixelkasten.manifest import ManifestEntry
 
 
@@ -36,7 +36,7 @@ class IngestResult:
     link_stats: dict
 
 
-def ingest(options: Options, progress: Callable) -> IngestResult:
+def ingest(options: IngestOptions, progress: Callable) -> IngestResult:
     """Run the ingest pipeline; return an ``IngestResult`` covering every stage."""
 
     # Walk the source and partition files into media / Takeout sidecars / album markers.
