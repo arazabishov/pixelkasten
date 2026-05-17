@@ -8,7 +8,7 @@ import json
 
 import pytest
 
-from pixelkasten.utils.takeout import read_sidecar
+from pixelkasten.utils.sidecar import read_sidecar
 
 
 def _write_sidecar(tmp_path, data):

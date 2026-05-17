@@ -1,9 +1,11 @@
 """
-Shared loader for ``embeddings.npy`` + ``embeddings.paths.json``.
+CLIP embeddings store — path helpers and the shared loader.
 
-Consolidates the helper that both ``similar`` and ``cluster`` use to read
-the embeddings store; keeps the L2-normalization invariant documented in
-exactly one place.
+The on-disk artifacts (``embeddings.npy`` + ``embeddings.paths.json``)
+live inside each working library's records directory. This module owns
+both the path-building helpers that locate them and the loader that
+``similar`` and ``cluster`` use to read them. The L2-normalization
+invariant is documented here in exactly one place.
 """
 
 import json
@@ -11,7 +13,15 @@ import os
 
 import numpy as np
 
-from pixelkasten.layout import embeddings_npy_path, embeddings_paths_json_path
+from pixelkasten.configuration import EMBEDDINGS_NPY, EMBEDDINGS_PATHS_JSON, RECORDS_DIR
+
+
+def embeddings_npy_path(library: str) -> str:
+    return os.path.join(library, RECORDS_DIR, EMBEDDINGS_NPY)
+
+
+def embeddings_paths_json_path(library: str) -> str:
+    return os.path.join(library, RECORDS_DIR, EMBEDDINGS_PATHS_JSON)
 
 
 def load_embeddings(library: str) -> tuple[np.ndarray, list[str]]:

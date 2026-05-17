@@ -18,7 +18,9 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from pixelkasten.configuration import ExportOptions
-from pixelkasten.layout import RECORDS_DIR, RECORD_SUFFIX, read_record, records_dir
+from pixelkasten.configuration import RECORDS_DIR, RECORD_SUFFIX
+from pixelkasten.utils.record import read_record
+from pixelkasten.utils.record import records_dir
 
 _INVALID_NAME_CHARS = re.compile(r"[/\\\x00-\x1f]")
 

@@ -1,24 +1,18 @@
 """
-On-disk layout of a pixelkasten working library.
+Record I/O, path helpers, and library detection.
 
-These constants and helpers describe where things live in a working library
-relative to its root. Every reader and writer goes through this module so
-the on-disk schema lives in one place.
-
-Terminology: a ``.pk.json`` file is a **record** (the canonical per-asset
-state across the lifecycle, owned by pixelkasten). The word "sidecar" is
-reserved for Google Takeout's ``.json`` files that ``import`` consumes — a
-different format with a different purpose.
+A *record* is pixelkasten's canonical per-asset state, living under
+``<library>/.pixelkasten/<asset>.pk.json``. (Distinct from a Google
+Takeout *sidecar* — see ``utils/sidecar.py`` for those.) A working
+library is identified by the presence of a records directory; that's
+how ``resolve_library`` walks up from any path to find its enclosing
+library.
 """
 
 import json
 import os
 
-# Working-library directory names and file names.
-RECORDS_DIR = ".pixelkasten"
-RECORD_SUFFIX = ".pk.json"
-EMBEDDINGS_NPY = "embeddings.npy"
-EMBEDDINGS_PATHS_JSON = "embeddings.paths.json"
+from pixelkasten.configuration import RECORD_SUFFIX, RECORDS_DIR
 
 
 def records_dir(library: str) -> str:
@@ -33,14 +27,6 @@ def record_path(library: str, asset_name: str) -> str:
     a full path.
     """
     return os.path.join(library, RECORDS_DIR, asset_name + RECORD_SUFFIX)
-
-
-def embeddings_npy_path(library: str) -> str:
-    return os.path.join(library, RECORDS_DIR, EMBEDDINGS_NPY)
-
-
-def embeddings_paths_json_path(library: str) -> str:
-    return os.path.join(library, RECORDS_DIR, EMBEDDINGS_PATHS_JSON)
 
 
 def read_record(path: str) -> dict:

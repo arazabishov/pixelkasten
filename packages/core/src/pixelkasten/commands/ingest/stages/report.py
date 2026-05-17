@@ -8,7 +8,7 @@ import csv
 import os
 
 from pixelkasten.configuration import Options
-from pixelkasten.layout import records_dir
+from pixelkasten.utils.record import records_dir
 from pixelkasten.manifest import ApplyResult, DedupeResult, ManifestEntry, Status
 
 

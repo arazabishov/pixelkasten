@@ -6,8 +6,8 @@ The core objective of this tool is to help organize a photo library. The `pixelk
 
 Two unrelated file types are easy to confuse, and earlier versions of the codebase used "sidecar" for both. The codebase now keeps them strictly distinct:
 
-- **Sidecar** — Google Takeout's per-asset `.json` files. Read-only input to `import`. Parsed by `utils/takeout.py:read_sidecar()`. Represented in `ManifestEntry.sidecar` as a `SidecarMatch` dataclass holding the matched path + confidence score.
-- **Record** — pixelkasten's `.pk.json` files in `<library>/.pixelkasten/`. Canonical per-asset state across the lifecycle: written by `emit`, enriched by `enrich`/`caption`/`propose`, read by `export`. The constants are `RECORDS_DIR` and `RECORD_SUFFIX` in `layout.py`; the helpers are `read_record`, `write_record`, `record_path`, and `resolve_library`.
+- **Sidecar** — Google Takeout's per-asset `.json` files. Read-only input to `import`. Parsed by `utils/sidecar.py:read_sidecar()`. Represented in `ManifestEntry.sidecar` as a `SidecarMatch` dataclass holding the matched path + confidence score.
+- **Record** — pixelkasten's `.pk.json` files in `<library>/.pixelkasten/`. Canonical per-asset state across the lifecycle: written by `emit`, enriched by `enrich`/`caption`/`propose`, read by `export`. The constants are `RECORDS_DIR` and `RECORD_SUFFIX` in `configuration.py`; everything else lives in `utils/record.py` — `read_record`, `write_record`, the path helpers (`records_dir`, `record_path`), and `resolve_library` (walks up from any file to find its enclosing library).
 
 Files that end in `.pk.json` are records. Files that Google wrote are sidecars. The word never refers to both in code or docs.
 
@@ -55,9 +55,8 @@ A simple `core/` and `cli/` directory split inside one package would not be enou
 
 ```
 packages/core/src/pixelkasten/
-  configuration.py    # Options, EnrichOptions, ExportOptions
+  configuration.py    # Options, EnrichOptions, ExportOptions + RECORDS_DIR / RECORD_SUFFIX / EMBEDDINGS_* constants
   manifest.py         # ManifestEntry and its sub-dataclasses
-  layout.py           # RECORDS_DIR / RECORD_SUFFIX constants + record/library helpers
   handlers/           # format-specific metadata handlers (EXIF, QuickTime, shared)
   commands/           # user-facing operations
     ingest/           # multi-stage pipeline (CLI: `pixelkasten import`)
@@ -68,8 +67,10 @@ packages/core/src/pixelkasten/
     caption.py cluster.py propose.py similar.py
   utils/              # shared wrappers around external dependencies and shared helpers
     exiftool.py ffmpeg.py ollama.py
-    takeout.py        # Google Takeout sidecar parser
-    dates.py pil_setup.py clip_embed.py embeddings.py
+    sidecar.py        # Google Takeout sidecar parser
+    record.py         # .pk.json I/O, path helpers (records_dir, record_path), resolve_library
+    embeddings.py     # embeddings.npy I/O + path helpers (embeddings_npy_path, etc.)
+    dates.py pil_setup.py clip_embed.py
 ```
 
 Commands live under `commands/`. The `ingest` command is multi-stage — its orchestrator lives in `commands/ingest/__init__.py` and the individual stages under `commands/ingest/stages/`. Other commands are single-file modules. The Python module is named `ingest` (not `import`) because `import` is a reserved keyword; the CLI command name `pixelkasten import` is independent of the Python module name. Utilities — wrappers around external dependencies and shared helpers — live under `utils/`.
