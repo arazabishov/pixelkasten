@@ -38,8 +38,8 @@ class Source:
 
 
 @dataclass
-class Sidecar:
-    # path to the matched .json file
+class SidecarMatch:
+    # path to the matched Google Takeout .json sidecar file
     path: str
 
     # 3=exact, 2=name-only, 1=fuzzy — shown in CSV report
@@ -114,8 +114,8 @@ class ManifestEntry:
     # album or loose — determines dedupe preference
     source: Source
 
-    # matched JSON sidecar — provides timestamps and geo for reconcile
-    sidecar: Sidecar | None = None
+    # matched Google Takeout JSON sidecar — provides timestamps and geo for reconcile
+    sidecar: SidecarMatch | None = None
 
     # content hash and keep/delete decision — gates all downstream stages
     dedupe: Dedupe | None = None

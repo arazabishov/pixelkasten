@@ -17,12 +17,12 @@ import numpy as np
 import pytest
 
 from helpers import make_options, noop_progress
-from pixelkasten.configuration import ApplyOptions, EnrichOptions, Hooks
-from pixelkasten.pipeline import run_pipeline
-from pixelkasten.stages.enrich import enrich
-from pixelkasten.stages.export import apply_export
-from pixelkasten.tools.exiftool import check_exiftool
-from pixelkasten.tools.propose import propose
+from pixelkasten.configuration import ExportOptions, EnrichOptions, Hooks
+from pixelkasten.commands.import_.run import run_import
+from pixelkasten.commands.enrich import enrich
+from pixelkasten.commands.export import export as run_export
+from pixelkasten.utils.exiftool import check_exiftool
+from pixelkasten.commands.propose import propose
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "media"
 
@@ -75,7 +75,7 @@ def _media_basename(lib: Path) -> str:
 
 class TestAgentWorkflow:
     @patch("reverse_geocoder.search")
-    @patch("pixelkasten.tools.clip_embed.embed_images")
+    @patch("pixelkasten.utils.clip_embed.embed_images")
     def test_init_enrich_propose_apply_writes_proposed_album(self, mock_embed, mock_rg, tmp_path):
         source = tmp_path / "source"
         lib = tmp_path / "lib"
@@ -85,7 +85,7 @@ class TestAgentWorkflow:
         _build_takeout_source(source)
 
         # 1. init -> working library
-        run_pipeline(
+        run_import(
             make_options(source=str(source), destination=str(lib)),
             hooks=Hooks(),
             progress=noop_progress,
@@ -112,7 +112,7 @@ class TestAgentWorkflow:
         assert sidecar["proposed_album"] == "Paris weekend"
 
         # 4. apply -> proposed_album drives the export folder
-        apply_export(str(lib), str(export), ApplyOptions())
+        run_export(str(lib), str(export), ExportOptions())
 
         files = []
         for dirpath, _dirs, fns in os.walk(str(export)):

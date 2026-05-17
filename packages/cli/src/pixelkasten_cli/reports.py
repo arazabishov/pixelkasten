@@ -20,6 +20,7 @@ from rich.progress import (
 )
 from rich.table import Column, Table
 
+from pixelkasten.configuration import EnrichSummary
 from pixelkasten.manifest import ApplyResult, DedupeResult, ManifestEntry, Status
 
 # Shared width for tables and progress bars so they align visually.
@@ -234,4 +235,33 @@ def render_error_table(console: Console, manifest: list[ManifestEntry]) -> None:
         table.add_row(filename, stage, reason)
 
     console.print(table)
+    console.print()
+
+
+def render_enrich_summary(console: Console, summary: EnrichSummary) -> None:
+    """Render two Rich tables — geocoding totals, then embedding totals."""
+    geocode = _make_table("Reverse geocoding", "Action")
+    geocode.add_row("Records", str(summary.records_total))
+    geocode.add_row("Geocoded this run", str(summary.locations_added))
+    geocode.add_row("Already set", str(summary.locations_already_set))
+    console.print(geocode)
+    console.print()
+
+    embed = _make_table("Embedding", "Action")
+    embed.add_row("Images embedded", str(summary.images_embedded))
+    embed.add_row("Videos embedded", str(summary.videos_embedded))
+    embed.add_row("Already embedded", str(summary.already_embedded))
+    total_failed = len(summary.images_failed) + len(summary.videos_failed)
+    if total_failed:
+        embed.add_row("[red]Failed[/red]", f"[red]{total_failed}[/red]")
+    console.print(embed)
+
+    # Inline a small sample of failure paths so the user knows which files
+    # to investigate; full lists live in stderr already.
+    sample = (summary.images_failed + summary.videos_failed)[:3]
+    if sample:
+        console.print()
+        console.print("[red]Failed paths (first 3):[/red]")
+        for path in sample:
+            console.print(f"  {path}")
     console.print()

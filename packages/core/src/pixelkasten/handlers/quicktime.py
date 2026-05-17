@@ -1,6 +1,6 @@
 """Metadata handler for QuickTime-based formats (MP4, MOV)."""
 
-from pixelkasten.tools.dates import normalize_disk_date
+from pixelkasten.utils.dates import normalize_disk_date
 from pixelkasten.handlers.shared import (
     COMPOSITE_GEO_TAGS,
     parse_composite_geo,
