@@ -55,27 +55,38 @@ def link(raw_collections: dict, options: Options) -> dict:
     """
     Match media files to their JSON sidecar metadata files.
 
-    For each media file, attempts an exact match first (name + extension +
-    duplicate marker), then falls back to fuzzy matching for truncated
-    filenames if no exact match is found. In archive mode, sidecar matching
-    is skipped entirely and every entry is loose.
+    Dispatches by mode: archive input never has Takeout sidecars, so every
+    entry is loose; Takeout input runs the full per-directory matcher with
+    exact, embedded-extension, and fuzzy-truncation passes.
     """
-    files_media = raw_collections["files_media"]
-
-    # REVIEW: why do we need this early return? To prevent unnecessary work below from happening or?
     if options.mode == "archive":
-        manifest = [
-            ManifestEntry(media_path=fp, source=Source(type="loose"), sidecar=None)
-            for fp in files_media
-        ]
-        return {
-            "manifest": manifest,
-            "stats": {
-                "unmatched_metadata_files": set(),
-                "unmatched_media_files": set(files_media),
-            },
-        }
+        return _link_archive(raw_collections["files_media"])
+    return _link_takeout(raw_collections, options)
 
+
+def _link_archive(files_media: list[str]) -> dict:
+    """Archive mode: every media file is a loose entry with no sidecar."""
+    manifest = [
+        ManifestEntry(
+            media_path=fp,
+            source=Source(type="loose"),
+            name=_parse_name(fp),
+            sidecar=None,
+        )
+        for fp in files_media
+    ]
+    return {
+        "manifest": manifest,
+        "stats": {
+            "unmatched_metadata_files": set(),
+            "unmatched_media_files": set(files_media),
+        },
+    }
+
+
+def _link_takeout(raw_collections: dict, options: Options) -> dict:
+    """Takeout mode: per-directory match each media file to its JSON sidecar."""
+    files_media = raw_collections["files_media"]
     files_metadata = raw_collections["files_metadata"]
     files_metadata_albums = raw_collections.get("files_metadata_albums", [])
 
@@ -118,6 +129,7 @@ def link(raw_collections: dict, options: Options) -> dict:
             ManifestEntry(
                 media_path=media["path"],
                 source=source,
+                name=media["name"],
                 sidecar=sidecar,
             )
         )
@@ -139,13 +151,11 @@ def link(raw_collections: dict, options: Options) -> dict:
         },
     }
 
-
-def stripped_stem(file_path: str) -> str:
-    """
-    Return the media filename with extension, duplicate marker, and -edited
-    suffix stripped. Used by link for matching and by group's archive-mode
-    bucketing.
-    """
+def _parse_name(file_path: str) -> str:
+    """Return the canonical stem of a media filename: extension, ``(N)``
+    duplicate marker, and ``-edited`` suffix removed. Link writes the result
+    to ``ManifestEntry.name`` so downstream stages can read it directly
+    instead of re-parsing the path."""
     base = os.path.basename(file_path)
     name, _ = os.path.splitext(base)
 
@@ -171,7 +181,7 @@ def _parse_media(file_path: str) -> dict:
 
     return {
         "path": file_path,
-        "name": stripped_stem(file_path),
+        "name": _parse_name(file_path),
         "duplicate": duplicate,
         "extension": extension.lower(),
     }

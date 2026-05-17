@@ -10,14 +10,17 @@ from unittest.mock import patch
 from helpers import make_options
 from pixelkasten.manifest import Dedupe, DedupeResult, ManifestEntry, SidecarMatch, Source, Status
 from pixelkasten.commands.ingest.stages.reconcile import reconcile
+from pixelkasten.commands.ingest.stages.link import _parse_name
 
 
 def _entry(media_path, json_path=None, dedupe_result=DedupeResult.KEEP):
-    """Helper to create a manifest entry."""
+    """Helper to create a manifest entry. ``name`` is populated the way
+    link would in a real run."""
     sidecar = SidecarMatch(path=json_path, confidence=3) if json_path else None
     return ManifestEntry(
         media_path=media_path,
         source=Source(type="loose"),
+        name=_parse_name(media_path),
         sidecar=sidecar,
         dedupe=Dedupe(status=Status.PROCESSED, result=dedupe_result, hash="abc"),
     )

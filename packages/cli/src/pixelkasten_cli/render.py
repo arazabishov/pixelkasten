@@ -34,8 +34,8 @@ from rich.progress import (
 )
 from rich.table import Column, Table
 
-from pixelkasten.commands.enrich import EnrichSummary
-from pixelkasten.commands.export import ExportSummary
+from pixelkasten.commands.enrich import EnrichResult
+from pixelkasten.commands.export import ExportResult
 from pixelkasten.commands.ingest import IngestResult
 from pixelkasten.configuration import ExportOptions, Options
 from pixelkasten.manifest import ApplyResult, DedupeResult, ManifestEntry, Status
@@ -102,7 +102,7 @@ def render_import(console: Console, result: IngestResult, options: Options) -> N
     _render_error_table(console, result.manifest)
 
 
-def render_enrich(console: Console, summary: EnrichSummary) -> None:
+def render_enrich(console: Console, summary: EnrichResult) -> None:
     """Two tables — geocoding totals, then embedding totals — plus failure sample."""
     geocode = _make_table("Reverse geocoding", "Action")
     geocode.add_row("Records", str(summary.records_total))
@@ -131,7 +131,7 @@ def render_enrich(console: Console, summary: EnrichSummary) -> None:
     console.print()
 
 
-def render_export(console: Console, summary: ExportSummary, options: ExportOptions) -> None:
+def render_export(console: Console, summary: ExportResult, options: ExportOptions) -> None:
     """One-line confirmation showing total + undated counts and destination."""
     label = "Would export" if options.dry_run else "Exported"
     console.print(

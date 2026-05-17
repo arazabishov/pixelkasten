@@ -252,8 +252,8 @@ class TestEnrichValidation:
             enrich(EnrichOptions(library=str(bare)))
 
 
-class TestEnrichSummary:
-    """Verifies the EnrichSummary returned by enrich() reflects what changed."""
+class TestEnrichResult:
+    """Verifies the EnrichResult returned by enrich() reflects what changed."""
 
     @patch("pixelkasten.utils.clip_embed.embed_images")
     @patch("reverse_geocoder.search")

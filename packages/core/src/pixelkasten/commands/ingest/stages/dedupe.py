@@ -41,7 +41,8 @@ def dedupe_resolve(manifest: list[ManifestEntry], options: Options) -> None:
       - All same source type: keep all.
     Archive mode:
       - Unique files: KEEP.
-      - Multiple: keep the lex-smallest media_path, delete the rest.
+      - Multiple: keep the alphabetically-first ``media_path`` (the one
+        ``min(...)`` returns), delete the rest.
 
     Mutates entries in-place, setting dedupe.status and dedupe.result.
     """
@@ -71,11 +72,19 @@ def _resolve_takeout(
             dedupe.result = DedupeResult.KEEP
             continue
 
+        # At least one duplicate matches the user's --prefer (e.g. "album").
         has_preferred = any(e.source.type == prefer for e, _ in duplicates)
+
+        # At least one duplicate does NOT match --prefer (e.g. is "loose").
         has_other = any(e.source.type != prefer for e, _ in duplicates)
 
         for entry, dedupe in duplicates:
             dedupe.status = Status.PROCESSED
+
+            # If the group has both preferred and non-preferred copies, --prefer
+            # decides: keep matches, delete the rest. If the group is uniform
+            # (all album, or all loose), there's nothing to choose between —
+            # keep everything; the user wants every copy of this content.
             if has_preferred and has_other:
                 dedupe.result = (
                     DedupeResult.KEEP if entry.source.type == prefer else DedupeResult.DELETE
@@ -92,6 +101,9 @@ def _resolve_archive(groups: dict[str, list[tuple[ManifestEntry, Dedupe]]]) -> N
             dedupe.result = DedupeResult.KEEP
             continue
 
+        # Archive mode has no album/loose distinction, so the tiebreaker is
+        # purely the path: keep the alphabetically-first one, delete the rest.
+        # This is deterministic across runs.
         winner_path = min(entry.media_path for entry, _ in duplicates)
         for entry, dedupe in duplicates:
             dedupe.status = Status.PROCESSED
@@ -102,14 +114,14 @@ def _resolve_archive(groups: dict[str, list[tuple[ManifestEntry, Dedupe]]]) -> N
 
 def _calculate_hash(file_path: str) -> str:
     """Read file in chunks and return hex SHA-256 digest."""
-    h = hashlib.sha256()
+    hasher = hashlib.sha256()
     with open(file_path, "rb") as f:
         while True:
             chunk = f.read(8192)
             if not chunk:
                 break
-            h.update(chunk)
-    return h.hexdigest()
+            hasher.update(chunk)
+    return hasher.hexdigest()
 
 
 def _check_invariants(manifest: list[ManifestEntry]) -> None:

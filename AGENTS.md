@@ -55,7 +55,7 @@ A simple `core/` and `cli/` directory split inside one package would not be enou
 
 ```
 packages/core/src/pixelkasten/
-  configuration.py    # Options, EnrichOptions, ExportOptions, Hooks
+  configuration.py    # Options, EnrichOptions, ExportOptions
   manifest.py         # ManifestEntry and its sub-dataclasses
   layout.py           # RECORDS_DIR / RECORD_SUFFIX constants + record/library helpers
   handlers/           # format-specific metadata handlers (EXIF, QuickTime, shared)
@@ -297,7 +297,7 @@ One pattern, one place. **All terminal rendering lives in `packages/cli/src/pixe
 commands/<x>.py → return value → cli.py → render_<x>() in render.py → console
 ```
 
-Result types that need a typed shape are collocated with their command (`EnrichSummary` in `commands/enrich.py`, `ExportSummary` in `commands/export.py`, `IngestResult` in `commands/ingest/ingest.py`). Trivial returns (a string for `caption`, a list of paths for `propose`) stay primitive. Don't invent a new dataclass for two scalars.
+Result types that need a typed shape are collocated with their command (`EnrichResult` in `commands/enrich.py`, `ExportResult` in `commands/export.py`, `IngestResult` in `commands/ingest/ingest.py`). Trivial returns (a string for `caption`, a list of paths for `propose`) stay primitive. Don't invent a new dataclass for two scalars.
 
 **Result types don't duplicate option fields.** If a renderer needs an option's value (e.g. `dry_run`), it takes the `options` object as an extra renderer argument. That keeps result types focused on what the run actually *produced* and avoids the ambiguity of two sources of truth for the same field.
 

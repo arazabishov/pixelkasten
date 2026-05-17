@@ -6,13 +6,73 @@ Every edge case encodes real-world filename truncation behavior.
 """
 
 from helpers import make_options
-from pixelkasten.commands.ingest.stages.link import link
+from pixelkasten.commands.ingest.stages.link import link, _parse_name
 
 
 def _link_and_map(raw, **overrides):
     """Helper: run link() and return a dict keyed by media_path."""
     result = link(raw, make_options(**overrides))
     return {e.media_path: e for e in result["manifest"]}, result["stats"]
+
+
+class TestParseName:
+    """Direct tests for ``_parse_name`` — the helper link calls to derive
+    the canonical filename stem. The result lands on ``ManifestEntry.name``;
+    downstream stages (group, etc.) read the field rather than re-parsing."""
+
+    def test_simple_file_returns_basename_without_extension(self):
+        # Verify the baseline: nothing to strip, just drop the extension
+        assert _parse_name("/tmp/photo.jpg") == "photo"
+
+    def test_strips_path_components(self):
+        # Verify the function operates on the basename, not the full path
+        assert _parse_name("/deep/nested/dir/photo.jpg") == "photo"
+
+    def test_strips_duplicate_marker(self):
+        # Verify (N) at the end of the basename is removed
+        assert _parse_name("/tmp/photo(1).jpg") == "photo"
+
+    def test_strips_double_digit_duplicate_marker(self):
+        # Verify the duplicate marker captures multi-digit indices, not just (N) for N<10
+        assert _parse_name("/tmp/photo(42).jpg") == "photo"
+
+    def test_strips_edited_suffix(self):
+        # Verify -edited at the end of the basename is removed
+        assert _parse_name("/tmp/photo-edited.jpg") == "photo"
+
+    def test_strips_truncated_edited_suffix(self):
+        # Verify Google's truncated -edited variants (-edite, -edit, ...) are all removed
+        for stem in ("-edite", "-edit", "-edi", "-ed", "-e"):
+            assert _parse_name(f"/tmp/photo{stem}.jpg") == "photo", stem
+
+    def test_strips_duplicate_then_edited_when_dup_comes_first(self):
+        # Real Takeout shape: "photo-edited(1).jpg" — (N) at end, then -edited
+        # underneath. The function strips both in order.
+        assert _parse_name("/tmp/photo-edited(1).jpg") == "photo"
+
+    def test_does_not_strip_dup_marker_when_edited_is_outside(self):
+        # The dup pattern requires (N) at the END of the name. If -edited
+        # comes after (N), the dup pattern doesn't match and only -edited
+        # is stripped. This is the order Google actually uses for edited
+        # duplicates, so it's the case we have to preserve.
+        assert _parse_name("/tmp/photo(1)-edited.jpg") == "photo(1)"
+
+    def test_handles_uppercase_extension(self):
+        # Verify case-insensitive extension handling — extensions like .JPG
+        # / .HEIC / .PNG (iOS-style) are common in real archives
+        assert _parse_name("/tmp/IMG_0001.HEIC") == "IMG_0001"
+
+    def test_preserves_inner_dots(self):
+        # Only the final extension is removed; "photo.original" stays
+        assert _parse_name("/tmp/photo.original.jpg") == "photo.original"
+
+    def test_handles_file_with_no_extension(self):
+        # An extension-less basename returns the full basename unchanged
+        assert _parse_name("/tmp/photo") == "photo"
+
+    def test_handles_basename_only(self):
+        # Verify it works with no directory component at all
+        assert _parse_name("photo-edited.jpg") == "photo"
 
 
 class TestMetadataNormalizationAndMatching:
@@ -65,6 +125,49 @@ class TestMetadataNormalizationAndMatching:
         m, _ = _link_and_map(self.RAW)
         entry = m["/tmp/29407C9C-7528-4FF1-AD5F-08EAA7F9738E-98855-000"]
         assert entry.sidecar.path == "/tmp/29407C9C-7528-4FF1-AD5F-08EAA7F9738E-98855-000.json"
+
+
+class TestLinkPopulatesEntryName:
+    """Pin the contract: link writes ``ManifestEntry.name`` for every entry
+    in both modes, so downstream stages (group, propose, etc.) can read it
+    without re-parsing paths."""
+
+    def test_takeout_mode_populates_name_with_parsed_stem(self):
+        raw = {
+            "files_media": [
+                "/tmp/IMG_0001.HEIC",
+                "/tmp/IMG_0001-edited.HEIC",
+                "/tmp/IMG_0002(1).jpg",
+            ],
+            "files_metadata": [],
+            "files_metadata_albums": [],
+        }
+        m, _ = _link_and_map(raw)
+
+        # Each entry's name reflects parse_name(media_path)
+        assert m["/tmp/IMG_0001.HEIC"].name == "IMG_0001"
+        # -edited variant strips the suffix
+        assert m["/tmp/IMG_0001-edited.HEIC"].name == "IMG_0001"
+        # (N) duplicate marker strips
+        assert m["/tmp/IMG_0002(1).jpg"].name == "IMG_0002"
+
+    def test_archive_mode_populates_name_with_parsed_stem(self):
+        raw = {
+            "files_media": [
+                "/archive/IMG_001.heic",
+                "/archive/IMG_001.mov",
+                "/archive/IMG_001-edited.heic",
+            ],
+            "files_metadata": [],
+            "files_metadata_albums": [],
+        }
+        m, _ = _link_and_map(raw, mode="archive")
+
+        # Archive mode also populates name — the field is the contract,
+        # not the path-derivation
+        assert m["/archive/IMG_001.heic"].name == "IMG_001"
+        assert m["/archive/IMG_001.mov"].name == "IMG_001"
+        assert m["/archive/IMG_001-edited.heic"].name == "IMG_001"
 
 
 class TestExactMatching:

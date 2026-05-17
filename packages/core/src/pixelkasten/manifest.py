@@ -114,6 +114,12 @@ class ManifestEntry:
     # album or loose — determines dedupe preference
     source: Source
 
+    # filename stem after _parse_name: extension, (N) duplicate marker, and
+    # -edited suffix stripped. Distinct from source.name, which is the
+    # containing album's display name. Used by link's matcher and group's
+    # archive-mode bucketing.
+    name: str | None = None
+
     # matched Google Takeout JSON sidecar — provides timestamps and geo for reconcile
     sidecar: SidecarMatch | None = None
 
