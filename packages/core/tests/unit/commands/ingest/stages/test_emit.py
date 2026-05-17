@@ -27,7 +27,6 @@ from pixelkasten.manifest import (
     Status,
 )
 from pixelkasten.commands.ingest.stages.emit import emit
-from pixelkasten.commands.ingest.stages.link import _parse_name
 
 UUID_HEX = re.compile(r"^[0-9a-f]{32}$")
 
@@ -65,7 +64,6 @@ def _entry(
     return ManifestEntry(
         media_path=media_path,
         source=Source(type=source_type, name=source_name),
-        name=_parse_name(media_path),
         dedupe=Dedupe(status=Status.PROCESSED, result=dedupe_result, hash="abc"),
         metadata=metadata,
         sidecar=SidecarMatch(path=sidecar_path, confidence=3) if sidecar_path else None,

@@ -10,7 +10,6 @@ from pixelkasten.manifest import (
     Status,
 )
 from pixelkasten.commands.ingest.stages.group import group
-from pixelkasten.commands.ingest.stages.link import _parse_name
 
 
 def _entry(
@@ -19,8 +18,7 @@ def _entry(
     dedupe_result=DedupeResult.KEEP,
     skip_dedupe=False,
 ):
-    """Build a manifest entry for group tests, populating ``name`` the way
-    link would in a real run."""
+    """Build a manifest entry positioned just before group runs."""
     dedupe = (
         None if skip_dedupe else Dedupe(status=Status.PROCESSED, result=dedupe_result, hash="abc")
     )
@@ -28,7 +26,6 @@ def _entry(
     return ManifestEntry(
         media_path=media_path,
         source=Source(type="loose"),
-        name=_parse_name(media_path),
         dedupe=dedupe,
         sidecar=sidecar,
     )
@@ -118,50 +115,113 @@ class TestGroup:
 
 
 class TestGroupArchiveMode:
-    def test_archive_groups_by_dir_and_parsed_name(self):
+    def test_groups_live_photo_pair_by_shared_stem(self):
+        # Live Photo image + video: same dir, same stem, different extension.
         manifest = [
-            _entry("/archive/2024/IMG_001.heic"),
-            _entry("/archive/2024/IMG_001.mov"),
-            _entry("/archive/2024/IMG_002.heic"),
+            _entry("/archive/IMG_1234.HEIC"),
+            _entry("/archive/IMG_1234.MOV"),
         ]
         group(manifest, make_options(mode="archive"))
 
-        # Same dirname + stem -> same group_id (Live Photo style)
+        # Shared stem in the same directory yields a shared group_id
         assert manifest[0].group_id == manifest[1].group_id
-        # Different stem -> different group_id
-        assert manifest[2].group_id != manifest[0].group_id
+        assert manifest[0].group_id is not None
 
-    def test_archive_strips_edited_suffix_when_bucketing(self):
+    def test_groups_raw_and_jpeg_capture_by_shared_stem(self):
+        # DSLR/mirrorless RAW+JPEG capture: same logical photo, two files.
         manifest = [
-            _entry("/archive/IMG_001.heic"),
-            _entry("/archive/IMG_001-edited.heic"),
+            _entry("/archive/IMG_1234.CR2"),
+            _entry("/archive/IMG_1234.JPG"),
         ]
         group(manifest, make_options(mode="archive"))
 
-        # The -edited variant is bucketed with the original
+        # Shared stem groups the capture together
         assert manifest[0].group_id == manifest[1].group_id
 
-    def test_archive_separates_by_directory(self):
-        manifest = [
-            _entry("/a/IMG_001.heic"),
-            _entry("/b/IMG_001.heic"),
-        ]
-        group(manifest, make_options(mode="archive"))
-
-        # Same stem but different directories -> different groups
-        assert manifest[0].group_id != manifest[1].group_id
-
-    def test_archive_strips_duplicate_marker_when_bucketing(self):
-        # A file manager-created duplicate (Finder / Chrome / Explorer) ends
-        # up next to the original. Archive bucketing should group them.
+    def test_separates_distinct_content_with_duplicate_marker(self):
+        # Two distinct files (browser collision rename, manual duplicate, etc.)
+        # that happen to share a base name. Dedupe collapsed any identical
+        # content; if both survive here, they hold distinct content and must
+        # not share a group.
         manifest = [
             _entry("/archive/photo.jpg"),
             _entry("/archive/photo(1).jpg"),
         ]
         group(manifest, make_options(mode="archive"))
 
-        # The (N) variant is bucketed with the original
+        # (N) is NOT stripped — each file gets its own group_id
+        assert manifest[0].group_id != manifest[1].group_id
+
+    def test_groups_edited_variant_with_original_when_sibling_present(self):
+        # Takeout-style edit pair: photo.jpg + photo-edited.jpg. The
+        # un-edited sibling stem exists in the same directory, so the
+        # -edited suffix is stripped.
+        manifest = [
+            _entry("/archive/photo.jpg"),
+            _entry("/archive/photo-edited.jpg"),
+        ]
+        group(manifest, make_options(mode="archive"))
+
+        # The -edited variant collapses onto the original's bucket
         assert manifest[0].group_id == manifest[1].group_id
+
+    def test_groups_truncated_edited_variant_with_original(self):
+        # Google truncates -edited to -edi (and shorter) for long filenames.
+        # The truncation regex covers all the variants.
+        manifest = [
+            _entry("/archive/photo.jpg"),
+            _entry("/archive/photo-edi.jpg"),
+        ]
+        group(manifest, make_options(mode="archive"))
+
+        # Truncated -edi still strips when sibling evidence supports it
+        assert manifest[0].group_id == manifest[1].group_id
+
+    def test_keeps_lone_edited_as_own_group_without_sibling_evidence(self):
+        # No vacation.jpg alongside — there's no signal that -edited is being
+        # used as a convention here, so the stem stays literal.
+        manifest = [_entry("/archive/vacation-edited.jpg")]
+        group(manifest, make_options(mode="archive"))
+
+        # Single entry → single group; the literal stem is the key
+        assert manifest[0].group_id is not None
+
+    def test_does_not_group_lone_edited_with_unrelated_file(self):
+        # vacation-edited.jpg with no vacation.jpg in the same directory.
+        # The -edited stripping is gated by sibling evidence; an unrelated
+        # file should NOT pull the edited entry into its bucket.
+        manifest = [
+            _entry("/archive/vacation-edited.jpg"),
+            _entry("/archive/sunset.jpg"),
+        ]
+        group(manifest, make_options(mode="archive"))
+
+        # Each file keeps its literal stem; no incidental grouping
+        assert manifest[0].group_id != manifest[1].group_id
+
+    def test_separates_same_stem_across_directories(self):
+        # Same stem in different directories — distinct assets.
+        manifest = [
+            _entry("/a/photo.jpg"),
+            _entry("/b/photo.jpg"),
+        ]
+        group(manifest, make_options(mode="archive"))
+
+        # Directory is part of the key
+        assert manifest[0].group_id != manifest[1].group_id
+
+    def test_does_not_strip_lightroom_capital_edit_suffix(self):
+        # Lightroom uses -Edit (capital E), not Takeout's -edited convention.
+        # The regex is intentionally conservative; non-matching conventions
+        # leave the stem alone.
+        manifest = [
+            _entry("/archive/image.jpg"),
+            _entry("/archive/image-Edit.jpg"),
+        ]
+        group(manifest, make_options(mode="archive"))
+
+        # Capital -Edit is not recognized — distinct groups
+        assert manifest[0].group_id != manifest[1].group_id
 
     def test_archive_singleton_gets_a_group_id(self):
         # Even without any siblings to group with, an archive entry should
@@ -169,24 +229,9 @@ class TestGroupArchiveMode:
         manifest = [_entry("/archive/lonely.jpg")]
         group(manifest, make_options(mode="archive"))
 
+        # 32-char uuid hex assigned to the singleton
         assert manifest[0].group_id is not None
         assert len(manifest[0].group_id) == 32
-
-    def test_archive_bucketing_follows_entry_name_not_media_path(self):
-        # Pin the contract: group reads entry.name directly. If link
-        # (or a test fixture) populated name with a value that differs
-        # from what re-parsing media_path would produce, group uses the
-        # field. Two entries with different basenames but the same
-        # explicitly-set name end up in one bucket.
-        a = _entry("/archive/first_basename.jpg")
-        b = _entry("/archive/totally_different_basename.jpg")
-        a.name = "shared-name"
-        b.name = "shared-name"
-
-        group([a, b], make_options(mode="archive"))
-
-        # entry.name is the grouping key — same name in same dir -> same group
-        assert a.group_id == b.group_id
 
     def test_archive_skips_entries_marked_for_deletion(self):
         # Dedupe-marked deletions never get a group_id, even in archive mode.
