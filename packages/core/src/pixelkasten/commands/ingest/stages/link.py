@@ -55,21 +55,25 @@ def link(raw_collections: dict, options: Options) -> dict:
     """
     Match media files to their JSON sidecar metadata files.
 
-    Dispatches by mode: archive input never has Takeout sidecars, so every
-    entry is loose; Takeout input runs the full per-directory matcher with
-    exact, embedded-extension, and fuzzy-truncation passes.
+    Dispatches by mode: archive input never has Takeout sidecars but its
+    subfolder names are propagated as album hints; Takeout input runs the
+    full per-directory matcher with exact, embedded-extension, and
+    fuzzy-truncation passes.
     """
     if options.mode == "archive":
-        return _link_archive(raw_collections["files_media"])
+        return _link_archive(raw_collections["files_media"], options.source)
     return _link_takeout(raw_collections, options)
 
 
-def _link_archive(files_media: list[str]) -> dict:
-    """Archive mode: every media file is a loose entry with no sidecar."""
+def _link_archive(files_media: list[str], source_root: str) -> dict:
+    """Archive mode: no sidecar matching. Files in subfolders inherit the
+    folder name as ``source.name`` (treated as an album hint downstream);
+    files at the source root stay loose."""
+    source_root = os.path.normpath(source_root)
     manifest = [
         ManifestEntry(
             media_path=fp,
-            source=Source(type="loose"),
+            source=_archive_source(fp, source_root),
             name=_parse_name(fp),
             sidecar=None,
         )
@@ -82,6 +86,20 @@ def _link_archive(files_media: list[str]) -> dict:
             "unmatched_media_files": set(files_media),
         },
     }
+
+
+def _archive_source(file_path: str, source_root: str) -> Source:
+    """Return ``Source(album, <parent folder name>)`` for files nested under
+    the source root, or ``Source(loose)`` for files directly at the root.
+
+    Nested folders collapse to their immediate parent's basename, matching
+    Takeout's single-level album convention. ``<root>/Wedding/Day1/x.jpg``
+    therefore belongs to album ``Day1``, not ``Wedding`` or ``Wedding/Day1``.
+    """
+    parent = os.path.normpath(os.path.dirname(file_path))
+    if parent == source_root:
+        return Source(type="loose")
+    return Source(type="album", name=os.path.basename(parent))
 
 
 def _link_takeout(raw_collections: dict, options: Options) -> dict:

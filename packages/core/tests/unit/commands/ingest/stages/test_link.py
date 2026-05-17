@@ -161,13 +161,76 @@ class TestLinkPopulatesEntryName:
             "files_metadata": [],
             "files_metadata_albums": [],
         }
-        m, _ = _link_and_map(raw, mode="archive")
+        m, _ = _link_and_map(raw, mode="archive", source="/archive")
 
         # Archive mode also populates name — the field is the contract,
         # not the path-derivation
         assert m["/archive/IMG_001.heic"].name == "IMG_001"
         assert m["/archive/IMG_001.mov"].name == "IMG_001"
         assert m["/archive/IMG_001-edited.heic"].name == "IMG_001"
+
+
+class TestArchiveSourceFromFolderStructure:
+    """Pin the new contract: archive mode propagates each file's parent
+    folder name as ``source.name``. Files directly at the source root stay
+    ``loose``; files in subfolders become ``album`` entries named after
+    their immediate parent directory."""
+
+    def test_file_at_source_root_is_loose(self):
+        raw = {
+            "files_media": ["/archive/lonely.jpg"],
+            "files_metadata": [],
+            "files_metadata_albums": [],
+        }
+        m, _ = _link_and_map(raw, mode="archive", source="/archive")
+
+        entry = m["/archive/lonely.jpg"]
+        # Root-level files have no folder-as-album context
+        assert entry.source.type == "loose"
+        assert entry.source.name is None
+
+    def test_file_in_subfolder_becomes_album_named_for_parent(self):
+        raw = {
+            "files_media": ["/archive/Wedding/photo.jpg"],
+            "files_metadata": [],
+            "files_metadata_albums": [],
+        }
+        m, _ = _link_and_map(raw, mode="archive", source="/archive")
+
+        entry = m["/archive/Wedding/photo.jpg"]
+        # Parent folder name becomes the album hint
+        assert entry.source.type == "album"
+        assert entry.source.name == "Wedding"
+
+    def test_nested_folder_uses_immediate_parent_basename(self):
+        # /archive/Wedding/Day1/photo.jpg → album="Day1", not "Wedding/Day1"
+        # or "Wedding". Matches Takeout's flat-folder convention.
+        raw = {
+            "files_media": ["/archive/Wedding/Day1/photo.jpg"],
+            "files_metadata": [],
+            "files_metadata_albums": [],
+        }
+        m, _ = _link_and_map(raw, mode="archive", source="/archive")
+
+        entry = m["/archive/Wedding/Day1/photo.jpg"]
+        # Immediate parent only — power users with deep hierarchies can
+        # reorganize via `propose`
+        assert entry.source.type == "album"
+        assert entry.source.name == "Day1"
+
+    def test_source_root_with_trailing_slash_still_recognizes_root_files(self):
+        # The source path may arrive with a trailing slash from typer's
+        # path resolver. Normalization makes the root-detection work
+        # regardless.
+        raw = {
+            "files_media": ["/archive/photo.jpg"],
+            "files_metadata": [],
+            "files_metadata_albums": [],
+        }
+        m, _ = _link_and_map(raw, mode="archive", source="/archive/")
+
+        entry = m["/archive/photo.jpg"]
+        assert entry.source.type == "loose"
 
 
 class TestExactMatching:
