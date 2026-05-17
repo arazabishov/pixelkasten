@@ -14,11 +14,11 @@ group members share a stem and differ only in extension.
 import os
 import uuid
 
-from pixelkasten.configuration import Options
+from pixelkasten.configuration import IngestOptions
 from pixelkasten.manifest import ManifestEntry
 
 
-def group(manifest: list[ManifestEntry], options: Options) -> None:
+def group(manifest: list[ManifestEntry], options: IngestOptions) -> None:
     """Assign entry.group_id to every keeper in the manifest."""
     keepers = [e for e in manifest if e.can_keep()]
     if not keepers:

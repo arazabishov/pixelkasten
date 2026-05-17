@@ -13,7 +13,7 @@ from pixelkasten.utils.dates import parse_photo_taken_time
 from pixelkasten.utils.exiftool import read_metadata
 from pixelkasten.manifest import Geo, ManifestEntry, Metadata, Status
 from pixelkasten.handlers import handlers
-from pixelkasten.configuration import Options
+from pixelkasten.configuration import IngestOptions
 from pixelkasten.utils.sidecar import read_sidecar
 
 BATCH_SIZE = 512
@@ -21,7 +21,7 @@ BATCH_SIZE = 512
 
 def reconcile(
     manifest: list[ManifestEntry],
-    options: Options,
+    options: IngestOptions,
     on_progress: Callable[[int], None] | None = None,
 ) -> None:
     """
@@ -61,7 +61,7 @@ def _resolve(
     media_path: str,
     json_path: str | None,
     raw_disk_tags: dict | None,
-    options: Options,
+    options: IngestOptions,
 ) -> Metadata:
     """Resolve metadata for a single entry."""
     ext = os.path.splitext(media_path)[1].lower()

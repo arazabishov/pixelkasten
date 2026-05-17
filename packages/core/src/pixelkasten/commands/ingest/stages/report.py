@@ -7,12 +7,12 @@ Ported from packages/core/src/core/report.js. Uses Python stdlib csv module.
 import csv
 import os
 
-from pixelkasten.configuration import Options
+from pixelkasten.configuration import IngestOptions
 from pixelkasten.utils.record import records_dir
 from pixelkasten.manifest import ApplyResult, DedupeResult, ManifestEntry, Status
 
 
-def report(manifest: list[ManifestEntry], options: Options) -> str:
+def report(manifest: list[ManifestEntry], options: IngestOptions) -> str:
     """
     Write a per-file CSV report inside the records directory.
 

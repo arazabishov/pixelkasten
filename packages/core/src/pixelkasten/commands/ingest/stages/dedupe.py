@@ -8,7 +8,7 @@ import hashlib
 from collections.abc import Callable
 
 from pixelkasten.manifest import Dedupe, DedupeResult, ManifestEntry, Status
-from pixelkasten.configuration import Options
+from pixelkasten.configuration import IngestOptions
 
 
 def dedupe_hash(
@@ -31,7 +31,7 @@ def dedupe_hash(
             on_progress(i + 1)
 
 
-def dedupe_resolve(manifest: list[ManifestEntry], options: Options) -> None:
+def dedupe_resolve(manifest: list[ManifestEntry], options: IngestOptions) -> None:
     """
     Resolve duplicates by hash. Works the same for Takeout and archive
     input — both populate ``source.type`` (album / loose), so a single

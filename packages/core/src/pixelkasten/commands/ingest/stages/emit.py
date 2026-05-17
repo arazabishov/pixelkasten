@@ -20,7 +20,7 @@ import shutil
 import uuid
 from collections.abc import Callable
 
-from pixelkasten.configuration import Options
+from pixelkasten.configuration import IngestOptions
 from pixelkasten.manifest import Apply, ApplyResult, ManifestEntry, Status
 from pixelkasten.utils.exiftool import write_metadata
 from pixelkasten.utils.record import record_path, records_dir, write_record
@@ -28,7 +28,7 @@ from pixelkasten.utils.record import record_path, records_dir, write_record
 
 def emit(
     manifest: list[ManifestEntry],
-    options: Options,
+    options: IngestOptions,
     on_progress: Callable[[int], None] | None = None,
 ) -> None:
     """Emit the working library: per-file uuid-named copies + per-asset records."""

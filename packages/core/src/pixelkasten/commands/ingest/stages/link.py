@@ -12,7 +12,7 @@ import os
 import re
 
 from pixelkasten.manifest import ManifestEntry, SidecarMatch, Source
-from pixelkasten.configuration import Options
+from pixelkasten.configuration import IngestOptions
 
 # Truncated variants of .supplemental-metadata (longest first for greedy matching).
 _METADATA_SUFFIX_PATTERN = re.compile(
@@ -51,7 +51,7 @@ _EDITED_SUFFIX_PATTERN = re.compile(r"(?:-edited|-edite|-edit|-edi|-ed|-e)$")
 _DUPLICATE_PATTERN = re.compile(r"\((\d+)\)$")
 
 
-def link(raw_collections: dict, options: Options) -> dict:
+def link(raw_collections: dict, options: IngestOptions) -> dict:
     """
     Match media files to their JSON sidecar metadata files.
 
@@ -102,7 +102,7 @@ def _archive_source(file_path: str, source_root: str) -> Source:
     return Source(type="album", name=os.path.basename(parent))
 
 
-def _link_takeout(raw_collections: dict, options: Options) -> dict:
+def _link_takeout(raw_collections: dict, options: IngestOptions) -> dict:
     """Takeout mode: per-directory match each media file to its JSON sidecar."""
     files_media = raw_collections["files_media"]
     files_metadata = raw_collections["files_metadata"]
@@ -240,7 +240,7 @@ def _parse_sidecar(file_path: str) -> dict:
     }
 
 
-def _match(media: dict, candidates: list[dict], options: Options) -> dict | None:
+def _match(media: dict, candidates: list[dict], options: IngestOptions) -> dict | None:
     """Find the best metadata match for a media file within the same directory."""
     best_match = None
     best_score = 0
@@ -269,7 +269,7 @@ def _match(media: dict, candidates: list[dict], options: Options) -> dict | None
     return {"path": best_match["path"], "confidence": confidence}
 
 
-def _match_score(media: dict, sidecar: dict, options: Options) -> int:
+def _match_score(media: dict, sidecar: dict, options: IngestOptions) -> int:
     """
     Calculate match score between a media file and a metadata file.
 
