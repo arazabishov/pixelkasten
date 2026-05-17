@@ -14,12 +14,30 @@ same export deterministically.
 import os
 import re
 import shutil
+from dataclasses import dataclass
 from datetime import datetime
 
-from pixelkasten.configuration import ExportOptions, ExportSummary
+from pixelkasten.configuration import ExportOptions
 from pixelkasten.layout import RECORDS_DIR, RECORD_SUFFIX, read_record, records_dir
 
 _INVALID_NAME_CHARS = re.compile(r"[/\\\x00-\x1f]")
+
+
+@dataclass
+class ExportSummary:
+    """End-of-run counts from the `export` command."""
+
+    # destination directory the export was written to
+    destination: str
+
+    # total files exported (or that would have been exported on dry_run)
+    total: int
+
+    # files with no parseable date — landed at the destination root
+    undated: int
+
+    # True when the run was a dry-run (no files copied)
+    dry_run: bool
 
 
 def export(library: str, destination: str, options: ExportOptions) -> ExportSummary:

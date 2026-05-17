@@ -1,6 +1,10 @@
 """
 CLI entry point — pixelkasten subcommands.
 
+Each command is a thin wrapper: build an options dataclass, call the core
+function, hand the return value to ``render_<command>`` in ``reports.py``.
+No rendering logic lives here; ``reports.py`` is the single source for that.
+
 Usage:
     uv run pixelkasten import --from-takeout -s <source> -d <destination>
     uv run pixelkasten import --from-archive -s <source> -d <destination>
@@ -8,9 +12,19 @@ Usage:
 
 import os
 import typer
-from functools import partial
 from pathlib import Path
 from rich.console import Console
+
+from pixelkasten_cli.reports import (
+    build_progress_factory,
+    render_caption,
+    render_cluster,
+    render_enrich,
+    render_export,
+    render_import,
+    render_propose,
+    render_similar,
+)
 
 app = typer.Typer(
     name="pixelkasten",
@@ -109,8 +123,6 @@ def import_cmd(
             console.print(f"[red]{e}[/red]")
             raise typer.Exit(code=1)
 
-    progress, hooks = _build_import_ui(console)
-
     options = Options(
         source=str(source),
         destination=str(destination) if destination else None,
@@ -125,11 +137,12 @@ def import_cmd(
 
     console.print(f"\n[bold]Processing photos from {source}...[/bold]\n")
 
-    manifest = run_import(options, hooks, progress)
+    result = run_import(options, progress=build_progress_factory(console))
+    render_import(console, result)
 
     if dry_run:
         console.print(
-            f"[yellow]Dry run — {len(manifest)} files processed, no files copied.[/yellow]"
+            f"[yellow]Dry run — {len(result.manifest)} files processed, no files copied.[/yellow]"
         )
     else:
         console.print("[green bold]Done![/green bold]")
@@ -153,16 +166,12 @@ def enrich(
     """Bulk geocode + CLIP embed for an existing working library."""
     from pixelkasten.configuration import EnrichOptions
     from pixelkasten.commands.enrich import enrich as run_enrich
-    from pixelkasten_cli.reports import build_progress_factory, render_enrich_summary
 
-    options = EnrichOptions(
-        library=str(library),
-        video_frames=video_frames,
-    )
+    options = EnrichOptions(library=str(library), video_frames=video_frames)
 
     console.print(f"\n[bold]Enriching {library}...[/bold]\n")
     summary = run_enrich(options, progress=build_progress_factory(console))
-    render_enrich_summary(console, summary)
+    render_enrich(console, summary)
     console.print("[green bold]Enrichment done.[/green bold]")
 
 
@@ -198,10 +207,7 @@ def export(
 
     options = ExportOptions(force=force, dry_run=dry_run)
     summary = run_export(str(library), str(to), options)
-    label = "Would export" if summary.dry_run else "Exported"
-    typer.echo(
-        f"{label} {summary.total} file(s) to {summary.destination} ({summary.undated} undated)."
-    )
+    render_export(console, summary)
 
 
 @app.command()
@@ -233,9 +239,9 @@ def propose(
 
     from pixelkasten.commands.propose import propose as run_propose
 
-    updated = run_propose(str(path), None if clear else album)
-    label = "cleared proposed_album on" if clear else f"set proposed_album={album!r} on"
-    typer.echo(f"{label} {len(updated)} file(s)")
+    chosen_album = None if clear else album
+    updated = run_propose(str(path), chosen_album)
+    render_propose(console, updated, chosen_album)
 
 
 @app.command()
@@ -266,10 +272,10 @@ def caption(
     """Caption one asset; write the caption to its record and echo to stdout."""
     from pixelkasten.commands.caption import caption as run_caption
 
-    result = run_caption(str(path), force=force, model=model, video_frames=video_frames)
-    if result is None:
+    text = run_caption(str(path), force=force, model=model, video_frames=video_frames)
+    render_caption(console, text)
+    if text is None:
         raise typer.Exit(code=1)
-    typer.echo(result)
 
 
 @app.command()
@@ -291,19 +297,17 @@ def cluster(
     ),
 ):
     """Cluster a set of paths via HDBSCAN; print {label: [path]} as JSON."""
-    import json as _json
-
     from pixelkasten.commands.cluster import cluster as run_cluster
     from pixelkasten.layout import resolve_library
 
     resolved = _resolve_cluster_paths(paths)
     if not resolved:
-        typer.echo("{}")
+        render_cluster(console, {})
         return
 
     lib = str(library) if library else resolve_library(resolved[0])
     grouped = run_cluster(resolved, lib, min_cluster_size)
-    typer.echo(_json.dumps({str(k): v for k, v in grouped.items()}, indent=2))
+    render_cluster(console, grouped)
 
 
 def _resolve_cluster_paths(args: list[str] | None) -> list[str]:
@@ -335,14 +339,12 @@ def similar(
     k: int = typer.Option(20, "--k", help="Number of neighbors to return."),
 ):
     """Print the K nearest neighbors of QUERY as JSON."""
-    import json as _json
-
     from pixelkasten.commands.similar import similar as run_similar
     from pixelkasten.layout import resolve_library
 
     lib = str(library) if library else resolve_library(str(query))
     results = run_similar(str(query), lib, k)
-    typer.echo(_json.dumps(results, indent=2))
+    render_similar(console, results)
 
 
 def _resolve_mode(from_takeout: bool, from_archive: bool, source: Path) -> str:
@@ -377,31 +379,3 @@ def _detect_takeout_sidecars(source: Path) -> bool:
     except OSError:
         return False
     return False
-
-
-def _build_import_ui(console):
-    """Build progress factory and hooks for the import command's pipeline UI."""
-    from pixelkasten_cli.reports import (
-        build_progress_factory,
-        render_apply_table,
-        render_dedupe_table,
-        render_error_table,
-        render_link_table,
-        render_reconcile_table,
-        render_scan_table,
-    )
-
-    progress = build_progress_factory(console)
-
-    from pixelkasten.configuration import Hooks
-
-    hooks = Hooks(
-        on_scan=partial(render_scan_table, console),
-        on_link=partial(render_link_table, console),
-        on_reconcile=partial(render_reconcile_table, console),
-        on_dedupe=partial(render_dedupe_table, console),
-        on_apply=partial(render_apply_table, console),
-        on_errors=partial(render_error_table, console),
-    )
-
-    return progress, hooks

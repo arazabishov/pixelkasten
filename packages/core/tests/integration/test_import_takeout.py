@@ -17,7 +17,6 @@ import pytest
 
 from helpers import make_options, noop_progress
 from pixelkasten.utils.exiftool import check_exiftool, read_metadata
-from pixelkasten.configuration import Hooks
 from pixelkasten.commands.import_.run import run_import
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "media"
@@ -172,11 +171,11 @@ class TestInitTakeoutPipeline:
             },
         )
 
-        manifest = run_import(
+        _run_result = run_import(
             make_options(source=str(source), destination=str(dest), skip_dedupe=True),
-            hooks=Hooks(),
             progress=noop_progress,
         )
+        manifest = _run_result.manifest
 
         by_src = _by_source_basename(manifest)
 
@@ -245,11 +244,11 @@ class TestInitTakeoutPipeline:
             },
         )
 
-        manifest = run_import(
+        _run_result = run_import(
             make_options(source=str(source), destination=str(dest)),
-            hooks=Hooks(),
             progress=noop_progress,
         )
+        manifest = _run_result.manifest
 
         emitted = [e for e in manifest if e.apply and e.apply.target_path]
 
@@ -294,11 +293,11 @@ class TestInitTakeoutPipeline:
             },
         )
 
-        manifest = run_import(
+        _run_result = run_import(
             make_options(source=str(source), destination=str(dest), skip_metadata_write=True),
-            hooks=Hooks(),
             progress=noop_progress,
         )
+        manifest = _run_result.manifest
 
         target = _by_source_basename(manifest)["IMG_001.jpg"]
         disk = read_metadata([target], VERIFY_TAGS)[target]
@@ -335,7 +334,6 @@ class TestInitTakeoutPipeline:
 
         run_import(
             make_options(source=str(source), destination=str(dest), dry_run=True),
-            hooks=Hooks(),
             progress=noop_progress,
         )
 
@@ -374,11 +372,11 @@ class TestInitTakeoutPipeline:
 
         (source / "Photos from 2024" / "video.avi").write_bytes(b"dummy avi content")
 
-        manifest = run_import(
+        _run_result = run_import(
             make_options(source=str(source), destination=str(dest), skip_dedupe=True),
-            hooks=Hooks(),
             progress=noop_progress,
         )
+        manifest = _run_result.manifest
 
         # The .avi never lands in the working library
         emitted_basenames = {

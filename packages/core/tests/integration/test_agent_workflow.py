@@ -17,7 +17,7 @@ import numpy as np
 import pytest
 
 from helpers import make_options, noop_progress
-from pixelkasten.configuration import ExportOptions, EnrichOptions, Hooks
+from pixelkasten.configuration import ExportOptions, EnrichOptions
 from pixelkasten.commands.import_.run import run_import
 from pixelkasten.commands.enrich import enrich
 from pixelkasten.commands.export import export as run_export
@@ -87,7 +87,6 @@ class TestAgentWorkflow:
         # 1. init -> working library
         run_import(
             make_options(source=str(source), destination=str(lib)),
-            hooks=Hooks(),
             progress=noop_progress,
         )
         media_name = _media_basename(lib)

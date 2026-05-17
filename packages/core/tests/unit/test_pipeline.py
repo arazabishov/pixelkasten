@@ -1,15 +1,14 @@
 """
-Tests for the unified pipeline orchestrator.
+Tests for the import pipeline orchestrator.
 
-Tests stage sequencing, skip flags, dry-run, and hooks.
+Tests stage sequencing, skip flags, dry-run, and the shape of ImportResult.
 All I/O-bound stages are mocked.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from helpers import make_options, noop_progress
 from pixelkasten.manifest import ManifestEntry, Source
-from pixelkasten.configuration import Hooks
 
 PATCH_PREFIX = "pixelkasten.commands.import_.run"
 
@@ -22,10 +21,10 @@ PATCH_PREFIX = "pixelkasten.commands.import_.run"
 @patch(f"{PATCH_PREFIX}.link")
 @patch(f"{PATCH_PREFIX}.scan")
 class TestPipeline:
-    def _run(self, options, hooks=None):
+    def _run(self, options):
         from pixelkasten.commands.import_.run import run_import
 
-        return run_import(options, hooks or Hooks(), progress=noop_progress)
+        return run_import(options, progress=noop_progress)
 
     def test_runs_all_stages(
         self,
@@ -121,7 +120,7 @@ class TestPipeline:
         mock_emit.assert_not_called()
         mock_report.assert_not_called()
 
-    def test_returns_manifest(
+    def test_returns_import_result_with_manifest_and_link_stats(
         self,
         mock_scan,
         mock_link,
@@ -131,53 +130,23 @@ class TestPipeline:
         mock_emit,
         mock_report,
     ):
-        mock_scan.return_value = {
+        scan_collections = {
             "files_media": [],
             "files_metadata": [],
             "files_metadata_albums": [],
         }
-        expected = [ManifestEntry(media_path="/src/photo.jpg", source=Source(type="loose"))]
-        mock_link.return_value = {"manifest": expected, "stats": {}}
+        mock_scan.return_value = scan_collections
+        expected_manifest = [
+            ManifestEntry(media_path="/src/photo.jpg", source=Source(type="loose"))
+        ]
+        expected_stats = {"unmatched_metadata_files": set(), "unmatched_media_files": set()}
+        mock_link.return_value = {"manifest": expected_manifest, "stats": expected_stats}
 
         result = self._run(make_options())
 
-        assert result is expected
-
-    def test_calls_hooks(
-        self,
-        mock_scan,
-        mock_link,
-        mock_reconcile,
-        mock_hash,
-        mock_resolve,
-        mock_emit,
-        mock_report,
-    ):
-        mock_scan.return_value = {
-            "files_media": [],
-            "files_metadata": [],
-            "files_metadata_albums": [],
-        }
-        mock_link.return_value = {"manifest": [], "stats": {}}
-
-        on_scan = MagicMock()
-        on_link = MagicMock()
-        on_dedupe = MagicMock()
-        on_reconcile = MagicMock()
-        on_apply = MagicMock()
-
-        hooks = Hooks(
-            on_scan=on_scan,
-            on_link=on_link,
-            on_dedupe=on_dedupe,
-            on_reconcile=on_reconcile,
-            on_apply=on_apply,
-        )
-
-        self._run(make_options(), hooks)
-
-        on_scan.assert_called_once()
-        on_link.assert_called_once()
-        on_dedupe.assert_called_once()
-        on_reconcile.assert_called_once()
-        on_apply.assert_called_once()
+        # Verify the manifest produced by link surfaces on the result
+        assert result.manifest is expected_manifest
+        # Verify link stats are exposed alongside the manifest for renderers
+        assert result.link_stats is expected_stats
+        # Verify the raw scan output is preserved on the result
+        assert result.raw_collections is scan_collections
