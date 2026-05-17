@@ -5,7 +5,7 @@ Walks the records directory for geocoding and the flat top-level media
 files for embedding. Both steps are idempotent: re-running an enriched
 library is a no-op. Failures (corrupt image, missing ffmpeg, etc.) are
 logged to stderr and the file is skipped — the run continues. The end
-of the run returns an ``EnrichSummary`` so the caller (or CLI) can
+of the run returns an ``EnrichResult`` so the caller (or CLI) can
 report what changed and what failed.
 """
 
@@ -32,7 +32,7 @@ from pixelkasten.layout import (
 
 
 @dataclass
-class EnrichSummary:
+class EnrichResult:
     """End-of-run counts from the `enrich` command.
 
     Populated by ``enrich`` and rendered by
@@ -82,7 +82,7 @@ def _noop_progress(label: str, total: int):
     yield _tick
 
 
-def enrich(options: EnrichOptions, progress: Callable | None = None) -> EnrichSummary:
+def enrich(options: EnrichOptions, progress: Callable | None = None) -> EnrichResult:
     """Geocode + embed all assets in the working library; return counts."""
     library = options.library
     rdir = records_dir(library)
@@ -93,7 +93,7 @@ def enrich(options: EnrichOptions, progress: Callable | None = None) -> EnrichSu
         )
 
     progress = progress or _noop_progress
-    summary = EnrichSummary()
+    summary = EnrichResult()
 
     _geocode(rdir, summary, progress)
     _embed(library, options.video_frames, summary, progress)
@@ -101,7 +101,7 @@ def enrich(options: EnrichOptions, progress: Callable | None = None) -> EnrichSu
     return summary
 
 
-def _geocode(rdir: str, summary: EnrichSummary, progress: Callable) -> None:
+def _geocode(rdir: str, summary: EnrichResult, progress: Callable) -> None:
     """Reverse-geocode every record with geo set but no location yet."""
     pending = _pending_geocodes(rdir, summary)
     if not pending:
@@ -117,7 +117,7 @@ def _geocode(rdir: str, summary: EnrichSummary, progress: Callable) -> None:
         _apply_geocode_results(pending, results, summary, tick)
 
 
-def _pending_geocodes(rdir: str, summary: EnrichSummary) -> dict[tuple[float, float], list[str]]:
+def _pending_geocodes(rdir: str, summary: EnrichResult) -> dict[tuple[float, float], list[str]]:
     """Group records-needing-geocoding by rounded coordinate.
 
     Returns a dict whose keys are (lat, lon) rounded to 2dp and whose
@@ -157,7 +157,7 @@ def _format_location(rg_result: dict) -> dict:
 def _apply_geocode_results(
     pending: dict[tuple[float, float], list[str]],
     results: list[dict],
-    summary: EnrichSummary,
+    summary: EnrichResult,
     tick: Callable[[int], None],
 ) -> None:
     """Write each formatted location into every record sharing that bucket."""
@@ -176,7 +176,7 @@ def _apply_geocode_results(
 def _embed(
     library: str,
     video_frames: int,
-    summary: EnrichSummary,
+    summary: EnrichResult,
     progress: Callable,
 ) -> None:
     """CLIP-embed every media file not already represented in embeddings.paths.json."""

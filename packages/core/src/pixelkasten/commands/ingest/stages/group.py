@@ -4,7 +4,8 @@ Group stage — assign a shared group_id to logical asset groups.
 Takeout mode buckets by the matched Takeout sidecar path: Live Photo image
 + video, edited variants, and Motion Photos all share a sidecar in Google
 Takeout, so they end up in the same bucket. Archive mode buckets by
-(directory, stripped_stem) since there's no sidecar to key on.
+(directory, entry.name) since there's no sidecar to key on — link
+populates entry.name for every keeper.
 
 Each bucket gets a fresh uuid4 hex; emit uses it as the filename stem so
 group members share a stem and differ only in extension.
@@ -15,7 +16,6 @@ import uuid
 
 from pixelkasten.configuration import Options
 from pixelkasten.manifest import ManifestEntry
-from pixelkasten.commands.ingest.stages.link import stripped_stem
 
 
 def group(manifest: list[ManifestEntry], options: Options) -> None:
@@ -45,9 +45,9 @@ def _bucket_takeout(keepers: list[ManifestEntry]) -> dict[object, list[ManifestE
 
 
 def _bucket_archive(keepers: list[ManifestEntry]) -> dict[object, list[ManifestEntry]]:
-    """Bucket by (dirname, stripped_stem) so siblings of one logical asset group together."""
+    """Bucket by (dirname, entry.name) so siblings of one logical asset group together."""
     buckets: dict[object, list[ManifestEntry]] = {}
     for entry in keepers:
-        key = (os.path.dirname(entry.media_path), stripped_stem(entry.media_path))
+        key = (os.path.dirname(entry.media_path), entry.name)
         buckets.setdefault(key, []).append(entry)
     return buckets

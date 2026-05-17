@@ -24,7 +24,7 @@ _INVALID_NAME_CHARS = re.compile(r"[/\\\x00-\x1f]")
 
 
 @dataclass
-class ExportSummary:
+class ExportResult:
     """End-of-run counts from the `export` command."""
 
     # destination directory the export was written to
@@ -37,9 +37,9 @@ class ExportSummary:
     undated: int
 
 
-def export(library: str, destination: str, options: ExportOptions) -> ExportSummary:
+def export(library: str, destination: str, options: ExportOptions) -> ExportResult:
     """
-    Export ``library`` to ``destination``. Returns an ``ExportSummary`` of counts.
+    Export ``library`` to ``destination``. Returns an ``ExportResult`` of counts.
 
     Raises:
         RuntimeError if destination exists and force=False.
@@ -266,11 +266,11 @@ def _sanitize_album(name: str) -> str:
     return _INVALID_NAME_CHARS.sub("-", name).strip()
 
 
-def _summarize(operations: list[tuple[str, str]], destination: str) -> ExportSummary:
+def _summarize(operations: list[tuple[str, str]], destination: str) -> ExportResult:
     """Count buckets so the CLI can print a summary."""
     # Undated files keep the working-library filename and land at the root,
     # so their destination has no subdirectory between dest and the file.
     undated = sum(
         1 for _, dst in operations if os.path.dirname(dst) == os.path.normpath(destination)
     )
-    return ExportSummary(destination=destination, total=len(operations), undated=undated)
+    return ExportResult(destination=destination, total=len(operations), undated=undated)
