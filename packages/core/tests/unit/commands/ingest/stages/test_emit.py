@@ -26,7 +26,7 @@ from pixelkasten.manifest import (
     Source,
     Status,
 )
-from pixelkasten.commands.import_.emit import emit
+from pixelkasten.commands.ingest.stages.emit import emit
 
 UUID_HEX = re.compile(r"^[0-9a-f]{32}$")
 
@@ -81,7 +81,7 @@ def _read_record(dest, final_name) -> dict:
 
 
 class TestEmit:
-    @patch("pixelkasten.commands.import_.emit.write_metadata")
+    @patch("pixelkasten.commands.ingest.stages.emit.write_metadata")
     def test_emits_singleton_with_uuid_filename(self, mock_write_metadata, tmp_path):
         dest = str(tmp_path / "dest")
         src = _make_source_file(tmp_path, "photo.heic", b"image-bytes")
@@ -101,7 +101,7 @@ class TestEmit:
         # Apply result reflects a plain copy (no write_tags queued)
         assert manifest[0].apply.result == ApplyResult.COPIED
 
-    @patch("pixelkasten.commands.import_.emit.write_metadata")
+    @patch("pixelkasten.commands.ingest.stages.emit.write_metadata")
     def test_writes_record_with_four_fields_including_group_id(self, mock_write_metadata, tmp_path):
         dest = str(tmp_path / "dest")
         src = _make_source_file(tmp_path, "photo.heic")
@@ -126,7 +126,7 @@ class TestEmit:
         assert data["album"] == "Wedding 2019"
         assert data["group_id"] == "grp-abc"
 
-    @patch("pixelkasten.commands.import_.emit.write_metadata")
+    @patch("pixelkasten.commands.ingest.stages.emit.write_metadata")
     def test_record_has_empty_dates_when_metadata_absent(self, mock_write_metadata, tmp_path):
         dest = str(tmp_path / "dest")
         src = _make_source_file(tmp_path, "photo.jpg")
@@ -142,7 +142,7 @@ class TestEmit:
         assert data["album"] is None
         assert data["group_id"] == "zzz"
 
-    @patch("pixelkasten.commands.import_.emit.write_metadata")
+    @patch("pixelkasten.commands.ingest.stages.emit.write_metadata")
     def test_record_geo_null_when_geo_absent(self, mock_write_metadata, tmp_path):
         dest = str(tmp_path / "dest")
         src = _make_source_file(tmp_path, "photo.jpg")
@@ -155,7 +155,7 @@ class TestEmit:
         # Geo missing on the entry -> null in the record
         assert data["geo"] is None
 
-    @patch("pixelkasten.commands.import_.emit.write_metadata")
+    @patch("pixelkasten.commands.ingest.stages.emit.write_metadata")
     def test_record_album_null_for_loose_entries(self, mock_write_metadata, tmp_path):
         dest = str(tmp_path / "dest")
         src = _make_source_file(tmp_path, "photo.jpg")
@@ -168,7 +168,7 @@ class TestEmit:
         # Loose entry -> album is null even when source has no name
         assert data["album"] is None
 
-    @patch("pixelkasten.commands.import_.emit.write_metadata")
+    @patch("pixelkasten.commands.ingest.stages.emit.write_metadata")
     def test_group_members_get_distinct_filenames_sharing_group_id(
         self, mock_write_metadata, tmp_path
     ):
@@ -193,7 +193,7 @@ class TestEmit:
         records = [_read_record(dest, os.path.basename(t)) for t in targets]
         assert records[0]["group_id"] == records[1]["group_id"] == "grp"
 
-    @patch("pixelkasten.commands.import_.emit.write_metadata")
+    @patch("pixelkasten.commands.ingest.stages.emit.write_metadata")
     def test_same_extension_siblings_get_distinct_filenames_no_underscore_suffix(
         self, mock_write_metadata, tmp_path
     ):
@@ -223,7 +223,7 @@ class TestEmit:
         records = [_read_record(dest, os.path.basename(t)) for t in targets]
         assert records[0]["group_id"] == records[1]["group_id"] == "grp"
 
-    @patch("pixelkasten.commands.import_.emit.write_metadata")
+    @patch("pixelkasten.commands.ingest.stages.emit.write_metadata")
     def test_invokes_exiftool_when_write_tags_present(self, mock_write_metadata, tmp_path):
         dest = str(tmp_path / "dest")
         src = _make_source_file(tmp_path, "photo.jpg")
@@ -247,7 +247,7 @@ class TestEmit:
         assert manifest[0].apply is not None
         assert manifest[0].apply.result == ApplyResult.WRITTEN
 
-    @patch("pixelkasten.commands.import_.emit.write_metadata")
+    @patch("pixelkasten.commands.ingest.stages.emit.write_metadata")
     def test_does_not_invoke_exiftool_when_write_tags_empty(self, mock_write_metadata, tmp_path):
         dest = str(tmp_path / "dest")
         src = _make_source_file(tmp_path, "photo.jpg")
@@ -258,7 +258,7 @@ class TestEmit:
         # No queued writes -> exiftool never invoked
         mock_write_metadata.assert_not_called()
 
-    @patch("pixelkasten.commands.import_.emit.write_metadata")
+    @patch("pixelkasten.commands.ingest.stages.emit.write_metadata")
     def test_skips_unsupported_entries(self, mock_write_metadata, tmp_path):
         dest = str(tmp_path / "dest")
         src = _make_source_file(tmp_path, "video.mkv", b"data")
@@ -277,7 +277,7 @@ class TestEmit:
         # Apply field records the skip
         assert manifest[0].apply.status == Status.SKIPPED
 
-    @patch("pixelkasten.commands.import_.emit.write_metadata")
+    @patch("pixelkasten.commands.ingest.stages.emit.write_metadata")
     def test_skips_entries_marked_for_deletion(self, mock_write_metadata, tmp_path):
         dest = str(tmp_path / "dest")
         src = _make_source_file(tmp_path, "dup.jpg")
@@ -297,7 +297,7 @@ class TestEmit:
         # And no apply state is set on the entry
         assert manifest[0].apply is None
 
-    @patch("pixelkasten.commands.import_.emit.write_metadata")
+    @patch("pixelkasten.commands.ingest.stages.emit.write_metadata")
     def test_records_apply_error_when_copy_fails(self, mock_write_metadata, tmp_path):
         dest = str(tmp_path / "dest")
         manifest = [

@@ -6,7 +6,7 @@ Every edge case encodes real-world filename truncation behavior.
 """
 
 from helpers import make_options
-from pixelkasten.commands.import_.link import link
+from pixelkasten.commands.ingest.stages.link import link
 
 
 def _link_and_map(raw, **overrides):

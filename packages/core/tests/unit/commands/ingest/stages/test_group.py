@@ -9,7 +9,7 @@ from pixelkasten.manifest import (
     Source,
     Status,
 )
-from pixelkasten.commands.import_.group import group
+from pixelkasten.commands.ingest.stages.group import group
 
 
 def _entry(

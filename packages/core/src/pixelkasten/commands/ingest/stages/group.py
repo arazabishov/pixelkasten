@@ -15,7 +15,7 @@ import uuid
 
 from pixelkasten.configuration import Options
 from pixelkasten.manifest import ManifestEntry
-from pixelkasten.commands.import_.link import stripped_stem
+from pixelkasten.commands.ingest.stages.link import stripped_stem
 
 
 def group(manifest: list[ManifestEntry], options: Options) -> None:

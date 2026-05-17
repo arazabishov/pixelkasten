@@ -17,7 +17,7 @@ import pytest
 
 from helpers import make_options, noop_progress
 from pixelkasten.utils.exiftool import check_exiftool, read_metadata
-from pixelkasten.commands.import_.run import run_import
+from pixelkasten.commands.ingest import ingest
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "media"
 
@@ -171,7 +171,7 @@ class TestInitTakeoutPipeline:
             },
         )
 
-        _run_result = run_import(
+        _run_result = ingest(
             make_options(source=str(source), destination=str(dest), skip_dedupe=True),
             progress=noop_progress,
         )
@@ -244,7 +244,7 @@ class TestInitTakeoutPipeline:
             },
         )
 
-        _run_result = run_import(
+        _run_result = ingest(
             make_options(source=str(source), destination=str(dest)),
             progress=noop_progress,
         )
@@ -293,7 +293,7 @@ class TestInitTakeoutPipeline:
             },
         )
 
-        _run_result = run_import(
+        _run_result = ingest(
             make_options(source=str(source), destination=str(dest), skip_metadata_write=True),
             progress=noop_progress,
         )
@@ -332,7 +332,7 @@ class TestInitTakeoutPipeline:
             },
         )
 
-        run_import(
+        ingest(
             make_options(source=str(source), destination=str(dest), dry_run=True),
             progress=noop_progress,
         )
@@ -372,7 +372,7 @@ class TestInitTakeoutPipeline:
 
         (source / "Photos from 2024" / "video.avi").write_bytes(b"dummy avi content")
 
-        _run_result = run_import(
+        _run_result = ingest(
             make_options(source=str(source), destination=str(dest), skip_dedupe=True),
             progress=noop_progress,
         )

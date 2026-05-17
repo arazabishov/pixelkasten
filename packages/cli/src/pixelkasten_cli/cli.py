@@ -112,7 +112,7 @@ def import_cmd(
         raise typer.Exit(code=1)
 
     from pixelkasten.configuration import Options
-    from pixelkasten.commands.import_ import run_import
+    from pixelkasten.commands.ingest import ingest
 
     if mode == "takeout" and not skip_metadata_write:
         from pixelkasten.utils.exiftool import check_exiftool
@@ -137,7 +137,7 @@ def import_cmd(
 
     console.print(f"\n[bold]Processing photos from {source}...[/bold]\n")
 
-    result = run_import(options, progress=build_progress_factory(console))
+    result = ingest(options, progress=build_progress_factory(console))
     render_import(console, result)
 
     if dry_run:

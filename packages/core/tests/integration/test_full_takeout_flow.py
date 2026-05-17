@@ -19,7 +19,7 @@ import pytest
 
 from helpers import make_options, noop_progress
 from pixelkasten.configuration import ExportOptions
-from pixelkasten.commands.import_.run import run_import
+from pixelkasten.commands.ingest import ingest
 from pixelkasten.commands.export import export as run_export
 from pixelkasten.utils.exiftool import check_exiftool
 
@@ -113,7 +113,7 @@ class TestFullTakeoutPipeline:
             },
         )
 
-        run_import(
+        ingest(
             make_options(source=str(source), destination=str(lib)),
             progress=noop_progress,
         )
@@ -151,7 +151,7 @@ class TestFullTakeoutPipeline:
             },
         )
 
-        run_import(
+        ingest(
             make_options(source=str(source), destination=str(lib)),
             progress=noop_progress,
         )
