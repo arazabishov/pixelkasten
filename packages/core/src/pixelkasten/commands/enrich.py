@@ -36,7 +36,7 @@ class EnrichSummary:
     """End-of-run counts from the `enrich` command.
 
     Populated by ``enrich`` and rendered by
-    ``pixelkasten_cli.reports.render_enrich``. Per-file failure paths are
+    ``pixelkasten_cli.render.render_enrich``. Per-file failure paths are
     recorded so the renderer can show a sample inline.
     """
 
@@ -99,9 +99,6 @@ def enrich(options: EnrichOptions, progress: Callable | None = None) -> EnrichSu
     _embed(library, options.video_frames, summary, progress)
 
     return summary
-
-
-# ---------- geocode ----------
 
 
 def _geocode(rdir: str, summary: EnrichSummary, progress: Callable) -> None:
@@ -174,9 +171,6 @@ def _apply_geocode_results(
             summary.locations_added += 1
             done += 1
             tick(done)
-
-
-# ---------- embed ----------
 
 
 def _embed(
@@ -317,9 +311,6 @@ def _embed_video(path: str, video_frames: int, embed_images) -> np.ndarray:
         raise RuntimeError(f"Empty embedding for {path}")
     mean = matrix.mean(axis=0)
     return mean / np.linalg.norm(mean)
-
-
-# ---------- helpers ----------
 
 
 def _list_records(rdir: str) -> list[str]:

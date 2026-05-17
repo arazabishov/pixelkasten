@@ -7,23 +7,28 @@ Ported from packages/core/src/core/report.js. Uses Python stdlib csv module.
 import csv
 import os
 
-from pixelkasten.manifest import ApplyResult, DedupeResult, ManifestEntry, Status
 from pixelkasten.configuration import Options
+from pixelkasten.layout import records_dir
+from pixelkasten.manifest import ApplyResult, DedupeResult, ManifestEntry, Status
 
 
 def report(manifest: list[ManifestEntry], options: Options) -> str:
     """
-    Write a per-file CSV report to the destination directory.
+    Write a per-file CSV report inside the records directory.
 
-    Columns: media, metadata, confidence, status, reason
-    All paths are relative to the source directory.
+    Columns: media, metadata, confidence, status, reason. Paths are
+    relative to the source directory. Lives under ``.pixelkasten/`` next
+    to the per-asset records — it's metadata about the run, not a media
+    artifact, so it shouldn't sit next to media files.
 
     Returns the path to the written report file.
     """
     if options.destination is None:
         raise ValueError("destination is required for report")
 
-    report_path = os.path.join(options.destination, "report.csv")
+    rdir = records_dir(options.destination)
+    os.makedirs(rdir, exist_ok=True)
+    report_path = os.path.join(rdir, "report.csv")
 
     with open(report_path, "w", newline="") as f:
         writer = csv.writer(f)

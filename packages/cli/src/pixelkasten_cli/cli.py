@@ -2,8 +2,8 @@
 CLI entry point — pixelkasten subcommands.
 
 Each command is a thin wrapper: build an options dataclass, call the core
-function, hand the return value to ``render_<command>`` in ``reports.py``.
-No rendering logic lives here; ``reports.py`` is the single source for that.
+function, hand the return value to ``render_<command>`` in ``render.py``.
+No rendering logic lives here; ``render.py`` is the single source for that.
 
 Usage:
     uv run pixelkasten import --from-takeout -s <source> -d <destination>
@@ -15,7 +15,7 @@ import typer
 from pathlib import Path
 from rich.console import Console
 
-from pixelkasten_cli.reports import (
+from pixelkasten_cli.render import (
     build_progress_factory,
     render_caption,
     render_cluster,
@@ -138,7 +138,7 @@ def import_cmd(
     console.print(f"\n[bold]Processing photos from {source}...[/bold]\n")
 
     result = ingest(options, progress=build_progress_factory(console))
-    render_import(console, result)
+    render_import(console, result, options)
 
     if dry_run:
         console.print(
@@ -207,7 +207,7 @@ def export(
 
     options = ExportOptions(force=force, dry_run=dry_run)
     summary = run_export(str(library), str(to), options)
-    render_export(console, summary)
+    render_export(console, summary, options)
 
 
 @app.command()

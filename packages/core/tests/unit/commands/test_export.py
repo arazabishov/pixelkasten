@@ -323,8 +323,8 @@ class TestForceAndDryRun:
 
         # No files created
         assert not dst.exists()
-        # Summary is marked dry-run
-        assert summary.dry_run is True
+        # Summary still reports the planned count (1 file would have been exported)
+        assert summary.total == 1
         # Plan was printed
         assert "copy" in capsys.readouterr().out
 

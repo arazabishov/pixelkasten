@@ -36,9 +36,6 @@ class ExportSummary:
     # files with no parseable date — landed at the destination root
     undated: int
 
-    # True when the run was a dry-run (no files copied)
-    dry_run: bool
-
 
 def export(library: str, destination: str, options: ExportOptions) -> ExportSummary:
     """
@@ -67,7 +64,7 @@ def export(library: str, destination: str, options: ExportOptions) -> ExportSumm
     if options.dry_run:
         for src, dst in operations:
             print(f"copy {src} -> {dst}")
-        return _summarize(operations, destination, dry_run=True)
+        return _summarize(operations, destination)
 
     if options.force and os.path.exists(destination):
         shutil.rmtree(destination)
@@ -77,10 +74,7 @@ def export(library: str, destination: str, options: ExportOptions) -> ExportSumm
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         shutil.copy2(src, dst)
 
-    return _summarize(operations, destination, dry_run=False)
-
-
-# ---------- load + group ----------
+    return _summarize(operations, destination)
 
 
 def _load_entries(library: str, rdir: str) -> list[dict]:
@@ -143,9 +137,6 @@ def _detect_and_propagate_proposals(groups: dict[str, list[dict]]) -> None:
         raise RuntimeError(
             "proposed_album disagreement within group(s); resolve before exporting:\n" + joined
         )
-
-
-# ---------- target paths ----------
 
 
 def _plan_operations(destination: str, groups: dict[str, list[dict]]) -> list[tuple[str, str]]:
@@ -275,20 +266,11 @@ def _sanitize_album(name: str) -> str:
     return _INVALID_NAME_CHARS.sub("-", name).strip()
 
 
-def _summarize(
-    operations: list[tuple[str, str]],
-    destination: str,
-    dry_run: bool,
-) -> ExportSummary:
+def _summarize(operations: list[tuple[str, str]], destination: str) -> ExportSummary:
     """Count buckets so the CLI can print a summary."""
     # Undated files keep the working-library filename and land at the root,
     # so their destination has no subdirectory between dest and the file.
     undated = sum(
         1 for _, dst in operations if os.path.dirname(dst) == os.path.normpath(destination)
     )
-    return ExportSummary(
-        destination=destination,
-        total=len(operations),
-        undated=undated,
-        dry_run=dry_run,
-    )
+    return ExportSummary(destination=destination, total=len(operations), undated=undated)

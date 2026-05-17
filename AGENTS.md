@@ -106,7 +106,7 @@ The link stage is complex enough to have its own documentation; see `docs/takeou
     3f2a1b8cdef01234567890abcdef01230.heic.pk.json
     9d7e4f02ab12c34d5e67f89012345678.mov.pk.json
     bbe90b6fd17f468c86da78ab484fd469.jpg.pk.json
-  report.csv                               # per-file CSV report
+    report.csv                                       # per-file CSV summary of the run
 ```
 
 Filenames are independent uuid4 hex strings — even members of the same logical group don't share a stem. Group membership lives in each record's `group_id` field. This makes filename collisions impossible by construction (no `_N` suffixes) and lets group siblings share an extension cleanly (an HEIC + its `-edited.heic` variant from Takeout both land as their own uuid-named files with one shared `group_id`).
@@ -291,20 +291,22 @@ Commands that take more than two or three inputs, or whose options round-trip th
 
 ### Reporting and output
 
-One pattern, one place. **All terminal rendering lives in `packages/cli/src/pixelkasten_cli/reports.py`.** Every command has exactly one public renderer there, named `render_<command>(console, value) -> None`, where `value` is whatever the command returned. The CLI's job per command is mechanical: build options, call the core function, pass the return value to the matching renderer.
+One pattern, one place. **All terminal rendering lives in `packages/cli/src/pixelkasten_cli/render.py`.** Every command has exactly one public renderer there, named `render_<command>(console, value, *extras) -> None`. `value` is what the command returned; `*extras` are whatever else the renderer needs (typically the command's `options`). The CLI's job per command is mechanical: build options, call the core function, pass the return value (and options when the renderer needs them) to the matching renderer.
 
 ```
-commands/<x>.py → return value → cli.py → render_<x>() in reports.py → console
+commands/<x>.py → return value → cli.py → render_<x>() in render.py → console
 ```
 
-Result types that need a typed shape are collocated with their command (`EnrichSummary` in `commands/enrich.py`, `ExportSummary` in `commands/export.py`, `IngestResult` in `commands/ingest/__init__.py`). Trivial returns (a string for `caption`, a list of paths for `propose`) stay primitive. Don't invent a new dataclass for two scalars.
+Result types that need a typed shape are collocated with their command (`EnrichSummary` in `commands/enrich.py`, `ExportSummary` in `commands/export.py`, `IngestResult` in `commands/ingest/ingest.py`). Trivial returns (a string for `caption`, a list of paths for `propose`) stay primitive. Don't invent a new dataclass for two scalars.
+
+**Result types don't duplicate option fields.** If a renderer needs an option's value (e.g. `dry_run`), it takes the `options` object as an extra renderer argument. That keeps result types focused on what the run actually *produced* and avoids the ambiguity of two sources of truth for the same field.
 
 Two output channels exist, and the distinction is load-bearing:
 
 - **`console.print` (Rich)** — human-styled tables, banners, errors. Used by every renderer for human-output commands.
 - **`typer.echo`** — machine-readable stdout for piping. Used by `render_similar` and `render_cluster` (JSON), plus `render_caption` (single string) and `render_propose` (one-line confirmation). Renderers in this group still take a `console` argument for signature uniformity; they ignore it.
 
-When you're looking for "how does X get displayed", grep `reports.py` for `render_x`. That's the only place.
+When you're looking for "how does X get displayed", grep `render.py` for `render_x`. That's the only place.
 
 ### Testing
 

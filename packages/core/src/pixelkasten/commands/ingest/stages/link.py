@@ -62,6 +62,7 @@ def link(raw_collections: dict, options: Options) -> dict:
     """
     files_media = raw_collections["files_media"]
 
+    # REVIEW: why do we need this early return? To prevent unnecessary work below from happening or?
     if options.mode == "archive":
         manifest = [
             ManifestEntry(media_path=fp, source=Source(type="loose"), sidecar=None)
