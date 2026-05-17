@@ -21,7 +21,7 @@ from pathlib import Path
 import pytest
 
 from helpers import make_options, noop_progress
-from pixelkasten.configuration import ExportOptions, Hooks
+from pixelkasten.configuration import ExportOptions
 from pixelkasten.commands.import_.run import run_import
 from pixelkasten.commands.export import export as run_export
 from pixelkasten.commands.propose import propose
@@ -101,7 +101,6 @@ class TestSameExtensionGroupChain:
         # 1. import -> working library with two .jpg files sharing a group_id
         run_import(
             make_options(source=str(source), destination=str(lib), skip_dedupe=True),
-            hooks=Hooks(),
             progress=noop_progress,
         )
 

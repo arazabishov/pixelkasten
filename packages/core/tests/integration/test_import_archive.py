@@ -18,7 +18,6 @@ import pytest
 
 from helpers import make_options, noop_progress
 from pixelkasten.utils.exiftool import check_exiftool, read_metadata
-from pixelkasten.configuration import Hooks
 from pixelkasten.commands.import_.run import run_import
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "media"
@@ -74,16 +73,16 @@ class TestInitArchivePipeline:
         shutil.copy2(FIXTURES_DIR / "with-datetime-and-gps.jpg", source / "with_exif.jpg")
         shutil.copy2(FIXTURES_DIR / "no-metadata.jpg", source / "no_exif.jpg")
 
-        manifest = run_import(
+        _run_result = run_import(
             make_options(
                 source=str(source),
                 destination=str(dest),
                 mode="archive",
                 skip_dedupe=True,
             ),
-            hooks=Hooks(),
             progress=noop_progress,
         )
+        manifest = _run_result.manifest
 
         by_src = _by_source_basename(manifest)
         assert set(by_src.keys()) == {"with_exif.jpg", "no_exif.jpg"}
@@ -118,16 +117,16 @@ class TestInitArchivePipeline:
 
         shutil.copy2(FIXTURES_DIR / "no-metadata.jpg", source / "naked.jpg")
 
-        manifest = run_import(
+        _run_result = run_import(
             make_options(
                 source=str(source),
                 destination=str(dest),
                 mode="archive",
                 skip_dedupe=True,
             ),
-            hooks=Hooks(),
             progress=noop_progress,
         )
+        manifest = _run_result.manifest
 
         target = _by_source_basename(manifest)["naked.jpg"]
         disk = read_metadata([target], VERIFY_TAGS)[target]
@@ -150,11 +149,11 @@ class TestInitArchivePipeline:
         shutil.copy2(FIXTURES_DIR / "no-metadata.jpg", source / "zebra.jpg")
         shutil.copy2(FIXTURES_DIR / "no-metadata.jpg", source / "alpha.jpg")
 
-        manifest = run_import(
+        _run_result = run_import(
             make_options(source=str(source), destination=str(dest), mode="archive"),
-            hooks=Hooks(),
             progress=noop_progress,
         )
+        manifest = _run_result.manifest
 
         survivors = [
             os.path.basename(e.media_path)
@@ -179,11 +178,11 @@ class TestInitArchivePipeline:
         # A non-real video, but emit doesn't care about content
         (source / "IMG_001.mov").write_bytes(b"fake-mov")
 
-        manifest = run_import(
+        _run_result = run_import(
             make_options(source=str(source), destination=str(dest), mode="archive"),
-            hooks=Hooks(),
             progress=noop_progress,
         )
+        manifest = _run_result.manifest
 
         # Both members get a target path; the .jpg is emitted (has handler);
         # the .mov is unsupported (no handler) and marked SKIPPED — but they

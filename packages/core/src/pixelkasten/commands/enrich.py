@@ -15,10 +15,11 @@ import os
 import sys
 from collections.abc import Callable
 from contextlib import contextmanager
+from dataclasses import dataclass, field
 
 import numpy as np
 
-from pixelkasten.configuration import EnrichOptions, EnrichSummary
+from pixelkasten.configuration import EnrichOptions
 from pixelkasten.handlers import is_image, is_video
 from pixelkasten.layout import (
     RECORDS_DIR,
@@ -28,6 +29,41 @@ from pixelkasten.layout import (
     records_dir,
     write_record,
 )
+
+
+@dataclass
+class EnrichSummary:
+    """End-of-run counts from the `enrich` command.
+
+    Populated by ``enrich`` and rendered by
+    ``pixelkasten_cli.reports.render_enrich``. Per-file failure paths are
+    recorded so the renderer can show a sample inline.
+    """
+
+    # total records walked across the working library
+    records_total: int = 0
+
+    # records that gained a `location` field this run
+    locations_added: int = 0
+
+    # records skipped because `location` was already set
+    locations_already_set: int = 0
+
+    # images that gained an embedding this run
+    images_embedded: int = 0
+
+    # videos that gained an embedding this run
+    videos_embedded: int = 0
+
+    # files skipped because their embedding was already in embeddings.npy
+    already_embedded: int = 0
+
+    # absolute paths of images that failed to embed (corrupt, decode error)
+    images_failed: list[str] = field(default_factory=list)
+
+    # absolute paths of videos that failed to embed (ffmpeg / CLIP failure)
+    videos_failed: list[str] = field(default_factory=list)
+
 
 # How many images go through one CLIP forward pass. The per-call Python/GPU
 # overhead dominates when batch=1, so batching helps a lot; 32 is a

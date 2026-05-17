@@ -287,16 +287,24 @@ Either shape is fine on its own; the divergence has a reason, but a fresh reader
 
 #### When to use a typed options dataclass
 
-Commands that take more than two or three inputs, or whose options round-trip through hooks / UI layers, get a typed dataclass in `configuration.py` (e.g., `Options`, `EnrichOptions`, `ApplyOptions`). Commands with one or two scalar arguments don't — adding a dataclass for two scalars is ceremony. When in doubt, count the arguments and the layers they cross.
+Commands that take more than two or three inputs, or whose options round-trip through hooks / UI layers, get a typed dataclass in `configuration.py` (e.g., `Options`, `EnrichOptions`, `ExportOptions`). Commands with one or two scalar arguments don't — adding a dataclass for two scalars is ceremony. When in doubt, count the arguments and the layers they cross.
 
-### Output conventions
+### Reporting and output
 
-The CLI has two output channels and the distinction is load-bearing:
+One pattern, one place. **All terminal rendering lives in `packages/cli/src/pixelkasten_cli/reports.py`.** Every command has exactly one public renderer there, named `render_<command>(console, value) -> None`, where `value` is whatever the command returned. The CLI's job per command is mechanical: build options, call the core function, pass the return value to the matching renderer.
 
-- **`typer.echo`** for machine-readable command output — JSON from `similar`/`cluster`, single-answer payloads from `caption`, confirmation lines from `propose`. Users pipe this; Rich's ANSI codes break that.
-- **`console.print` (Rich)** for human-styled status — banners, errors, warnings, summary tables, progress bars.
+```
+commands/<x>.py → return value → cli.py → render_<x>() in reports.py → console
+```
 
-A new command picks one channel based on what its caller is: an agent / shell user piping to `jq` gets `typer.echo`; a human watching the terminal gets `console.print`. Don't mix the two for the same payload.
+Result types that need a typed shape are collocated with their command (`EnrichSummary` in `commands/enrich.py`, `ExportSummary` in `commands/export.py`, `ImportResult` in `commands/import_/run.py`). Trivial returns (a string for `caption`, a list of paths for `propose`) stay primitive. Don't invent a new dataclass for two scalars.
+
+Two output channels exist, and the distinction is load-bearing:
+
+- **`console.print` (Rich)** — human-styled tables, banners, errors. Used by every renderer for human-output commands.
+- **`typer.echo`** — machine-readable stdout for piping. Used by `render_similar` and `render_cluster` (JSON), plus `render_caption` (single string) and `render_propose` (one-line confirmation). Renderers in this group still take a `console` argument for signature uniformity; they ignore it.
+
+When you're looking for "how does X get displayed", grep `reports.py` for `render_x`. That's the only place.
 
 ### Testing
 

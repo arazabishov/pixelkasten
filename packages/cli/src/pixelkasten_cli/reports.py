@@ -1,15 +1,26 @@
 """
-Rich UI components for pipeline progress reporting.
+All Rich/terminal rendering for the CLI lives in this file.
 
-Contains the progress factory (creates Rich progress bar context managers)
-and summary table renderers (one per pipeline stage). This is the only module
-that couples Rich to the pipeline — stages and pipeline.py remain UI-agnostic.
+Convention: every command has exactly one public renderer named
+``render_<command>(console: Console, value) -> None``. ``value`` is whatever
+the command returned. The CLI's job is to capture the return value and call
+the matching renderer — nothing else. When you're looking for "how does X
+get displayed", grep this file for ``render_x``.
+
+Machine-output commands (``similar``, ``cluster``) write JSON to stdout via
+``typer.echo`` instead of Rich; their renderers take ``console`` for
+signature uniformity and ignore it.
+
+This is the only module that couples Rich to the command modules — every
+file under ``packages/core`` stays UI-agnostic.
 """
 
+import json
 import os
 from collections.abc import Callable
 from contextlib import contextmanager
 
+import typer
 from rich.console import Console
 from rich.progress import (
     BarColumn,
@@ -20,25 +31,39 @@ from rich.progress import (
 )
 from rich.table import Column, Table
 
-from pixelkasten.configuration import EnrichSummary
+from pixelkasten.commands.enrich import EnrichSummary
+from pixelkasten.commands.export import ExportSummary
+from pixelkasten.commands.import_ import ImportResult
 from pixelkasten.manifest import ApplyResult, DedupeResult, ManifestEntry, Status
 
-# Shared width for tables and progress bars so they align visually.
-UI_WIDTH = 58
+# Progress bar labels are padded to this width so the bars start at the
+# same column regardless of label length. Set to the longest label we use
+# ("Emitting working library" = 24 chars) plus one space.
+_PROGRESS_LABEL_WIDTH = 25
 
-# Progress bar labels are padded to this width so bars align vertically.
-_PROGRESS_LABEL_WIDTH = 20
+# Bar fills 28 columns — wide enough to read percentage progress at a glance.
+_BAR_WIDTH = 28
 
-# Bar fills the remaining space: UI_WIDTH - spinner(2) - label(20) - pct(5) - gaps(3).
-_BAR_WIDTH = UI_WIDTH - 30
+# Summary tables pin their left column to this width so the column
+# divider lands at the same screen position across every stage's table.
+# Set to fit the longest label ("Matched (medium confidence)" = 27 chars)
+# plus breathing room.
+_TABLE_LABEL_WIDTH = 30
+
+# Shared width for tables and the progress bar block so they align
+# visually. Computed: spinner(2) + label + bar + pct(5) + gaps(3).
+UI_WIDTH = _PROGRESS_LABEL_WIDTH + _BAR_WIDTH + 10
+
+
+# ---------- progress (used by long-running commands during the run) ----------
 
 
 def build_progress_factory(console: Console) -> Callable:
     """
-    Build a progress context-manager factory for the pipeline.
+    Build a progress context-manager factory.
 
-    Returns a callable: (label: str, total: int) -> ContextManager
-    The context manager yields an on_progress(completed: int) callback.
+    Returns a callable: ``(label, total) -> ContextManager`` whose context
+    manager yields an ``on_progress(completed)`` callback.
     """
 
     @contextmanager
@@ -64,8 +89,89 @@ def build_progress_factory(console: Console) -> Callable:
     return factory
 
 
+# ---------- per-command renderers ----------
+
+
+def render_import(console: Console, result: ImportResult) -> None:
+    """Render every stage's summary table from one ImportResult."""
+    _render_scan_table(console, result.raw_collections)
+    _render_link_table(console, result.manifest, result.link_stats)
+    if any(e.dedupe is not None for e in result.manifest):
+        _render_dedupe_table(console, result.manifest)
+    _render_reconcile_table(console, result.manifest)
+    if not result.dry_run:
+        _render_apply_table(console, result.manifest)
+    _render_error_table(console, result.manifest)
+
+
+def render_enrich(console: Console, summary: EnrichSummary) -> None:
+    """Two tables — geocoding totals, then embedding totals — plus failure sample."""
+    geocode = _make_table("Reverse geocoding", "Action")
+    geocode.add_row("Records", str(summary.records_total))
+    geocode.add_row("Geocoded this run", str(summary.locations_added))
+    geocode.add_row("Already set", str(summary.locations_already_set))
+    console.print(geocode)
+    console.print()
+
+    embed = _make_table("Embedding", "Action")
+    embed.add_row("Images embedded", str(summary.images_embedded))
+    embed.add_row("Videos embedded", str(summary.videos_embedded))
+    embed.add_row("Already embedded", str(summary.already_embedded))
+    total_failed = len(summary.images_failed) + len(summary.videos_failed)
+    if total_failed:
+        embed.add_row("[red]Failed[/red]", f"[red]{total_failed}[/red]")
+    console.print(embed)
+
+    # Inline a small sample of failure paths so the user knows which files
+    # to investigate; full lists are on stderr already.
+    sample = (summary.images_failed + summary.videos_failed)[:3]
+    if sample:
+        console.print()
+        console.print("[red]Failed paths (first 3):[/red]")
+        for path in sample:
+            console.print(f"  {path}")
+    console.print()
+
+
+def render_export(console: Console, summary: ExportSummary) -> None:
+    """One-line confirmation showing total + undated counts and destination."""
+    label = "Would export" if summary.dry_run else "Exported"
+    console.print(
+        f"{label} {summary.total} file(s) to {summary.destination} ({summary.undated} undated)."
+    )
+
+
+def render_propose(console: Console, paths: list[str], album: str | None) -> None:
+    """One-line confirmation of how many records were updated and to what value."""
+    action = "cleared proposed_album on" if album is None else f"set proposed_album={album!r} on"
+    typer.echo(f"{action} {len(paths)} file(s)")
+
+
+def render_caption(console: Console, text: str | None) -> None:
+    """Caption text to stdout for piping; nothing on failure (CLI exits non-zero)."""
+    if text is not None:
+        typer.echo(text)
+
+
+def render_similar(console: Console, results: list[dict]) -> None:
+    """Machine output: JSON list of {path, score} to stdout."""
+    typer.echo(json.dumps(results, indent=2))
+
+
+def render_cluster(console: Console, groups: dict[int, list[str]]) -> None:
+    """Machine output: JSON dict of {label: [paths]} to stdout."""
+    typer.echo(json.dumps({str(k): v for k, v in groups.items()}, indent=2))
+
+
+# ---------- private table builders ----------
+
+
 def _make_table(title: str, header_left: str = "Category") -> Table:
-    """Create a consistently-styled summary table with a stage title."""
+    """Consistently-styled summary table with a stage title.
+
+    The left column is pinned to ``_TABLE_LABEL_WIDTH`` so the divider
+    between label and count lines up across every table.
+    """
     table = Table(
         show_header=True,
         show_edge=False,
@@ -75,13 +181,12 @@ def _make_table(title: str, header_left: str = "Category") -> Table:
         title_style="",
         title_justify="left",
     )
-    table.add_column(header_left, style="cyan")
+    table.add_column(header_left, style="cyan", min_width=_TABLE_LABEL_WIDTH)
     table.add_column("Count", justify="right")
     return table
 
 
-def render_scan_table(console: Console, raw_collections: dict, source_path: str) -> None:
-    """Render the scan stage summary table."""
+def _render_scan_table(console: Console, raw_collections: dict) -> None:
     albums = raw_collections.get("files_metadata_albums", [])
     media = raw_collections.get("files_media", [])
     metadata = raw_collections.get("files_metadata", [])
@@ -100,17 +205,11 @@ def render_scan_table(console: Console, raw_collections: dict, source_path: str)
     console.print()
 
 
-def render_link_table(console: Console, result: dict) -> None:
-    """Render the link stage summary table."""
-    manifest = result["manifest"]
-    stats = result["stats"]
-
+def _render_link_table(console: Console, manifest: list[ManifestEntry], stats: dict) -> None:
     confidence_counts = {3: 0, 2: 0, 1: 0}
     for entry in manifest:
-        if entry.sidecar and entry.sidecar.confidence:
-            c = entry.sidecar.confidence
-            if c in confidence_counts:
-                confidence_counts[c] += 1
+        if entry.sidecar and entry.sidecar.confidence in confidence_counts:
+            confidence_counts[entry.sidecar.confidence] += 1
 
     unmatched_metadata = stats.get("unmatched_metadata_files", set())
     unmatched_media = stats.get("unmatched_media_files", set())
@@ -130,8 +229,7 @@ def render_link_table(console: Console, result: dict) -> None:
     console.print()
 
 
-def render_reconcile_table(console: Console, manifest: list[ManifestEntry]) -> None:
-    """Render the reconcile stage summary table."""
+def _render_reconcile_table(console: Console, manifest: list[ManifestEntry]) -> None:
     keepers = [e for e in manifest if e.can_keep()]
 
     n_processed = sum(
@@ -159,8 +257,7 @@ def render_reconcile_table(console: Console, manifest: list[ManifestEntry]) -> N
     console.print()
 
 
-def render_dedupe_table(console: Console, manifest: list[ManifestEntry]) -> None:
-    """Render the dedupe stage summary table."""
+def _render_dedupe_table(console: Console, manifest: list[ManifestEntry]) -> None:
     n_delete = sum(1 for e in manifest if e.dedupe and e.dedupe.result == DedupeResult.DELETE)
     n_keep = sum(1 for e in manifest if e.dedupe and e.dedupe.result == DedupeResult.KEEP)
     n_error = sum(1 for e in manifest if e.dedupe and e.dedupe.status == Status.ERROR)
@@ -176,8 +273,7 @@ def render_dedupe_table(console: Console, manifest: list[ManifestEntry]) -> None
     console.print()
 
 
-def render_apply_table(console: Console, manifest: list[ManifestEntry]) -> None:
-    """Render the apply stage summary table."""
+def _render_apply_table(console: Console, manifest: list[ManifestEntry]) -> None:
     n_skipped = sum(1 for e in manifest if e.dedupe and e.dedupe.result == DedupeResult.DELETE)
     n_copied = sum(1 for e in manifest if e.apply and e.apply.result == ApplyResult.COPIED)
     n_written = sum(1 for e in manifest if e.apply and e.apply.result == ApplyResult.WRITTEN)
@@ -195,8 +291,7 @@ def render_apply_table(console: Console, manifest: list[ManifestEntry]) -> None:
     console.print()
 
 
-def render_error_table(console: Console, manifest: list[ManifestEntry]) -> None:
-    """Render a table of all files that encountered errors across all stages."""
+def _render_error_table(console: Console, manifest: list[ManifestEntry]) -> None:
     errors: list[tuple[str, str, str]] = []
 
     for entry in manifest:
@@ -235,33 +330,4 @@ def render_error_table(console: Console, manifest: list[ManifestEntry]) -> None:
         table.add_row(filename, stage, reason)
 
     console.print(table)
-    console.print()
-
-
-def render_enrich_summary(console: Console, summary: EnrichSummary) -> None:
-    """Render two Rich tables — geocoding totals, then embedding totals."""
-    geocode = _make_table("Reverse geocoding", "Action")
-    geocode.add_row("Records", str(summary.records_total))
-    geocode.add_row("Geocoded this run", str(summary.locations_added))
-    geocode.add_row("Already set", str(summary.locations_already_set))
-    console.print(geocode)
-    console.print()
-
-    embed = _make_table("Embedding", "Action")
-    embed.add_row("Images embedded", str(summary.images_embedded))
-    embed.add_row("Videos embedded", str(summary.videos_embedded))
-    embed.add_row("Already embedded", str(summary.already_embedded))
-    total_failed = len(summary.images_failed) + len(summary.videos_failed)
-    if total_failed:
-        embed.add_row("[red]Failed[/red]", f"[red]{total_failed}[/red]")
-    console.print(embed)
-
-    # Inline a small sample of failure paths so the user knows which files
-    # to investigate; full lists live in stderr already.
-    sample = (summary.images_failed + summary.videos_failed)[:3]
-    if sample:
-        console.print()
-        console.print("[red]Failed paths (first 3):[/red]")
-        for path in sample:
-            console.print(f"  {path}")
     console.print()
