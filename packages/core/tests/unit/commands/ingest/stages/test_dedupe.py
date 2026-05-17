@@ -201,7 +201,11 @@ class TestDedupeHash:
 
 
 class TestDedupeArchiveMode:
-    def test_archive_keeps_lex_smallest_among_duplicates(self):
+    def test_archive_uniform_loose_keeps_all(self):
+        # Archive entries at the source root come out as ``loose``. When
+        # all duplicates in a group are loose, the dedupe rule (shared
+        # with Takeout) keeps every copy — there's nothing to discriminate
+        # by. This is a known mild over-retention for flat-root dumps.
         manifest = [
             _entry("/photos/zebra.jpg", "loose", hash_val="h1"),
             _entry("/photos/alpha.jpg", "loose", hash_val="h1"),
@@ -209,29 +213,42 @@ class TestDedupeArchiveMode:
         ]
         dedupe_resolve(manifest, make_options(mode="archive"))
 
-        # The lex-smallest path wins; the others are deleted
+        # All three duplicates survive (uniform-loose → keep all)
         winners = [
             e.media_path for e in manifest if e.dedupe and e.dedupe.result == DedupeResult.KEEP
         ]
-        losers = [
-            e.media_path for e in manifest if e.dedupe and e.dedupe.result == DedupeResult.DELETE
-        ]
-        assert winners == ["/photos/alpha.jpg"]
-        assert set(losers) == {"/photos/zebra.jpg", "/photos/middle.jpg"}
+        assert set(winners) == {"/photos/alpha.jpg", "/photos/middle.jpg", "/photos/zebra.jpg"}
 
-    def test_archive_ignores_prefer_flag(self):
+    def test_archive_prefer_album_deletes_loose_copy(self):
+        # With archive subfolders carrying ``source.type=album``, the
+        # --prefer flag is meaningful in archive mode too: a duplicate
+        # that exists both in an album folder and loose at the root
+        # collapses to just the album copy.
         manifest = [
             _entry("/photos/b.jpg", "loose", hash_val="h"),
-            _entry("/photos/a.jpg", "album", "Trip", hash_val="h"),
+            _entry("/photos/Trip/a.jpg", "album", "Trip", hash_val="h"),
         ]
-        # Even though prefer="album" would have kept the album entry in Takeout
-        # mode, archive mode breaks ties by media_path.
         dedupe_resolve(manifest, make_options(mode="archive", prefer="album"))
 
         winners = [
             e.media_path for e in manifest if e.dedupe and e.dedupe.result == DedupeResult.KEEP
         ]
-        assert winners == ["/photos/a.jpg"]
+        assert winners == ["/photos/Trip/a.jpg"]
+
+    def test_archive_uniform_albums_across_folders_keep_all(self):
+        # Same hash in two album subfolders represents intentional
+        # cross-folder organization (Wedding album + Honeymoon album).
+        # Both copies survive so export can place each in its folder.
+        manifest = [
+            _entry("/photos/Wedding/x.jpg", "album", "Wedding", hash_val="h"),
+            _entry("/photos/Honeymoon/x.jpg", "album", "Honeymoon", hash_val="h"),
+        ]
+        dedupe_resolve(manifest, make_options(mode="archive"))
+
+        winners = [
+            e.media_path for e in manifest if e.dedupe and e.dedupe.result == DedupeResult.KEEP
+        ]
+        assert set(winners) == {"/photos/Wedding/x.jpg", "/photos/Honeymoon/x.jpg"}
 
     def test_archive_keeps_uniques(self):
         manifest = [

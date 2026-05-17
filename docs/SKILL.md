@@ -16,7 +16,7 @@ Every keeper in the working library has a record at `<library>/.pixelkasten/<fil
 {
   "dates": ["2024-06-01T14:30:22"],                           // import (reconcile)
   "geo": {"latitude": 52.52, "longitude": 13.40, "altitude": 34.0},  // import (reconcile)
-  "album": "Wedding 2019",                                    // import (Takeout source folder; null otherwise)
+  "album": "Wedding 2019",                                    // import (Takeout source folder or archive subfolder; null for root-level archive files)
   "group_id": "3f2a1b8cdef01234567890abcdef0123",             // import (emit) — shared across siblings
   "location": {"name": "Berlin, Germany",
                "region": "Berlin", "country": "DE"},          // enrich (geocode)
@@ -142,7 +142,7 @@ These come from earlier auto-organization passes — they're starting points, no
 When you understand what happens to files you don't propose, you'll make better calls about when to propose at all. For each photo, `pixelkasten export` picks a target in this order:
 
 1. `proposed_album` set → `<YYYY>/<YYYYMMDD>-<proposed_album>/<YYYYMMDD-HHMMSS>.<ext>` (you decided)
-2. `proposed_album` unset, `album` set (from Takeout source folder) → same shape, using `album`
+2. `proposed_album` unset, `album` set (from Takeout source folder, or the parent folder of an archive subfolder file — note that generic folder names like `DCIM` / `100APPLE` are propagated verbatim; treat them as hints, not gospel) → same shape, using `album`
 3. Neither set, parseable `dates[0]` → `<YYYY>/<YYYYMMDD-HHMMSS>.<ext>` (loose in year folder)
 4. No parseable date → `<filename>` at the destination root (the working-library uuid name)
 

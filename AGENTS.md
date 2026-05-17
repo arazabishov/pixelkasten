@@ -83,10 +83,10 @@ scan → link → dedupe → reconcile → group → emit
 ```
 
 - `scan` walks the source and partitions files into media, metadata (Takeout sidecars), and album marker files.
-- `link` matches each media file to its Google Takeout sidecar (Takeout mode only). Archive mode short-circuits: every entry is loose with no sidecar.
-- `dedupe` hashes files and resolves duplicates. Takeout mode uses `--prefer album/loose`; archive mode keeps the lex-smallest source path.
+- `link` matches each media file to its Google Takeout sidecar (Takeout mode only). Archive mode short-circuits the matching but still populates `source`: files in subfolders become `Source(type="album", name=<parent folder name>)`, files at the source root stay `Source(type="loose")`. Folder names propagate as album hints for the agent and the export.
+- `dedupe` hashes files and resolves duplicates. The same rule applies in both modes: mixed `album`/`loose` groups use `--prefer` to choose; uniform groups keep all copies (preserves cross-album / cross-folder organization). Archive's flat-root case (multiple identical files at the source root) therefore keeps every copy — mild over-retention recoverable from the export side.
 - `reconcile` reads disk EXIF, compares with sidecar data (when present), and queues `write_tags` for any metadata missing from disk. Always runs.
-- `group` assigns a `group_id` (uuid4 hex) to each keeper. Members of one logical asset (Live Photo image + video, edited variant) share a `group_id`. Takeout mode buckets by shared sidecar; archive mode buckets by `(dirname, stripped_stem)`.
+- `group` assigns a `group_id` (uuid4 hex) to each keeper. Members of one logical asset (Live Photo image + video, edited variant) share a `group_id`. Takeout mode buckets by shared sidecar; archive mode buckets by `(dirname, entry.name)` where `entry.name` is the canonical filename stem written by `link`.
 - `emit` writes the working library: `<dst>/<file_id>.<ext>` for each file (a fresh uuid4 hex per file — filenames are independently unique), `<dst>/.pixelkasten/<filename>.pk.json` for the record. The record carries the entry's `group_id` so downstream commands (`propose`, `export`) recover group membership from records rather than filenames. In Takeout mode, queued `write_tags` are applied via exiftool to the destination copy. Unsupported file formats are skipped (not emitted).
 
 Each run is a full run: there is no checkpoint or resume.

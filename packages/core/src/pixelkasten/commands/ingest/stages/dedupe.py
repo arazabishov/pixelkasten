@@ -33,16 +33,17 @@ def dedupe_hash(
 
 def dedupe_resolve(manifest: list[ManifestEntry], options: Options) -> None:
     """
-    Resolve duplicates by mode.
+    Resolve duplicates by hash. Works the same for Takeout and archive
+    input — both populate ``source.type`` (album / loose), so a single
+    rule covers both:
 
-    Takeout mode:
       - Unique files: KEEP.
-      - Mixed source types: keep the side that matches --prefer, delete others.
-      - All same source type: keep all.
-    Archive mode:
-      - Unique files: KEEP.
-      - Multiple: keep the alphabetically-first ``media_path`` (the one
-        ``min(...)`` returns), delete the rest.
+      - Mixed source types within a duplicate group: keep the side that
+        matches ``--prefer``, delete the others.
+      - Uniform group (all album, or all loose): keep all. For Takeout this
+        preserves cross-album membership; for archive it preserves
+        cross-folder organization (and rarely retains a stray same-folder
+        duplicate at the source root).
 
     Mutates entries in-place, setting dedupe.status and dedupe.result.
     """
@@ -53,15 +54,11 @@ def dedupe_resolve(manifest: list[ManifestEntry], options: Options) -> None:
             continue
         groups.setdefault(entry.dedupe.hash, []).append((entry, entry.dedupe))
 
-    if options.mode == "archive":
-        _resolve_archive(groups)
-    else:
-        _resolve_takeout(groups, options.prefer)
-
+    _resolve(groups, options.prefer)
     _check_invariants(manifest)
 
 
-def _resolve_takeout(
+def _resolve(
     groups: dict[str, list[tuple[ManifestEntry, Dedupe]]],
     prefer: str,
 ) -> None:
@@ -91,25 +88,6 @@ def _resolve_takeout(
                 )
             else:
                 dedupe.result = DedupeResult.KEEP
-
-
-def _resolve_archive(groups: dict[str, list[tuple[ManifestEntry, Dedupe]]]) -> None:
-    for duplicates in groups.values():
-        if len(duplicates) == 1:
-            _, dedupe = duplicates[0]
-            dedupe.status = Status.PROCESSED
-            dedupe.result = DedupeResult.KEEP
-            continue
-
-        # Archive mode has no album/loose distinction, so the tiebreaker is
-        # purely the path: keep the alphabetically-first one, delete the rest.
-        # This is deterministic across runs.
-        winner_path = min(entry.media_path for entry, _ in duplicates)
-        for entry, dedupe in duplicates:
-            dedupe.status = Status.PROCESSED
-            dedupe.result = (
-                DedupeResult.KEEP if entry.media_path == winner_path else DedupeResult.DELETE
-            )
 
 
 def _calculate_hash(file_path: str) -> str:

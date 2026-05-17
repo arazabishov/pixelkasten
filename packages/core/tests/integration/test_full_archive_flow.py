@@ -1,10 +1,11 @@
 """
 End-to-end integration test for the archive flow without an agent:
-    init --from-archive  →  apply --to <dst>
+    import --from-archive  →  export --to <dst>
 
-A flat archive has no JSON sidecars, so every export sidecar has album=null
-and the export ends up in date folders (or Unsorted/ for files without a
-parseable date).
+Archive mode has no Google Takeout JSON sidecars, but subfolder names
+under the source root propagate as ``album``. Files at the source root
+stay loose (album=null) and end up in date-named year folders; files in
+subfolders end up in ``<YYYY>/<YYYYMMDD>-<folder>/`` album folders.
 """
 
 import os
@@ -40,15 +41,15 @@ def _listing(root: str) -> list[str]:
 
 
 class TestFullArchivePipeline:
-    def test_archive_init_then_apply_produces_date_folders(self, tmp_path):
+    def test_root_level_archive_file_exports_to_year_folder(self, tmp_path):
         source = tmp_path / "source"
         lib = tmp_path / "lib"
         export = tmp_path / "export"
         source.mkdir()
         lib.mkdir()
 
-        # File with on-disk EXIF -> emit picks up its date during reconcile;
-        # apply routes it to a year folder.
+        # File at the source root -> loose; reconcile pulls its EXIF date;
+        # export routes it to a year folder (no album subdirectory).
         shutil.copy2(FIXTURES_DIR / "with-datetime-and-gps.jpg", source / "with_exif.jpg")
 
         ingest(
@@ -64,7 +65,36 @@ class TestFullArchivePipeline:
         run_export(str(lib), str(export), ExportOptions())
 
         files = _listing(str(export))
-        # The file with EXIF dates lands in the year folder
-        assert any(f.startswith("2024/") and f.endswith(".jpg") for f in files)
-        # Archive mode never produces an album folder (album field is always null)
-        assert all("-" not in os.path.dirname(f) or f.startswith("Unsorted/") for f in files)
+        # Lands in a plain year folder, not an album subfolder
+        assert any(f.startswith("2024/") and "-" not in os.path.dirname(f) for f in files)
+
+    def test_subfolder_archive_file_exports_to_album_folder(self, tmp_path):
+        source = tmp_path / "source"
+        lib = tmp_path / "lib"
+        export = tmp_path / "export"
+        source.mkdir()
+        lib.mkdir()
+
+        # File in a subfolder -> the folder name propagates as album;
+        # export routes it to `<YYYY>/<YYYYMMDD>-<folder>/`.
+        (source / "Wedding").mkdir()
+        shutil.copy2(
+            FIXTURES_DIR / "with-datetime-and-gps.jpg",
+            source / "Wedding" / "photo.jpg",
+        )
+
+        ingest(
+            make_options(
+                source=str(source),
+                destination=str(lib),
+                mode="archive",
+                skip_dedupe=True,
+            ),
+            progress=noop_progress,
+        )
+
+        run_export(str(lib), str(export), ExportOptions())
+
+        files = _listing(str(export))
+        # Lands under an album folder named after the source subfolder
+        assert any("-Wedding/" in f and f.startswith("2024/") for f in files)
