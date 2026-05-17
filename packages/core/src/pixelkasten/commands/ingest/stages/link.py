@@ -74,7 +74,6 @@ def _link_archive(files_media: list[str], source_root: str) -> dict:
         ManifestEntry(
             media_path=fp,
             source=_archive_source(fp, source_root),
-            name=_parse_name(fp),
             sidecar=None,
         )
         for fp in files_media
@@ -147,7 +146,6 @@ def _link_takeout(raw_collections: dict, options: IngestOptions) -> dict:
             ManifestEntry(
                 media_path=media["path"],
                 source=source,
-                name=media["name"],
                 sidecar=sidecar,
             )
         )
@@ -172,9 +170,9 @@ def _link_takeout(raw_collections: dict, options: IngestOptions) -> dict:
 
 def _parse_name(file_path: str) -> str:
     """Return the canonical stem of a media filename: extension, ``(N)``
-    duplicate marker, and ``-edited`` suffix removed. Link writes the result
-    to ``ManifestEntry.name`` so downstream stages can read it directly
-    instead of re-parsing the path."""
+    duplicate marker, and ``-edited`` suffix removed. Used internally by
+    Takeout sidecar matching — the Takeout naming conventions stripped here
+    are exactly what `_match_score` needs to compare against sidecar stems."""
     base = os.path.basename(file_path)
     name, _ = os.path.splitext(base)
 

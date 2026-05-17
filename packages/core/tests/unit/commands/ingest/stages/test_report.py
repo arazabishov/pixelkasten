@@ -6,7 +6,6 @@ import csv
 import os
 
 from helpers import make_options
-from pixelkasten.commands.ingest.stages.link import _parse_name
 from pixelkasten.commands.ingest.stages.report import report, _resolve_status
 from pixelkasten.manifest import (
     Apply,
@@ -58,7 +57,6 @@ def _entry(
     return ManifestEntry(
         media_path=media_path,
         source=Source(type="loose"),
-        name=_parse_name(media_path),
         sidecar=sidecar,
         dedupe=dedupe,
         metadata=metadata,

@@ -3,17 +3,14 @@ import hashlib
 from helpers import make_options
 from pixelkasten.manifest import Dedupe, DedupeResult, ManifestEntry, Source, Status
 from pixelkasten.commands.ingest.stages.dedupe import dedupe_hash, dedupe_resolve
-from pixelkasten.commands.ingest.stages.link import _parse_name
 
 
 def _entry(media_path, source_type, source_name=None, hash_val="hash1"):
-    """Helper to create a manifest entry with dedupe pending status. ``name``
-    is populated the way link would in a real run."""
+    """Helper to create a manifest entry with dedupe pending status."""
     source = Source(type=source_type, name=source_name)
     return ManifestEntry(
         media_path=media_path,
         source=source,
-        name=_parse_name(media_path),
         dedupe=Dedupe(status=Status.PENDING, hash=hash_val),
     )
 

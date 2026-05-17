@@ -16,9 +16,10 @@ def _link_and_map(raw, **overrides):
 
 
 class TestParseName:
-    """Direct tests for ``_parse_name`` — the helper link calls to derive
-    the canonical filename stem. The result lands on ``ManifestEntry.name``;
-    downstream stages (group, etc.) read the field rather than re-parsing."""
+    """Direct tests for ``_parse_name`` — the helper link uses internally for
+    Takeout sidecar matching. The stripping rules here are exactly the
+    Takeout naming conventions ``_match_score`` needs to compare against
+    sidecar stems."""
 
     def test_simple_file_returns_basename_without_extension(self):
         # Verify the baseline: nothing to strip, just drop the extension
@@ -125,49 +126,6 @@ class TestMetadataNormalizationAndMatching:
         m, _ = _link_and_map(self.RAW)
         entry = m["/tmp/29407C9C-7528-4FF1-AD5F-08EAA7F9738E-98855-000"]
         assert entry.sidecar.path == "/tmp/29407C9C-7528-4FF1-AD5F-08EAA7F9738E-98855-000.json"
-
-
-class TestLinkPopulatesEntryName:
-    """Pin the contract: link writes ``ManifestEntry.name`` for every entry
-    in both modes, so downstream stages (group, propose, etc.) can read it
-    without re-parsing paths."""
-
-    def test_takeout_mode_populates_name_with_parsed_stem(self):
-        raw = {
-            "files_media": [
-                "/tmp/IMG_0001.HEIC",
-                "/tmp/IMG_0001-edited.HEIC",
-                "/tmp/IMG_0002(1).jpg",
-            ],
-            "files_metadata": [],
-            "files_metadata_albums": [],
-        }
-        m, _ = _link_and_map(raw)
-
-        # Each entry's name reflects parse_name(media_path)
-        assert m["/tmp/IMG_0001.HEIC"].name == "IMG_0001"
-        # -edited variant strips the suffix
-        assert m["/tmp/IMG_0001-edited.HEIC"].name == "IMG_0001"
-        # (N) duplicate marker strips
-        assert m["/tmp/IMG_0002(1).jpg"].name == "IMG_0002"
-
-    def test_archive_mode_populates_name_with_parsed_stem(self):
-        raw = {
-            "files_media": [
-                "/archive/IMG_001.heic",
-                "/archive/IMG_001.mov",
-                "/archive/IMG_001-edited.heic",
-            ],
-            "files_metadata": [],
-            "files_metadata_albums": [],
-        }
-        m, _ = _link_and_map(raw, mode="archive", source="/archive")
-
-        # Archive mode also populates name — the field is the contract,
-        # not the path-derivation
-        assert m["/archive/IMG_001.heic"].name == "IMG_001"
-        assert m["/archive/IMG_001.mov"].name == "IMG_001"
-        assert m["/archive/IMG_001-edited.heic"].name == "IMG_001"
 
 
 class TestArchiveSourceFromFolderStructure:
