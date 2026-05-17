@@ -298,14 +298,14 @@ def cluster(
 ):
     """Cluster a set of paths via HDBSCAN; print {label: [path]} as JSON."""
     from pixelkasten.commands.cluster import cluster as run_cluster
-    from pixelkasten.utils.record import resolve_library
+    from pixelkasten.utils.record import records_dir_home
 
     resolved = _resolve_cluster_paths(paths)
     if not resolved:
         render_cluster(console, {})
         return
 
-    lib = str(library) if library else resolve_library(resolved[0])
+    lib = str(library) if library else records_dir_home(resolved[0])
     grouped = run_cluster(resolved, lib, min_cluster_size)
     render_cluster(console, grouped)
 
@@ -340,9 +340,9 @@ def similar(
 ):
     """Print the K nearest neighbors of QUERY as JSON."""
     from pixelkasten.commands.similar import similar as run_similar
-    from pixelkasten.utils.record import resolve_library
+    from pixelkasten.utils.record import records_dir_home
 
-    lib = str(library) if library else resolve_library(str(query))
+    lib = str(library) if library else records_dir_home(str(query))
     results = run_similar(str(query), lib, k)
     render_similar(console, results)
 

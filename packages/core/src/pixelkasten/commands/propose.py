@@ -11,7 +11,7 @@ removes the field (--clear).
 import os
 
 from pixelkasten.utils.record import read_record, write_record
-from pixelkasten.utils.record import record_path, records_dir, resolve_library
+from pixelkasten.utils.record import record_path, records_dir, records_dir_home
 from pixelkasten.configuration import RECORD_SUFFIX
 
 
@@ -24,7 +24,7 @@ def propose(path: str, album: str | None) -> list[str]:
     if album is not None:
         _validate_album_name(album)
 
-    library = resolve_library(path)
+    library = records_dir_home(path)
     own_record_path = record_path(library, os.path.basename(path))
     own_data = read_record(own_record_path)
     group_id = own_data.get("group_id")
