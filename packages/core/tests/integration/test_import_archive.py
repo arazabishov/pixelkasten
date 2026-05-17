@@ -18,7 +18,7 @@ import pytest
 
 from helpers import make_options, noop_progress
 from pixelkasten.utils.exiftool import check_exiftool, read_metadata
-from pixelkasten.commands.import_.run import run_import
+from pixelkasten.commands.ingest import ingest
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "media"
 
@@ -73,7 +73,7 @@ class TestInitArchivePipeline:
         shutil.copy2(FIXTURES_DIR / "with-datetime-and-gps.jpg", source / "with_exif.jpg")
         shutil.copy2(FIXTURES_DIR / "no-metadata.jpg", source / "no_exif.jpg")
 
-        _run_result = run_import(
+        _run_result = ingest(
             make_options(
                 source=str(source),
                 destination=str(dest),
@@ -117,7 +117,7 @@ class TestInitArchivePipeline:
 
         shutil.copy2(FIXTURES_DIR / "no-metadata.jpg", source / "naked.jpg")
 
-        _run_result = run_import(
+        _run_result = ingest(
             make_options(
                 source=str(source),
                 destination=str(dest),
@@ -149,7 +149,7 @@ class TestInitArchivePipeline:
         shutil.copy2(FIXTURES_DIR / "no-metadata.jpg", source / "zebra.jpg")
         shutil.copy2(FIXTURES_DIR / "no-metadata.jpg", source / "alpha.jpg")
 
-        _run_result = run_import(
+        _run_result = ingest(
             make_options(source=str(source), destination=str(dest), mode="archive"),
             progress=noop_progress,
         )
@@ -178,7 +178,7 @@ class TestInitArchivePipeline:
         # A non-real video, but emit doesn't care about content
         (source / "IMG_001.mov").write_bytes(b"fake-mov")
 
-        _run_result = run_import(
+        _run_result = ingest(
             make_options(source=str(source), destination=str(dest), mode="archive"),
             progress=noop_progress,
         )

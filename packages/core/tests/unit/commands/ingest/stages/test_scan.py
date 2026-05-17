@@ -1,7 +1,7 @@
 import pytest
 
 from pixelkasten.handlers import is_image, is_video
-from pixelkasten.commands.import_.scan import scan
+from pixelkasten.commands.ingest.stages.scan import scan
 
 
 class TestIsImage:

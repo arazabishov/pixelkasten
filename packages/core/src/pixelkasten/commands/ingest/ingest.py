@@ -1,30 +1,35 @@
 """
-Import command — pipeline orchestrator.
+Ingest command — normalize a source into a working library.
 
-Linear flow:
-  scan → link → dedupe → reconcile → group → emit
+The command runs a linear pipeline of stages:
 
-Link matches Google Takeout sidecars automatically when present. emit writes
-GUID-named copies and per-asset records into <destination>/.pixelkasten/.
+    scan → link → dedupe → reconcile → group → emit
+
+Each stage enriches an in-memory manifest; only ``emit`` (and ``reconcile``,
+read-only) touches the filesystem. ``ingest`` composes them and returns
+an ``IngestResult`` covering every stage.
+
+The CLI command name is ``pixelkasten import``; the Python module is
+``ingest`` because ``import`` is a reserved keyword.
 """
 
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from pixelkasten.commands.ingest.stages.dedupe import dedupe_hash, dedupe_resolve
+from pixelkasten.commands.ingest.stages.emit import emit
+from pixelkasten.commands.ingest.stages.group import group
+from pixelkasten.commands.ingest.stages.link import link
+from pixelkasten.commands.ingest.stages.reconcile import reconcile
+from pixelkasten.commands.ingest.stages.report import report
+from pixelkasten.commands.ingest.stages.scan import scan
 from pixelkasten.configuration import Options
 from pixelkasten.manifest import ManifestEntry
-from pixelkasten.commands.import_.report import report
-from pixelkasten.commands.import_.emit import emit
-from pixelkasten.commands.import_.dedupe import dedupe_hash, dedupe_resolve
-from pixelkasten.commands.import_.group import group
-from pixelkasten.commands.import_.link import link
-from pixelkasten.commands.import_.reconcile import reconcile
-from pixelkasten.commands.import_.scan import scan
 
 
 @dataclass
-class ImportResult:
-    """Everything an import run produces, packaged for the renderer.
+class IngestResult:
+    """Everything an ingest run produces, packaged for the renderer.
 
     The manifest carries the post-pipeline state of every entry (dedupe,
     metadata, group_id, emit outcome). ``raw_collections`` and ``link_stats``
@@ -39,8 +44,8 @@ class ImportResult:
     dry_run: bool
 
 
-def run_import(options: Options, progress: Callable) -> ImportResult:
-    """Run the import pipeline; return an ``ImportResult`` covering every stage."""
+def ingest(options: Options, progress: Callable) -> IngestResult:
+    """Run the ingest pipeline; return an ``IngestResult`` covering every stage."""
 
     raw_collections = scan(options.source)
 
@@ -65,7 +70,7 @@ def run_import(options: Options, progress: Callable) -> ImportResult:
             emit(manifest, options, on_progress=tick)
         report(manifest, options)
 
-    return ImportResult(
+    return IngestResult(
         manifest=manifest,
         raw_collections=raw_collections,
         link_stats=link_stats,

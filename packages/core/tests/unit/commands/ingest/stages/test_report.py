@@ -6,7 +6,7 @@ import csv
 import os
 
 from helpers import make_options
-from pixelkasten.commands.import_.report import report, _resolve_status
+from pixelkasten.commands.ingest.stages.report import report, _resolve_status
 from pixelkasten.manifest import (
     Apply,
     ApplyResult,

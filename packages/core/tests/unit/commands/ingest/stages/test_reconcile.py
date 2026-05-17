@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from helpers import make_options
 from pixelkasten.manifest import Dedupe, DedupeResult, ManifestEntry, SidecarMatch, Source, Status
-from pixelkasten.commands.import_.reconcile import reconcile
+from pixelkasten.commands.ingest.stages.reconcile import reconcile
 
 
 def _entry(media_path, json_path=None, dedupe_result=DedupeResult.KEEP):
@@ -24,8 +24,8 @@ def _entry(media_path, json_path=None, dedupe_result=DedupeResult.KEEP):
 
 
 class TestReconcile:
-    @patch("pixelkasten.commands.import_.reconcile.read_metadata")
-    @patch("pixelkasten.commands.import_.reconcile.read_sidecar")
+    @patch("pixelkasten.commands.ingest.stages.reconcile.read_metadata")
+    @patch("pixelkasten.commands.ingest.stages.reconcile.read_sidecar")
     def test_does_not_perform_disk_ops_when_manifest_is_empty(self, mock_sidecar, mock_metadata):
         manifest = []
         reconcile(manifest, make_options())
@@ -39,8 +39,8 @@ class TestReconcile:
         # Verify no sidecar was read from disk
         mock_sidecar.assert_not_called()
 
-    @patch("pixelkasten.commands.import_.reconcile.read_metadata")
-    @patch("pixelkasten.commands.import_.reconcile.read_sidecar")
+    @patch("pixelkasten.commands.ingest.stages.reconcile.read_metadata")
+    @patch("pixelkasten.commands.ingest.stages.reconcile.read_sidecar")
     def test_skips_entries_marked_for_deletion(self, mock_sidecar, mock_metadata):
         mock_sidecar.return_value = None
         mock_metadata.return_value = {
@@ -63,8 +63,8 @@ class TestReconcile:
         call_paths = mock_metadata.call_args[0][0]
         assert call_paths == ["/tmp/keep.jpg"]
 
-    @patch("pixelkasten.commands.import_.reconcile.read_metadata")
-    @patch("pixelkasten.commands.import_.reconcile.read_sidecar")
+    @patch("pixelkasten.commands.ingest.stages.reconcile.read_metadata")
+    @patch("pixelkasten.commands.ingest.stages.reconcile.read_sidecar")
     def test_does_not_queue_writes_when_no_sidecar(self, mock_sidecar, mock_metadata):
         mock_sidecar.return_value = None
         mock_metadata.return_value = {
@@ -85,8 +85,8 @@ class TestReconcile:
         # Verify dates from disk are preserved even without sidecar
         assert "2023-01-01T12:00:00" in manifest[0].metadata.dates
 
-    @patch("pixelkasten.commands.import_.reconcile.read_metadata")
-    @patch("pixelkasten.commands.import_.reconcile.read_sidecar")
+    @patch("pixelkasten.commands.ingest.stages.reconcile.read_metadata")
+    @patch("pixelkasten.commands.ingest.stages.reconcile.read_sidecar")
     def test_does_not_queue_writes_when_disk_already_has_data(self, mock_sidecar, mock_metadata):
         mock_metadata.return_value = {
             "/tmp/image.jpg": {"EXIF:DateTimeOriginal": "2023:01:01 12:00:00"},
@@ -104,8 +104,8 @@ class TestReconcile:
         # No tags queued for writing
         assert manifest[0].metadata.write_tags == []
 
-    @patch("pixelkasten.commands.import_.reconcile.read_metadata")
-    @patch("pixelkasten.commands.import_.reconcile.read_sidecar")
+    @patch("pixelkasten.commands.ingest.stages.reconcile.read_metadata")
+    @patch("pixelkasten.commands.ingest.stages.reconcile.read_sidecar")
     def test_queues_timestamp_write_when_missing_from_disk(self, mock_sidecar, mock_metadata):
         # Disk has no timestamp
         mock_metadata.return_value = {"/tmp/image.jpg": {}}
@@ -128,8 +128,8 @@ class TestReconcile:
         # Verify timestamp was prepended to dates
         assert manifest[0].metadata.dates[0] == "2023-01-01T12:00:00"
 
-    @patch("pixelkasten.commands.import_.reconcile.read_metadata")
-    @patch("pixelkasten.commands.import_.reconcile.read_sidecar")
+    @patch("pixelkasten.commands.ingest.stages.reconcile.read_metadata")
+    @patch("pixelkasten.commands.ingest.stages.reconcile.read_sidecar")
     def test_queues_geo_write_when_missing_from_disk(self, mock_sidecar, mock_metadata):
         mock_metadata.return_value = {"/tmp/image.jpg": {}}
         mock_sidecar.return_value = {
@@ -148,8 +148,8 @@ class TestReconcile:
         # Verify geo tags were queued for writing (EXIF handler produces 4 geo tags)
         assert len(manifest[0].metadata.write_tags) >= 1
 
-    @patch("pixelkasten.commands.import_.reconcile.read_metadata")
-    @patch("pixelkasten.commands.import_.reconcile.read_sidecar")
+    @patch("pixelkasten.commands.ingest.stages.reconcile.read_metadata")
+    @patch("pixelkasten.commands.ingest.stages.reconcile.read_sidecar")
     def test_queues_both_timestamp_and_geo_when_both_missing(self, mock_sidecar, mock_metadata):
         mock_metadata.return_value = {"/tmp/image.jpg": {}}
         mock_sidecar.return_value = {
@@ -171,8 +171,8 @@ class TestReconcile:
         # Verify timestamp was prepended to dates
         assert manifest[0].metadata.dates[0] == "2023-01-01T12:00:00"
 
-    @patch("pixelkasten.commands.import_.reconcile.read_metadata")
-    @patch("pixelkasten.commands.import_.reconcile.read_sidecar")
+    @patch("pixelkasten.commands.ingest.stages.reconcile.read_metadata")
+    @patch("pixelkasten.commands.ingest.stages.reconcile.read_sidecar")
     def test_reads_metadata_in_batches_of_512(self, mock_sidecar, mock_metadata):
         mock_sidecar.return_value = None
 
@@ -196,8 +196,8 @@ class TestReconcile:
         # Second batch: 488 items
         assert len(mock_metadata.call_args_list[1][0][0]) == 488
 
-    @patch("pixelkasten.commands.import_.reconcile.read_metadata")
-    @patch("pixelkasten.commands.import_.reconcile.read_sidecar")
+    @patch("pixelkasten.commands.ingest.stages.reconcile.read_metadata")
+    @patch("pixelkasten.commands.ingest.stages.reconcile.read_sidecar")
     def test_marks_error_when_exiftool_missing_file(self, mock_sidecar, mock_metadata):
         # Return empty dict (file not found in exiftool output)
         mock_metadata.return_value = {}
@@ -211,8 +211,8 @@ class TestReconcile:
         # Verify error was recorded without throwing
         assert manifest[0].metadata.status == Status.ERROR
 
-    @patch("pixelkasten.commands.import_.reconcile.read_metadata")
-    @patch("pixelkasten.commands.import_.reconcile.read_sidecar")
+    @patch("pixelkasten.commands.ingest.stages.reconcile.read_metadata")
+    @patch("pixelkasten.commands.ingest.stages.reconcile.read_sidecar")
     def test_marks_unsupported_file_types_as_skipped(self, mock_sidecar, mock_metadata):
         mock_metadata.return_value = {"/tmp/file.unknown": {}}
         mock_sidecar.return_value = None
@@ -233,8 +233,8 @@ class TestReconcile:
         assert manifest[0].metadata.write_tags == []
         assert manifest[0].metadata.dates == []
 
-    @patch("pixelkasten.commands.import_.reconcile.read_metadata")
-    @patch("pixelkasten.commands.import_.reconcile.read_sidecar")
+    @patch("pixelkasten.commands.ingest.stages.reconcile.read_metadata")
+    @patch("pixelkasten.commands.ingest.stages.reconcile.read_sidecar")
     def test_does_not_queue_write_tags_when_skip_metadata_write(self, mock_sidecar, mock_metadata):
         mock_metadata.return_value = {"/tmp/image.jpg": {}}
         mock_sidecar.return_value = {

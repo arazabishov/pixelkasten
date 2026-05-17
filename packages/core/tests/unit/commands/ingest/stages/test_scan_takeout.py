@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from pixelkasten.commands.import_.scan import scan
+from pixelkasten.commands.ingest.stages.scan import scan
 
 
 class TestScanTakeout:

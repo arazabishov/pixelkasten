@@ -1,7 +1,7 @@
 """
-Tests for the import pipeline orchestrator.
+Tests for the ingest pipeline orchestrator.
 
-Tests stage sequencing, skip flags, dry-run, and the shape of ImportResult.
+Tests stage sequencing, skip flags, dry-run, and the shape of IngestResult.
 All I/O-bound stages are mocked.
 """
 
@@ -10,7 +10,9 @@ from unittest.mock import patch
 from helpers import make_options, noop_progress
 from pixelkasten.manifest import ManifestEntry, Source
 
-PATCH_PREFIX = "pixelkasten.commands.import_.run"
+# Patch the stage names where they're looked up — inside the ingest module
+# itself, not the package's __init__.
+PATCH_PREFIX = "pixelkasten.commands.ingest.ingest"
 
 
 @patch(f"{PATCH_PREFIX}.report")
@@ -22,9 +24,9 @@ PATCH_PREFIX = "pixelkasten.commands.import_.run"
 @patch(f"{PATCH_PREFIX}.scan")
 class TestPipeline:
     def _run(self, options):
-        from pixelkasten.commands.import_.run import run_import
+        from pixelkasten.commands.ingest import ingest
 
-        return run_import(options, progress=noop_progress)
+        return ingest(options, progress=noop_progress)
 
     def test_runs_all_stages(
         self,
@@ -120,7 +122,7 @@ class TestPipeline:
         mock_emit.assert_not_called()
         mock_report.assert_not_called()
 
-    def test_returns_import_result_with_manifest_and_link_stats(
+    def test_returns_ingest_result_with_manifest_and_link_stats(
         self,
         mock_scan,
         mock_link,

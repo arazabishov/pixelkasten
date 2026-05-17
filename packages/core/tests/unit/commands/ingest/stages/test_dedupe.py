@@ -2,7 +2,7 @@ import hashlib
 
 from helpers import make_options
 from pixelkasten.manifest import Dedupe, DedupeResult, ManifestEntry, Source, Status
-from pixelkasten.commands.import_.dedupe import dedupe_hash, dedupe_resolve
+from pixelkasten.commands.ingest.stages.dedupe import dedupe_hash, dedupe_resolve
 
 
 def _entry(media_path, source_type, source_name=None, hash_val="hash1"):
