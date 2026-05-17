@@ -57,9 +57,24 @@ def link(raw_collections: dict, options: Options) -> dict:
 
     For each media file, attempts an exact match first (name + extension +
     duplicate marker), then falls back to fuzzy matching for truncated
-    filenames if no exact match is found.
+    filenames if no exact match is found. In archive mode, sidecar matching
+    is skipped entirely and every entry is loose.
     """
     files_media = raw_collections["files_media"]
+
+    if options.mode == "archive":
+        manifest = [
+            ManifestEntry(media_path=fp, source=Source(type="loose"), sidecar=None)
+            for fp in files_media
+        ]
+        return {
+            "manifest": manifest,
+            "stats": {
+                "unmatched_metadata_files": set(),
+                "unmatched_media_files": set(files_media),
+            },
+        }
+
     files_metadata = raw_collections["files_metadata"]
     files_metadata_albums = raw_collections.get("files_metadata_albums", [])
 
@@ -124,30 +139,38 @@ def link(raw_collections: dict, options: Options) -> dict:
     }
 
 
-def _parse_media(file_path: str) -> dict:
+def stripped_stem(file_path: str) -> str:
     """
-    Parse a media file path into components for matching.
-
-    Strips the duplicate marker (N) and -edited variants before returning
-    the base name used for comparison.
+    Return the media filename with extension, duplicate marker, and -edited
+    suffix stripped. Used by link for matching and by group's archive-mode
+    bucketing.
     """
     base = os.path.basename(file_path)
-    name, extension = os.path.splitext(base)
+    name, _ = os.path.splitext(base)
 
-    # Strip duplicate marker (N) from the end.
     dup_match = _DUPLICATE_PATTERN.search(name)
-    duplicate = int(dup_match.group(1)) if dup_match else None
     if dup_match:
         name = name[: dup_match.start()]
 
-    # Strip -edited variants from the end.
     edited_match = _EDITED_SUFFIX_PATTERN.search(name)
     if edited_match:
         name = name[: edited_match.start()]
 
+    return name
+
+
+def _parse_media(file_path: str) -> dict:
+    """Parse a media file path into components for matching."""
+    base = os.path.basename(file_path)
+    _, extension = os.path.splitext(base)
+    name, _ = os.path.splitext(base)
+
+    dup_match = _DUPLICATE_PATTERN.search(name)
+    duplicate = int(dup_match.group(1)) if dup_match else None
+
     return {
         "path": file_path,
-        "name": name,
+        "name": stripped_stem(file_path),
         "duplicate": duplicate,
         "extension": extension.lower(),
     }

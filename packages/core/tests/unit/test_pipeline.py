@@ -15,8 +15,7 @@ PATCH_PREFIX = "pixelkasten.pipeline"
 
 
 @patch(f"{PATCH_PREFIX}.report")
-@patch(f"{PATCH_PREFIX}.apply")
-@patch(f"{PATCH_PREFIX}.rename")
+@patch(f"{PATCH_PREFIX}.emit")
 @patch(f"{PATCH_PREFIX}.dedupe_resolve")
 @patch(f"{PATCH_PREFIX}.dedupe_hash")
 @patch(f"{PATCH_PREFIX}.reconcile")
@@ -35,8 +34,7 @@ class TestPipeline:
         mock_reconcile,
         mock_hash,
         mock_resolve,
-        mock_rename,
-        mock_apply,
+        mock_emit,
         mock_report,
     ):
         mock_scan.return_value = {
@@ -53,8 +51,7 @@ class TestPipeline:
         mock_reconcile.assert_called_once()
         mock_hash.assert_called_once()
         mock_resolve.assert_called_once()
-        mock_rename.assert_called_once()
-        mock_apply.assert_called_once()
+        mock_emit.assert_called_once()
         mock_report.assert_called_once()
 
     def test_skips_dedupe(
@@ -64,8 +61,7 @@ class TestPipeline:
         mock_reconcile,
         mock_hash,
         mock_resolve,
-        mock_rename,
-        mock_apply,
+        mock_emit,
         mock_report,
     ):
         mock_scan.return_value = {
@@ -80,15 +76,14 @@ class TestPipeline:
         mock_hash.assert_not_called()
         mock_resolve.assert_not_called()
 
-    def test_skips_reconcile_when_both_metadata_write_and_rename_skipped(
+    def test_reconcile_runs_even_when_metadata_write_is_skipped(
         self,
         mock_scan,
         mock_link,
         mock_reconcile,
         mock_hash,
         mock_resolve,
-        mock_rename,
-        mock_apply,
+        mock_emit,
         mock_report,
     ):
         mock_scan.return_value = {
@@ -98,20 +93,20 @@ class TestPipeline:
         }
         mock_link.return_value = {"manifest": [], "stats": {}}
 
-        self._run(make_options(skip_metadata_write=True, skip_rename=True))
+        self._run(make_options(skip_metadata_write=True))
 
-        mock_reconcile.assert_not_called()
-        mock_rename.assert_not_called()
+        # Reconcile must still run so the internal rename step has dates;
+        # skip_metadata_write only suppresses queued EXIF write_tags within reconcile.
+        mock_reconcile.assert_called_once()
 
-    def test_dry_run_skips_apply_and_report(
+    def test_dry_run_skips_emit_and_report(
         self,
         mock_scan,
         mock_link,
         mock_reconcile,
         mock_hash,
         mock_resolve,
-        mock_rename,
-        mock_apply,
+        mock_emit,
         mock_report,
     ):
         mock_scan.return_value = {
@@ -123,7 +118,7 @@ class TestPipeline:
 
         self._run(make_options(dry_run=True))
 
-        mock_apply.assert_not_called()
+        mock_emit.assert_not_called()
         mock_report.assert_not_called()
 
     def test_returns_manifest(
@@ -133,8 +128,7 @@ class TestPipeline:
         mock_reconcile,
         mock_hash,
         mock_resolve,
-        mock_rename,
-        mock_apply,
+        mock_emit,
         mock_report,
     ):
         mock_scan.return_value = {
@@ -156,8 +150,7 @@ class TestPipeline:
         mock_reconcile,
         mock_hash,
         mock_resolve,
-        mock_rename,
-        mock_apply,
+        mock_emit,
         mock_report,
     ):
         mock_scan.return_value = {
@@ -171,7 +164,6 @@ class TestPipeline:
         on_link = MagicMock()
         on_dedupe = MagicMock()
         on_reconcile = MagicMock()
-        on_rename = MagicMock()
         on_apply = MagicMock()
 
         hooks = Hooks(
@@ -179,7 +171,6 @@ class TestPipeline:
             on_link=on_link,
             on_dedupe=on_dedupe,
             on_reconcile=on_reconcile,
-            on_rename=on_rename,
             on_apply=on_apply,
         )
 
@@ -189,5 +180,4 @@ class TestPipeline:
         on_link.assert_called_once()
         on_dedupe.assert_called_once()
         on_reconcile.assert_called_once()
-        on_rename.assert_called_once()
         on_apply.assert_called_once()

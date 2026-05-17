@@ -1,6 +1,6 @@
 # AGENTS.md
 
-The core objective of this tool is to help organize a photo library. For Google Takeout exports, it matches media files to their JSON sidecars, deduplicates, and writes metadata (timestamps, geo-data) into files using exiftool. For any photo library, Takeout or not, it can automatically discover and name albums using local AI (CLIP + Ollama). Both capabilities work independently or together.
+The core objective of this tool is to help organize a photo library. The `pixelkasten init` command normalizes a messy source — either a Google Takeout export (`--from-takeout`, matches JSON sidecars and writes timestamps + geo into copies via exiftool) or a flat archive of media files (`--from-archive`) — into a **working library**: a flat directory of GUID-named copies plus per-asset sidecars under `.pixelkasten/`. From there, the rest of the toolbox (`enrich`, `caption`, `similar`, `cluster`, `propose`, `apply --to`) lets a user (or an LLM agent driving the toolbox) enrich sidecars with location/embeddings/captions, query the library, decide album assignments, and export a final organized photo library. See `pixelkasten-plans/full-redesign.md` for the original design and `pixelkasten-plans/toolbox-extensions.md` / `toolbox-review.md` for ongoing work.
 
 ## Guiding principles
 
@@ -38,17 +38,106 @@ User data must never leave the device. All processing, including AI-powered cate
 
 ## Architecture
 
-The project is a uv workspaces monorepo: `packages/core` contains pipeline logic, stages, and AI album discovery with no UI dependencies, while `packages/cli` is a thin typer + rich consumer that wires up progress, hooks, and reporting.
+The project is a uv workspaces monorepo: `packages/core` contains pipeline logic, stages, and per-asset tools with no UI dependencies, while `packages/cli` is a thin typer + rich consumer that wires up progress, hooks, and reporting.
 
 A simple `core/` and `cli/` directory split inside one package would not be enough. uv workspaces enforce the dependency boundary at install time, so core can never accidentally import typer or rich. This matters because the CLI should not be the only frontend. A web UI or desktop app should be able to import core directly without pulling in CLI dependencies.
 
 ### Data pipeline
 
-Processing photos requires multiple steps (scanning, matching sidecars, deduplicating, writing metadata, etc.) that must happen in order, where each step builds on the results of the previous one. The pipeline tracks all work in a single in-memory manifest that each stage reads from and enriches. Stages are decoupled: each reads fields that upstream stages wrote, without needing to know about the stages themselves. No stage performs side effects. File copies and metadata writes are deferred to the final apply stage. This is what makes `--dry-run` possible (just skip apply), makes the pipeline safe to retry (a failed stage leaves disk untouched), and keeps tests simple (assert on manifest state, no filesystem mocking).
+Processing photos requires multiple steps (scanning, matching sidecars, deduplicating, reading EXIF, grouping, emitting) that must happen in order. The pipeline tracks all work in a single in-memory manifest that each stage reads from and enriches. Stages are decoupled: each reads fields that upstream stages wrote, without needing to know about the stages themselves. Only the final `emit` stage touches the filesystem (and reconcile reads it). This is what makes `--dry-run` possible (just skip emit), makes the pipeline safe to retry (a failed stage leaves disk untouched), and keeps tests simple (assert on manifest state).
 
-The pipeline is a linear sequence where flags control which stages run. Sidecar matching runs automatically when JSON metadata is present. `--discover` enables AI album discovery. Each run is a full run: there is no checkpoint or resume mechanism, and re-running re-executes every stage from scratch. `--write-manifest` dumps `manifest.json` to the destination as a debugging artifact. For the exact execution sequence and stage wiring, see `pipeline.py`.
+```
+scan → link → dedupe → reconcile → group → emit
+```
 
-Two areas are complex enough to have their own documentation. The link stage (sidecar matching) deals with Google Takeout's unpredictable filename truncation, collision markers, and edited variants; see `docs/takeout.md` for the full breakdown. Album discovery is effectively a sub-pipeline with its own stages (embedding, clustering, classification, captioning, album naming) orchestrated by `stages/discovery/`.
+- `scan` walks the source and partitions files into media, metadata (Takeout sidecars), and album marker files.
+- `link` matches each media file to its Google Takeout sidecar (Takeout mode only). Archive mode short-circuits: every entry is loose with no sidecar.
+- `dedupe` hashes files and resolves duplicates. Takeout mode uses `--prefer album/loose`; archive mode keeps the lex-smallest source path.
+- `reconcile` reads disk EXIF, compares with sidecar data (when present), and queues `write_tags` for any metadata missing from disk. Always runs.
+- `group` assigns a `group_id` (uuid4 hex) to each keeper. Members of one logical asset (Live Photo image + video, edited variant) share a `group_id`. Takeout mode buckets by shared sidecar; archive mode buckets by `(dirname, stripped_stem)`.
+- `emit` writes the working library: `<dst>/<group_id>.<ext>` for the file (with `_2`, `_3`, … on same-extension collision within a group), `<dst>/.pixelkasten/<filename>.pk.json` for the sidecar. In Takeout mode, queued `write_tags` are applied via exiftool to the destination copy. Unsupported file formats are skipped (not emitted).
+
+`--write-manifest` dumps `manifest.json` to the destination as a debugging artifact. Each run is a full run: there is no checkpoint or resume.
+
+The link stage is complex enough to have its own documentation; see `docs/takeout.md` for Google Takeout's filename-truncation quirks.
+
+### Working library layout
+
+```
+<destination>/
+  3f2a1b8c.heic                          # group A member
+  3f2a1b8c.mov                           # group A member (shared stem)
+  9d7e4f02.jpg                           # singleton
+  ...
+  .pixelkasten/
+    3f2a1b8c.heic.pk.json
+    3f2a1b8c.mov.pk.json
+    9d7e4f02.jpg.pk.json
+  report.csv                             # per-file CSV report
+```
+
+### Sidecar schema
+
+The sidecar grows across the lifecycle. Each command writes specific fields; downstream commands consume them.
+
+At **init** time, every `.pk.json` carries exactly three fields:
+
+```json
+{
+  "dates": ["2024-06-01T14:30:22"],
+  "geo": {"latitude": 52.52, "longitude": 13.40, "altitude": 34.0},
+  "album": "Wedding 2019"
+}
+```
+
+- `dates`: list from `entry.metadata.dates`; `[]` when there's no metadata.
+- `geo`: object or `null`.
+- `album`: source-folder name for Takeout entries; `null` for loose entries and all archive-mode entries.
+
+Subsequent commands add fields without modifying the originals:
+
+| Field | Written by | Shape |
+|---|---|---|
+| `location` | `enrich` (reverse geocode) | `{"name": "Berlin, Germany", "region": "Berlin", "country": "DE"}` or `null` |
+| `caption` | `caption` (VLM) | one short string, or absent |
+| `proposed_album` | `propose` | string the agent chose, or absent |
+
+Fields can be absent. Consumers should tolerate missing keys (use `jq`'s `// empty` or `// null`).
+
+### The toolbox
+
+Beyond `init`, the CLI exposes a small set of commands that the agent (or a human) can use to enrich, query, and export the working library:
+
+| Command | Purpose | Writes to |
+|---|---|---|
+| `pixelkasten enrich <library>` | Bulk reverse-geocode + CLIP embed every asset. Idempotent — re-runs skip already-enriched files. | `.pixelkasten/*.pk.json`, `.pixelkasten/embeddings.npy` |
+| `pixelkasten caption <path>` | On-demand VLM caption for one asset. Cached in the sidecar; `--force` to re-caption. | One `.pk.json` |
+| `pixelkasten similar <path> [--k N]` | k-NN over `embeddings.npy` by cosine. | Stdout (JSON) |
+| `pixelkasten cluster [paths…]` | HDBSCAN over a scoped slice of embeddings. Reads paths from args or stdin. | Stdout (JSON) |
+| `pixelkasten propose <path> <album>` / `--clear` | Write `proposed_album` to the file's sidecar and to every group sibling. | Sidecars |
+| `pixelkasten apply <library> --to <dst>` | Export the working library to an organized photo library. Reads sidecars, resolves albums by fallback chain (`proposed_album → album → date folder → Unsorted/`), copies into year/album folders. | Files at `<dst>` |
+
+### Export library layout
+
+`apply` writes the user-facing organized photo library:
+
+```
+<dst>/
+  2024/
+    20240615-Wedding/                # album: <YYYYMMDD>-<sanitized_name>
+      20240615-143022.heic
+      20240615-143022.mov            # group sibling, same timestamp, diff ext
+    20240620-100530.jpg              # loose file in year folder
+    20240620-100530-1.jpg            # -N suffix on collision (unrelated assets)
+  Unsorted/
+    9d7e4f02.jpg                     # no parseable date -> keep GUID name
+```
+
+The export is regenerable from the working library + sidecar decisions. The working library is never modified by `apply`.
+
+### Agent integration
+
+A sample agent skill file lives at `docs/SKILL.md`. It is not auto-installed — users who want to drive pixelkasten from Claude Code copy or adapt it into their own agent configuration. The agent reads sidecars (via `jq`), runs the toolbox commands on demand, and writes `proposed_album` via `propose`. See `pixelkasten-plans/full-redesign.md` for the full design.
 
 ### Handlers
 
@@ -56,7 +145,13 @@ Different media formats store metadata in incompatible ways: EXIF tags for image
 
 ## Dependencies
 
-Python 3.12+ and uv are required to run the project. exiftool must be installed separately for metadata read/write operations. Ollama with vision and text models is only needed when running with `--discover`. All Python dependencies, including ruff and pytest, are managed by uv. Run `uv sync` to install them.
+Python 3.12+ and uv are required to run the project. The following must be installed separately at the OS level:
+
+- **exiftool** — required for all runs. Used by `reconcile` (read EXIF) and `emit` (write EXIF in Takeout mode). Install: `brew install exiftool`.
+- **ffmpeg + ffprobe** — required when `enrich` or `caption` touches videos (`.mp4`, `.mov`). Used to extract N evenly-sampled frames. Install: `brew install ffmpeg`.
+- **Ollama** with a vision model (default: `gemma4:e4b`) — required only for `caption`. Run `ollama serve` and `ollama pull gemma4:e4b` once.
+
+All Python dependencies (open-clip-torch, scikit-learn, numpy, ollama, reverse_geocoder, pillow-heif, ruff, pytest) are managed by uv. Run `uv sync` to install them. Note that CLIP weights (~890MB) and the reverse_geocoder data file are downloaded on first use and cached locally; thereafter the toolbox operates offline.
 
 ## Useful commands
 
@@ -96,7 +191,7 @@ return {"timestamp": timestamp, "geo": geo}
 
 #### Type annotations and imports
 
-All public functions should have full type annotations. Always use proper imports for type annotations — never use string annotations (e.g., `"PipelineOptions"`) as a workaround. If an import would cause a circular dependency, fix the dependency structure instead. Imports for heavy dependencies (torch, sklearn, ollama) are deferred inside functions. This is not just about startup speed. A user running without `--discover` should not need torch installed at all. Deferred imports make optional dependencies truly optional.
+All public functions should have full type annotations. Always use proper imports for type annotations — never use string annotations (e.g., `"PipelineOptions"`) as a workaround. If an import would cause a circular dependency, fix the dependency structure instead. Imports for heavy dependencies (torch, sklearn, ollama) are deferred inside functions. This is not just about startup speed. A user running only `init` and `apply` should not pay the cost of loading CLIP or the Ollama client; those are reserved for `enrich`, `caption`, `similar`, and `cluster`. Deferred imports keep the lightweight paths lightweight.
 
 #### Comments and docstrings
 
@@ -116,7 +211,7 @@ Stages are the type boundary, not individual functions within a stage. Internal 
 
 #### Stage structure
 
-Each mutating stage follows the same shape: filter keepers, iterate entries, try/except per entry, set the stage's field on `ManifestEntry`. The try body should be extracted into a private helper that returns the result type — this keeps the main function flat and the per-entry logic testable. See `_resolve` in reconcile and `_apply_entry` in apply for examples.
+Each mutating stage follows the same shape: filter keepers, iterate entries, try/except per entry, set the stage's field on `ManifestEntry`. The try body should be extracted into a private helper that returns the result type — this keeps the main function flat and the per-entry logic testable. See `_resolve` in reconcile and `_emit_entry` in emit for examples.
 
 ### Testing
 

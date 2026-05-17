@@ -2,7 +2,7 @@
 
 from contextlib import nullcontext
 
-from pixelkasten.configuration import DiscoveryOptions, Options
+from pixelkasten.configuration import Options
 
 
 def noop_progress(label: str, total: int):
@@ -15,29 +15,13 @@ def make_options(**overrides) -> Options:
     defaults = {
         "source": "/src",
         "destination": "/dest",
+        "mode": "takeout",
         "dry_run": False,
         "skip_dedupe": False,
         "skip_metadata_write": False,
-        "skip_rename": False,
         "prefer": "album",
         "fuzzy": True,
         "fuzzy_threshold": 40,
-        "discovery": None,
     }
     defaults.update(overrides)
     return Options(**defaults)
-
-
-def make_discovery_options(**overrides) -> DiscoveryOptions:
-    """Build DiscoveryOptions with test defaults."""
-    defaults = {
-        "clip_model": "ViT-L-14",
-        "batch_size": 32,
-        "min_cluster_size": 5,
-        "caption_model": "gemma4:e4b",
-        "organize_model": "gemma4:31b",
-        "skip_caption": False,
-        "skip_refine": False,
-    }
-    defaults.update(overrides)
-    return DiscoveryOptions(**defaults)

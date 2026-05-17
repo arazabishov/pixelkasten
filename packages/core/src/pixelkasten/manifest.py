@@ -4,7 +4,7 @@ Manifest types and helpers for the unified pipeline.
 Each stage enriches ManifestEntry in-place; downstream stages consume what
 upstream stages wrote. Types are grouped by pipeline stage:
 
-  link → dedupe → reconcile → [discover] → rename → apply
+  scan → link → dedupe → reconcile → group → emit
 """
 
 from dataclasses import dataclass, field
@@ -92,47 +92,6 @@ class Metadata:
 
 
 @dataclass
-class Location:
-    # city or place — used in album names by discovery
-    name: str
-
-    # state/province — used by refine to merge nearby clusters
-    region: str
-
-    # not used downstream yet, reserved for future grouping
-    country: str
-
-
-@dataclass
-class Discovery:
-    # tracks progress through discovery stages
-    status: Status = Status.PENDING
-
-    # HDBSCAN cluster assignment — None until clustering runs
-    cluster: int | None = None
-
-    # whether this entry represents its cluster in captioning
-    is_representative: bool = False
-
-    # VLM-generated description of the image
-    caption: str | None = None
-
-    error: str | None = None
-
-
-@dataclass
-class Rename:
-    # tracks whether path resolution succeeded
-    status: Status
-
-    # date-based destination path — used by apply for the file copy
-    target_path: str | None = None
-
-    # surfaced in CSV report
-    error: str | None = None
-
-
-@dataclass
 class Apply:
     # tracks whether the copy/metadata write succeeded
     status: Status
@@ -161,20 +120,14 @@ class ManifestEntry:
     # content hash and keep/delete decision — gates all downstream stages
     dedupe: Dedupe | None = None
 
-    # disk vs sidecar diff — carries write_tags for apply, dates for rename
+    # disk vs sidecar diff — carries write_tags for emit and dates for grouping
     metadata: Metadata | None = None
-
-    # reverse-geocoded place — feeds album naming in discovery
-    location: Location | None = None
-
-    # date-based destination path — consumed by apply for file copy
-    rename: Rename | None = None
 
     # final outcome — copied/written result and actual disk path
     apply: Apply | None = None
 
-    # cluster assignment, caption — set by discovery stages
-    discovery: Discovery | None = None
+    # uuid4 hex shared by group members (Live Photo, Motion Photo, edited variant)
+    group_id: str | None = None
 
     def can_keep(self) -> bool:
         """
