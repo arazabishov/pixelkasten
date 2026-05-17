@@ -2,8 +2,8 @@
 CLI entry point — pixelkasten subcommands.
 
 Usage:
-    uv run pixelkasten init --from-takeout -s <source> -d <destination>
-    uv run pixelkasten init --from-archive -s <source> -d <destination>
+    uv run pixelkasten import --from-takeout -s <source> -d <destination>
+    uv run pixelkasten import --from-archive -s <source> -d <destination>
 """
 
 import os
@@ -21,22 +21,27 @@ app = typer.Typer(
 console = Console()
 
 
+# Forces typer into multi-command mode. Without a callback, typer collapses
+# a single-command app to the top level; even an empty callback keeps the
+# subcommand structure intact.
 @app.callback()
 def _callback() -> None:
     """Photo library organizer."""
 
 
-@app.command()
-def init(
+# "import" is a Python keyword, so the function can't be named ``import``;
+# we wire it under the CLI name explicitly.
+@app.command(name="import")
+def import_cmd(
     from_takeout: bool = typer.Option(
         False,
         "--from-takeout",
-        help="Treat the source as a Google Takeout export (matches JSON sidecars).",
+        help="Import a Google Takeout export (matches media files to their JSON sidecars).",
     ),
     from_archive: bool = typer.Option(
         False,
         "--from-archive",
-        help="Treat the source as a flat archive of media files with no sidecars.",
+        help="Import media files from a regular folder of photos (no Google Takeout sidecars).",
     ),
     source: Path = typer.Option(
         ...,
@@ -84,13 +89,8 @@ def init(
         "--prefer",
         help="When deduplicating, prefer 'album' or 'loose' copies (Takeout mode only).",
     ),
-    write_manifest: bool = typer.Option(
-        False,
-        "--write-manifest",
-        help="Save manifest as JSON in destination for debugging.",
-    ),
 ):
-    """Initialize a working library from a source directory."""
+    """Import a source into a working library."""
     mode = _resolve_mode(from_takeout, from_archive, source)
 
     if destination is None and not dry_run:
@@ -98,10 +98,10 @@ def init(
         raise typer.Exit(code=1)
 
     from pixelkasten.configuration import Options
-    from pixelkasten.pipeline import run_pipeline
+    from pixelkasten.commands.import_ import run_import
 
     if mode == "takeout" and not skip_metadata_write:
-        from pixelkasten.tools.exiftool import check_exiftool
+        from pixelkasten.utils.exiftool import check_exiftool
 
         try:
             check_exiftool()
@@ -109,7 +109,7 @@ def init(
             console.print(f"[red]{e}[/red]")
             raise typer.Exit(code=1)
 
-    progress, hooks = _build_pipeline_ui(console)
+    progress, hooks = _build_import_ui(console)
 
     options = Options(
         source=str(source),
@@ -121,12 +121,11 @@ def init(
         prefer=prefer,
         fuzzy=fuzzy,
         fuzzy_threshold=fuzzy_threshold,
-        write_manifest=write_manifest,
     )
 
     console.print(f"\n[bold]Processing photos from {source}...[/bold]\n")
 
-    manifest = run_pipeline(options, hooks, progress)
+    manifest = run_import(options, hooks, progress)
 
     if dry_run:
         console.print(
@@ -140,15 +139,10 @@ def init(
 def enrich(
     library: Path = typer.Argument(
         ...,
-        help="Path to the working library produced by `pixelkasten init`.",
+        help="Path to the working library produced by `pixelkasten import`.",
         exists=True,
         file_okay=False,
         resolve_path=True,
-    ),
-    with_captions: bool = typer.Option(
-        False,
-        "--with-captions",
-        help="Also run VLM captioning on every asset (opt-in; slow).",
     ),
     video_frames: int = typer.Option(
         5,
@@ -158,22 +152,22 @@ def enrich(
 ):
     """Bulk geocode + CLIP embed for an existing working library."""
     from pixelkasten.configuration import EnrichOptions
-    from pixelkasten.stages.enrich import enrich as run_enrich
-    from pixelkasten_cli.reports import build_progress_factory
+    from pixelkasten.commands.enrich import enrich as run_enrich
+    from pixelkasten_cli.reports import build_progress_factory, render_enrich_summary
 
     options = EnrichOptions(
         library=str(library),
-        with_captions=with_captions,
         video_frames=video_frames,
     )
 
     console.print(f"\n[bold]Enriching {library}...[/bold]\n")
-    run_enrich(options, progress=build_progress_factory(console))
+    summary = run_enrich(options, progress=build_progress_factory(console))
+    render_enrich_summary(console, summary)
     console.print("[green bold]Enrichment done.[/green bold]")
 
 
 @app.command()
-def apply(
+def export(
     library: Path = typer.Argument(
         ...,
         help="Path to the working library to export.",
@@ -199,15 +193,14 @@ def apply(
     ),
 ):
     """Export a working library to an organized photo library at --to."""
-    from pixelkasten.configuration import ApplyOptions
-    from pixelkasten.stages.export import apply_export
+    from pixelkasten.configuration import ExportOptions
+    from pixelkasten.commands.export import export as run_export
 
-    options = ApplyOptions(force=force, dry_run=dry_run)
-    summary = apply_export(str(library), str(to), options)
-    label = "Would export" if summary["dry_run"] else "Exported"
+    options = ExportOptions(force=force, dry_run=dry_run)
+    summary = run_export(str(library), str(to), options)
+    label = "Would export" if summary.dry_run else "Exported"
     typer.echo(
-        f"{label} {summary['total']} file(s) to {summary['destination']} "
-        f"({summary['unsorted']} unsorted)."
+        f"{label} {summary.total} file(s) to {summary.destination} ({summary.undated} undated)."
     )
 
 
@@ -222,7 +215,7 @@ def propose(
     ),
     album: str | None = typer.Argument(
         None,
-        help="Album name to record on the sidecar. Omit when using --clear.",
+        help="Album name to record. Omit when using --clear.",
     ),
     clear: bool = typer.Option(
         False,
@@ -230,7 +223,7 @@ def propose(
         help="Remove proposed_album from the file and its group siblings.",
     ),
 ):
-    """Set proposed_album on the file's sidecar and all group siblings."""
+    """Set proposed_album on the file's record and all group siblings."""
     if clear and album is not None:
         console.print("[red]--clear and an album name are mutually exclusive[/red]")
         raise typer.Exit(code=1)
@@ -238,7 +231,7 @@ def propose(
         console.print("[red]Pass an album name or --clear[/red]")
         raise typer.Exit(code=1)
 
-    from pixelkasten.tools.propose import propose as run_propose
+    from pixelkasten.commands.propose import propose as run_propose
 
     updated = run_propose(str(path), None if clear else album)
     label = "cleared proposed_album on" if clear else f"set proposed_album={album!r} on"
@@ -249,7 +242,7 @@ def propose(
 def caption(
     path: Path = typer.Argument(
         ...,
-        help="Media file to caption; its sidecar must exist in .pixelkasten/.",
+        help="Media file to caption; its record must exist in .pixelkasten/.",
         exists=True,
         dir_okay=False,
         resolve_path=True,
@@ -257,7 +250,7 @@ def caption(
     force: bool = typer.Option(
         False,
         "--force",
-        help="Re-caption even if a caption is already present in the sidecar.",
+        help="Re-caption even if a caption is already present in the record.",
     ),
     model: str = typer.Option(
         "gemma4:e4b",
@@ -270,8 +263,8 @@ def caption(
         help="Frames sampled per video.",
     ),
 ):
-    """Caption one asset; write the caption to its sidecar and echo to stdout."""
-    from pixelkasten.tools.caption import caption as run_caption
+    """Caption one asset; write the caption to its record and echo to stdout."""
+    from pixelkasten.commands.caption import caption as run_caption
 
     result = run_caption(str(path), force=force, model=model, video_frames=video_frames)
     if result is None:
@@ -298,11 +291,10 @@ def cluster(
     ),
 ):
     """Cluster a set of paths via HDBSCAN; print {label: [path]} as JSON."""
-    import sys as _sys
     import json as _json
 
-    from pixelkasten.tools.cluster import cluster as run_cluster
-    from pixelkasten.tools.similarity import resolve_library
+    from pixelkasten.commands.cluster import cluster as run_cluster
+    from pixelkasten.layout import resolve_library
 
     resolved = _resolve_cluster_paths(paths)
     if not resolved:
@@ -312,7 +304,6 @@ def cluster(
     lib = str(library) if library else resolve_library(resolved[0])
     grouped = run_cluster(resolved, lib, min_cluster_size)
     typer.echo(_json.dumps({str(k): v for k, v in grouped.items()}, indent=2))
-    _ = _sys  # keep import warning quiet if unused
 
 
 def _resolve_cluster_paths(args: list[str] | None) -> list[str]:
@@ -330,7 +321,7 @@ def _resolve_cluster_paths(args: list[str] | None) -> list[str]:
 def similar(
     query: Path = typer.Argument(
         ...,
-        help="Image or video to query (in a working library or anywhere on disk).",
+        help="Image or video to query — must be inside the working library.",
         exists=True,
         dir_okay=False,
         resolve_path=True,
@@ -346,7 +337,8 @@ def similar(
     """Print the K nearest neighbors of QUERY as JSON."""
     import json as _json
 
-    from pixelkasten.tools.similarity import resolve_library, similar as run_similar
+    from pixelkasten.commands.similar import similar as run_similar
+    from pixelkasten.layout import resolve_library
 
     lib = str(library) if library else resolve_library(str(query))
     results = run_similar(str(query), lib, k)
@@ -387,8 +379,8 @@ def _detect_takeout_sidecars(source: Path) -> bool:
     return False
 
 
-def _build_pipeline_ui(console):
-    """Build progress factory and hooks for pipeline UI reporting."""
+def _build_import_ui(console):
+    """Build progress factory and hooks for the import command's pipeline UI."""
     from pixelkasten_cli.reports import (
         build_progress_factory,
         render_apply_table,

@@ -1,7 +1,7 @@
-"""Pipeline configuration — options, hooks, and other pipeline-level types."""
+"""Pipeline configuration — options, hooks, summaries, and other shared types."""
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 def _noop(*args) -> None:
@@ -37,12 +37,9 @@ class Options:
     # minimum filename length for fuzzy matching
     fuzzy_threshold: int
 
-    # save manifest as JSON for debugging
-    write_manifest: bool = False
-
 
 @dataclass
-class ApplyOptions:
+class ExportOptions:
     # overwrite the destination directory if it already exists
     force: bool = False
 
@@ -51,15 +48,63 @@ class ApplyOptions:
 
 
 @dataclass
+class ExportSummary:
+    """End-of-run counts from the `export` command."""
+
+    # destination directory the export was written to
+    destination: str
+
+    # total files exported (or that would have been exported on dry_run)
+    total: int
+
+    # files with no parseable date — landed at the destination root
+    undated: int
+
+    # True when the run was a dry-run (no files copied)
+    dry_run: bool
+
+
+@dataclass
 class EnrichOptions:
     # path to the working library (contains .pixelkasten/)
     library: str
 
-    # opt-in bulk captioning (currently deferred to Phase 10)
-    with_captions: bool = False
-
     # frames sampled per video for both embed and caption
     video_frames: int = 5
+
+
+@dataclass
+class EnrichSummary:
+    """End-of-run counts from the `enrich` command.
+
+    Populated by ``commands.enrich.enrich`` and rendered by
+    ``pixelkasten_cli.reports.render_enrich_summary``. Per-file failure
+    paths are also recorded so the renderer can show a sample inline.
+    """
+
+    # total records walked across the working library
+    records_total: int = 0
+
+    # records that gained a `location` field this run
+    locations_added: int = 0
+
+    # records skipped because `location` was already set
+    locations_already_set: int = 0
+
+    # images that gained an embedding this run
+    images_embedded: int = 0
+
+    # videos that gained an embedding this run
+    videos_embedded: int = 0
+
+    # files skipped because their embedding was already in embeddings.npy
+    already_embedded: int = 0
+
+    # absolute paths of images that failed to embed (corrupt, decode error)
+    images_failed: list[str] = field(default_factory=list)
+
+    # absolute paths of videos that failed to embed (ffmpeg / CLIP failure)
+    videos_failed: list[str] = field(default_factory=list)
 
 
 @dataclass

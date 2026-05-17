@@ -14,26 +14,26 @@ Two commands take a Takeout export to an organized photo library:
 
 ```bash
 # 1. Normalize the source into a working library
-pixelkasten init --from-takeout -s ~/takeout -d ~/library
+pixelkasten import --from-takeout -s ~/takeout -d ~/library
 
 # 2. Export the working library to your final photo library
-pixelkasten apply ~/library --to ~/photos
+pixelkasten export ~/library --to ~/photos
 ```
 
 The same flow works for archives without sidecars — just swap the mode:
 
 ```bash
-pixelkasten init --from-archive -s ~/old-photos -d ~/library
-pixelkasten apply ~/library --to ~/photos
+pixelkasten import --from-archive -s ~/old-photos -d ~/library
+pixelkasten export ~/library --to ~/photos
 ```
 
 ## Quick start — with an LLM agent
 
-The agent (Claude Code, run inside the working library) reads sidecars, asks you 1–2 anchoring questions, runs `caption` / `similar` / `cluster` on demand, and writes `proposed_album` decisions via `propose`. Then `apply` produces the export with your agent's choices baked in.
+The agent (Claude Code, run inside the working library) reads records, asks you 1–2 anchoring questions, runs `caption` / `similar` / `cluster` on demand, and writes `proposed_album` decisions via `propose`. Then `export` produces the final library with your agent's choices baked in.
 
 ```bash
 # 1. Normalize
-pixelkasten init --from-takeout -s ~/takeout -d ~/library
+pixelkasten import --from-takeout -s ~/takeout -d ~/library
 
 # 2. Bulk geocode + CLIP embeddings (one-time per library)
 pixelkasten enrich ~/library
@@ -43,7 +43,7 @@ cd ~/library
 claude  # (or your agent of choice, with docs/SKILL.md as its instructions)
 
 # 4. Export with the agent's decisions
-pixelkasten apply ~/library --to ~/photos
+pixelkasten export ~/library --to ~/photos
 ```
 
 A sample skill file for Claude Code lives at [`docs/SKILL.md`](docs/SKILL.md). Copy or adapt it to give the agent context about the toolbox.
@@ -52,47 +52,47 @@ A sample skill file for Claude Code lives at [`docs/SKILL.md`](docs/SKILL.md). C
 
 | Command | Purpose | Writes? |
 |---|---|---|
-| `pixelkasten init --from-takeout \| --from-archive` | Normalize a source into a working library | Files + sidecars |
-| `pixelkasten enrich <library>` | Bulk reverse-geocode + CLIP embed | Sidecars + `embeddings.npy` |
-| `pixelkasten caption <path>` | Run VLM on one asset; cache result in sidecar | One sidecar |
+| `pixelkasten import --from-takeout \| --from-archive` | Normalize a source into a working library | Files + records |
+| `pixelkasten enrich <library>` | Bulk reverse-geocode + CLIP embed | Records + `embeddings.npy` |
+| `pixelkasten caption <path>` | Run VLM on one asset; cache result in the record | One record |
 | `pixelkasten similar <path> [--k N]` | k-NN over the library's embeddings | Stdout (JSON) |
 | `pixelkasten cluster [paths…]` | HDBSCAN over a scoped slice | Stdout (JSON) |
-| `pixelkasten propose <path> <album>` | Record `proposed_album` on the file and group siblings | Sidecars |
-| `pixelkasten apply <library> --to <dst>` | Export the working library to an organized layout | Files at dst |
+| `pixelkasten propose <path> <album>` | Record `proposed_album` on the file and group siblings | Records |
+| `pixelkasten export <library> --to <dst>` | Export the working library to an organized layout | Files at dst |
 
-Read-only operations (listings, EXIF, sidecar fields) use shell tools — `jq`, `find`, `exiftool`, `ls`.
+Read-only operations (listings, EXIF, record fields) use shell tools — `jq`, `find`, `exiftool`, `ls`.
 
 ## The two libraries
 
 PixelKasten distinguishes a **working library** from an **export library**.
 
-**Working library** (the agent's workspace; what `init` produces):
+**Working library** (the agent's workspace; what `import` produces):
 
 ```
 ~/library/
-  3f2a1b8c.heic                    # GUID-named, flat
-  3f2a1b8c.mov                     # group members share a GUID stem
-  9d7e4f02.jpg
+  3f2a1b8cdef01234567890abcdef01230.heic   # uuid4 hex per file, flat
+  9d7e4f02ab12c34d5e67f89012345678.mov     # group sibling — different filename,
+                                           # same group_id in its record
+  bbe90b6fd17f468c86da78ab484fd469.jpg
   .pixelkasten/
-    3f2a1b8c.heic.pk.json          # per-asset sidecar
-    3f2a1b8c.mov.pk.json
-    9d7e4f02.jpg.pk.json
+    3f2a1b8cdef01234567890abcdef01230.heic.pk.json   # per-asset record
+    9d7e4f02ab12c34d5e67f89012345678.mov.pk.json
+    bbe90b6fd17f468c86da78ab484fd469.jpg.pk.json
     embeddings.npy                 # CLIP vectors (after `enrich`)
     embeddings.paths.json          # row index → filename
 ```
 
-**Export library** (the user-facing organized output of `apply`):
+**Export library** (the user-facing organized output of `export`):
 
 ```
 ~/photos/
+  bbe90b6fd17f468c86da78ab484fd469.jpg   # undated -> kept at root with uuid name
   2024/
     20240615-Wedding/              # album: <YYYYMMDD>-<name>
       20240615-143022.heic         # group member
       20240615-143022.mov          # group sibling
     20240620-100530.jpg            # loose file in year folder
     20240620-100530-1.jpg          # -N suffix on collision
-  Unsorted/                        # files without a parseable date
-    9d7e4f02.jpg
 ```
 
 You can delete the working library after a satisfactory export. Users who want to keep iterating with the agent keep both.
@@ -115,4 +115,4 @@ uv sync
 
 ## Architecture and design
 
-See [AGENTS.md](AGENTS.md) for the pipeline shape, sidecar schema, and design conventions. The implementation plans live under [pixelkasten-plans/](pixelkasten-plans/) — `core-conditioning.md` covers the foundational pipeline (Phases 1–6) and `full-redesign.md` covers the toolbox (Phases 7–14).
+See [AGENTS.md](AGENTS.md) for the pipeline shape, record schema, and design conventions. The implementation plans live under [pixelkasten-plans/](pixelkasten-plans/) — `core-conditioning.md` covers the foundational pipeline (Phases 1–6) and `full-redesign.md` covers the toolbox (Phases 7–14).

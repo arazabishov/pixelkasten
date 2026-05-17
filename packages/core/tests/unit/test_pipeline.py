@@ -11,7 +11,7 @@ from helpers import make_options, noop_progress
 from pixelkasten.manifest import ManifestEntry, Source
 from pixelkasten.configuration import Hooks
 
-PATCH_PREFIX = "pixelkasten.pipeline"
+PATCH_PREFIX = "pixelkasten.commands.import_.run"
 
 
 @patch(f"{PATCH_PREFIX}.report")
@@ -23,9 +23,9 @@ PATCH_PREFIX = "pixelkasten.pipeline"
 @patch(f"{PATCH_PREFIX}.scan")
 class TestPipeline:
     def _run(self, options, hooks=None):
-        from pixelkasten.pipeline import run_pipeline
+        from pixelkasten.commands.import_.run import run_import
 
-        return run_pipeline(options, hooks or Hooks(), progress=noop_progress)
+        return run_import(options, hooks or Hooks(), progress=noop_progress)
 
     def test_runs_all_stages(
         self,
