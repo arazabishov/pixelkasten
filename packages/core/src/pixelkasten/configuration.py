@@ -9,30 +9,6 @@ def _noop(*args) -> None:
 
 
 @dataclass
-class DiscoveryOptions:
-    # CLIP model for image embeddings
-    clip_model: str
-
-    # Ollama vision model for captioning
-    caption_model: str
-
-    # Ollama text model for album naming
-    organize_model: str
-
-    # images per CLIP batch
-    batch_size: int
-
-    # smallest group HDBSCAN will form
-    min_cluster_size: int
-
-    # skip VLM captioning
-    skip_caption: bool
-
-    # skip temporal cluster refinement
-    skip_refine: bool
-
-
-@dataclass
 class Options:
     # root directory to scan
     source: str
@@ -40,8 +16,8 @@ class Options:
     # output directory for processed files
     destination: str | None
 
-    # AI album discovery sub-pipeline
-    discovery: DiscoveryOptions | None
+    # "takeout" matches JSON sidecars; "archive" treats every media file as loose
+    mode: str
 
     # preview changes without writing
     dry_run: bool
@@ -52,10 +28,7 @@ class Options:
     # skip writing metadata into files
     skip_metadata_write: bool
 
-    # skip target path computation
-    skip_rename: bool
-
-    # prefer "album" or "loose" when deduplicating
+    # prefer "album" or "loose" when deduplicating (Takeout mode only)
     prefer: str
 
     # enable fuzzy sidecar matching
@@ -66,6 +39,27 @@ class Options:
 
     # save manifest as JSON for debugging
     write_manifest: bool = False
+
+
+@dataclass
+class ApplyOptions:
+    # overwrite the destination directory if it already exists
+    force: bool = False
+
+    # print planned operations without copying
+    dry_run: bool = False
+
+
+@dataclass
+class EnrichOptions:
+    # path to the working library (contains .pixelkasten/)
+    library: str
+
+    # opt-in bulk captioning (currently deferred to Phase 10)
+    with_captions: bool = False
+
+    # frames sampled per video for both embed and caption
+    video_frames: int = 5
 
 
 @dataclass
@@ -81,12 +75,6 @@ class Hooks:
 
     # called after reading disk metadata
     on_reconcile: Callable = _noop
-
-    # called after AI album discovery
-    on_discover: Callable = _noop
-
-    # called after target paths are set
-    on_rename: Callable = _noop
 
     # called after files are copied and tagged
     on_apply: Callable = _noop

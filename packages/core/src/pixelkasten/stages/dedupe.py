@@ -33,44 +33,71 @@ def dedupe_hash(
 
 def dedupe_resolve(manifest: list[ManifestEntry], options: Options) -> None:
     """
-    Resolve duplicates: prefer album over loose (or vice versa), keep same-type dupes.
+    Resolve duplicates by mode.
 
-    Mutates entries in-place, setting dedupe.result to KEEP or DELETE.
+    Takeout mode:
+      - Unique files: KEEP.
+      - Mixed source types: keep the side that matches --prefer, delete others.
+      - All same source type: keep all.
+    Archive mode:
+      - Unique files: KEEP.
+      - Multiple: keep the lex-smallest media_path, delete the rest.
 
-    Rules:
-    - Unique files (one entry per hash): always KEEP
-    - Mixed types (has preferred AND has other): keep preferred, delete others
-    - Same type (all album or all loose): keep all
+    Mutates entries in-place, setting dedupe.status and dedupe.result.
     """
-    prefer = options.prefer
-
-    # Group by hash, skip entries with None hash (errors).
-    # Storing (entry, dedupe) tuples so pyright knows dedupe is non-None downstream.
+    # Group by hash, skipping errored entries.
     groups: dict[str, list[tuple[ManifestEntry, Dedupe]]] = {}
     for entry in manifest:
         if entry.dedupe is None or entry.dedupe.hash is None:
             continue
         groups.setdefault(entry.dedupe.hash, []).append((entry, entry.dedupe))
 
+    if options.mode == "archive":
+        _resolve_archive(groups)
+    else:
+        _resolve_takeout(groups, options.prefer)
+
+    _check_invariants(manifest)
+
+
+def _resolve_takeout(
+    groups: dict[str, list[tuple[ManifestEntry, Dedupe]]],
+    prefer: str,
+) -> None:
     for duplicates in groups.values():
         if len(duplicates) == 1:
             _, dedupe = duplicates[0]
             dedupe.status = Status.PROCESSED
             dedupe.result = DedupeResult.KEEP
-        else:
-            has_preferred = any(e.source.type == prefer for e, _ in duplicates)
-            has_other = any(e.source.type != prefer for e, _ in duplicates)
+            continue
 
-            for entry, dedupe in duplicates:
-                dedupe.status = Status.PROCESSED
-                if has_preferred and has_other:
-                    dedupe.result = (
-                        DedupeResult.KEEP if entry.source.type == prefer else DedupeResult.DELETE
-                    )
-                else:
-                    dedupe.result = DedupeResult.KEEP
+        has_preferred = any(e.source.type == prefer for e, _ in duplicates)
+        has_other = any(e.source.type != prefer for e, _ in duplicates)
 
-    _check_invariants(manifest)
+        for entry, dedupe in duplicates:
+            dedupe.status = Status.PROCESSED
+            if has_preferred and has_other:
+                dedupe.result = (
+                    DedupeResult.KEEP if entry.source.type == prefer else DedupeResult.DELETE
+                )
+            else:
+                dedupe.result = DedupeResult.KEEP
+
+
+def _resolve_archive(groups: dict[str, list[tuple[ManifestEntry, Dedupe]]]) -> None:
+    for duplicates in groups.values():
+        if len(duplicates) == 1:
+            _, dedupe = duplicates[0]
+            dedupe.status = Status.PROCESSED
+            dedupe.result = DedupeResult.KEEP
+            continue
+
+        winner_path = min(entry.media_path for entry, _ in duplicates)
+        for entry, dedupe in duplicates:
+            dedupe.status = Status.PROCESSED
+            dedupe.result = (
+                DedupeResult.KEEP if entry.media_path == winner_path else DedupeResult.DELETE
+            )
 
 
 def _calculate_hash(file_path: str) -> str:

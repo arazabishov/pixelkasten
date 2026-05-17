@@ -195,3 +195,49 @@ class TestDedupeHash:
         assert manifest[0].dedupe.hash is None
         assert manifest[0].dedupe.status == Status.ERROR
         assert manifest[0].dedupe.error is not None
+
+
+class TestDedupeArchiveMode:
+    def test_archive_keeps_lex_smallest_among_duplicates(self):
+        manifest = [
+            _entry("/photos/zebra.jpg", "loose", hash_val="h1"),
+            _entry("/photos/alpha.jpg", "loose", hash_val="h1"),
+            _entry("/photos/middle.jpg", "loose", hash_val="h1"),
+        ]
+        dedupe_resolve(manifest, make_options(mode="archive"))
+
+        # The lex-smallest path wins; the others are deleted
+        winners = [
+            e.media_path for e in manifest if e.dedupe and e.dedupe.result == DedupeResult.KEEP
+        ]
+        losers = [
+            e.media_path for e in manifest if e.dedupe and e.dedupe.result == DedupeResult.DELETE
+        ]
+        assert winners == ["/photos/alpha.jpg"]
+        assert set(losers) == {"/photos/zebra.jpg", "/photos/middle.jpg"}
+
+    def test_archive_ignores_prefer_flag(self):
+        manifest = [
+            _entry("/photos/b.jpg", "loose", hash_val="h"),
+            _entry("/photos/a.jpg", "album", "Trip", hash_val="h"),
+        ]
+        # Even though prefer="album" would have kept the album entry in Takeout
+        # mode, archive mode breaks ties by media_path.
+        dedupe_resolve(manifest, make_options(mode="archive", prefer="album"))
+
+        winners = [
+            e.media_path for e in manifest if e.dedupe and e.dedupe.result == DedupeResult.KEEP
+        ]
+        assert winners == ["/photos/a.jpg"]
+
+    def test_archive_keeps_uniques(self):
+        manifest = [
+            _entry("/photos/a.jpg", "loose", hash_val="h1"),
+            _entry("/photos/b.jpg", "loose", hash_val="h2"),
+        ]
+        dedupe_resolve(manifest, make_options(mode="archive"))
+
+        # Hash-unique entries are always kept
+        for e in manifest:
+            assert e.dedupe is not None
+            assert e.dedupe.result == DedupeResult.KEEP
