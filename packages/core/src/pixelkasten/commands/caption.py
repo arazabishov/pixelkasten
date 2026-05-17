@@ -13,7 +13,8 @@ import os
 import sys
 
 from pixelkasten.handlers import is_image, is_video
-from pixelkasten.layout import read_record, record_path, resolve_library, write_record
+from pixelkasten.utils.record import read_record, write_record
+from pixelkasten.utils.record import record_path, resolve_library
 
 DEFAULT_MODEL = "gemma4:e4b"
 

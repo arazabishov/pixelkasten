@@ -1,6 +1,18 @@
-"""Pipeline configuration — option dataclasses for each command."""
+"""
+Pipeline configuration — option dataclasses for each command, plus the
+constants that pin a working library's on-disk layout.
+"""
 
 from dataclasses import dataclass
+
+
+# Working-library directory + file names. Every reader and writer of the
+# working library goes through ``utils/library.py`` (path helpers) and
+# ``utils/record.py`` (I/O), which reference these constants.
+RECORDS_DIR = ".pixelkasten"
+RECORD_SUFFIX = ".pk.json"
+EMBEDDINGS_NPY = "embeddings.npy"
+EMBEDDINGS_PATHS_JSON = "embeddings.paths.json"
 
 
 @dataclass

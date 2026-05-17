@@ -169,6 +169,7 @@ def _link_takeout(raw_collections: dict, options: Options) -> dict:
         },
     }
 
+
 def _parse_name(file_path: str) -> str:
     """Return the canonical stem of a media filename: extension, ``(N)``
     duplicate marker, and ``-edited`` suffix removed. Link writes the result

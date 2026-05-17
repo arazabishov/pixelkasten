@@ -21,9 +21,9 @@ import uuid
 from collections.abc import Callable
 
 from pixelkasten.configuration import Options
-from pixelkasten.layout import records_dir, record_path, write_record
 from pixelkasten.manifest import Apply, ApplyResult, ManifestEntry, Status
 from pixelkasten.utils.exiftool import write_metadata
+from pixelkasten.utils.record import record_path, records_dir, write_record
 
 
 def emit(
@@ -57,18 +57,23 @@ def _emit_entry(entry: ManifestEntry, destination: str) -> Apply:
         # Unsupported handlers leave the file out of the working library.
         return Apply(status=Status.SKIPPED, error=entry.metadata.error)
 
-    ext = os.path.splitext(entry.media_path)[1].lower()
-    file_id = uuid.uuid4().hex
-    final_name = f"{file_id}{ext}"
-
-    dest_path = os.path.join(destination, final_name)
+    # ``os.path.splitext`` returns ``(root, ext)``; we pick [1] to keep just
+    # the extension and append it to a fresh uuid4 hex. Examples:
+    #   "IMG_001.HEIC"       -> ".heic"
+    #   "IMG_001-edited.jpg" -> ".jpg"    (suffixes are part of the basename)
+    #   "IMG_001.MP.jpg"     -> ".jpg"    (Motion Photo — final ext wins)
+    #   "<uuid>-000"         -> ""        (no extension; dest_name has none)
+    # Same extraction link's ``_parse_media`` uses for its ``extension`` field,
+    # so the two stages agree on what the extension is.
+    dest_name = f"{uuid.uuid4().hex}{os.path.splitext(entry.media_path)[1].lower()}"
+    dest_path = os.path.join(destination, dest_name)
     shutil.copy2(entry.media_path, dest_path)
 
     write_tags = entry.metadata.write_tags if entry.metadata else []
     if write_tags:
         write_metadata(dest_path, write_tags)
 
-    write_record(record_path(destination, final_name), _build_record(entry))
+    write_record(record_path(destination, dest_name), _build_record(entry))
 
     return Apply(
         status=Status.PROCESSED,

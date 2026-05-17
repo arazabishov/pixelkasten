@@ -14,7 +14,7 @@ from pixelkasten.utils.exiftool import read_metadata
 from pixelkasten.manifest import Geo, ManifestEntry, Metadata, Status
 from pixelkasten.handlers import handlers
 from pixelkasten.configuration import Options
-from pixelkasten.utils.takeout import read_sidecar
+from pixelkasten.utils.sidecar import read_sidecar
 
 BATCH_SIZE = 512
 

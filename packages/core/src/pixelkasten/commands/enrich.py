@@ -21,14 +21,10 @@ import numpy as np
 
 from pixelkasten.configuration import EnrichOptions
 from pixelkasten.handlers import is_image, is_video
-from pixelkasten.layout import (
-    RECORDS_DIR,
-    embeddings_npy_path,
-    embeddings_paths_json_path,
-    read_record,
-    records_dir,
-    write_record,
-)
+from pixelkasten.configuration import RECORDS_DIR
+from pixelkasten.utils.record import read_record, write_record
+from pixelkasten.utils.record import records_dir
+from pixelkasten.utils.embeddings import embeddings_npy_path, embeddings_paths_json_path
 
 
 @dataclass

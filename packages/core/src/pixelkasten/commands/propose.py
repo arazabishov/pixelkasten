@@ -10,8 +10,9 @@ removes the field (--clear).
 
 import os
 
-from pixelkasten.layout import read_record, record_path, records_dir, resolve_library, write_record
-from pixelkasten.layout import RECORD_SUFFIX
+from pixelkasten.utils.record import read_record, write_record
+from pixelkasten.utils.record import record_path, records_dir, resolve_library
+from pixelkasten.configuration import RECORD_SUFFIX
 
 
 def propose(path: str, album: str | None) -> list[str]:
