@@ -37,28 +37,31 @@ def cluster(paths: list[str], library: str, min_cluster_size: int) -> dict[int, 
         return {}
 
     matrix, all_paths = load_embeddings(library)
+
+    # basename -> row index in the embeddings matrix
     index_by_name = {name: i for i, name in enumerate(all_paths)}
 
-    requested_rows: list[int] = []
+    # parallel lists: inputs that matched an embedding, and their row indices
+    matched_rows: list[int] = []
     matched_paths: list[str] = []
     for p in paths:
-        name = os.path.basename(p)
-        idx = index_by_name.get(name)
+        idx = index_by_name.get(os.path.basename(p))
         if idx is None:
             print(f"cluster: {p} has no embedding; skipping.", file=sys.stderr)
-            continue
-        requested_rows.append(idx)
-        matched_paths.append(p)
+        else:
+            matched_rows.append(idx)
+            matched_paths.append(p)
 
     if not matched_paths:
         return {}
 
-    submatrix = matrix[requested_rows]
+    submatrix = matrix[matched_rows]
 
     from sklearn.cluster import HDBSCAN
 
     labels = HDBSCAN(min_cluster_size=min_cluster_size, metric="cosine").fit_predict(submatrix)
 
+    # HDBSCAN label -> paths in that cluster
     grouped: dict[int, list[str]] = {}
     for label, p in zip(labels, matched_paths):
         grouped.setdefault(int(label), []).append(p)

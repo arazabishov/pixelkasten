@@ -15,11 +15,7 @@ import os
 
 import numpy as np
 
-from pixelkasten.utils.record import records_dir_home
 from pixelkasten.utils.embeddings import load_embeddings
-
-# Re-exported so CLI callers don't have to know which module owns it.
-__all__ = ["similar", "records_dir_home"]
 
 
 def similar(query_path: str, library: str, k: int) -> list[dict]:
