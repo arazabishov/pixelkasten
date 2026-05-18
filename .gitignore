@@ -14,3 +14,7 @@ desktop.ini
 
 # Linux
 *~
+
+# Agents
+.revi/
+.mcp.json
