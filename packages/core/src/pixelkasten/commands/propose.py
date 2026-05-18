@@ -25,8 +25,10 @@ def propose(path: str, album: str | None) -> list[str]:
         _validate_album_name(album)
 
     library = records_dir_home(path)
+
     own_record_path = record_path(library, os.path.basename(path))
     own_data = read_record(own_record_path)
+
     group_id = own_data.get("group_id")
     if not group_id:
         raise RuntimeError(
@@ -36,14 +38,17 @@ def propose(path: str, album: str | None) -> list[str]:
 
     sibling_records = _siblings_by_group(library, group_id)
 
+    # paths of records updated by this call
     updated: list[str] = []
     for sibling_path in sibling_records:
-        data = read_record(sibling_path)
+        sibling_data = read_record(sibling_path)
+
         if album is None:
-            data.pop("proposed_album", None)
+            sibling_data.pop("proposed_album", None)
         else:
-            data["proposed_album"] = album
-        write_record(sibling_path, data)
+            sibling_data["proposed_album"] = album
+
+        write_record(sibling_path, sibling_data)
         updated.append(sibling_path)
     return updated
 
@@ -58,12 +63,7 @@ def _validate_album_name(album: str) -> None:
 def _siblings_by_group(library: str, group_id: str) -> list[str]:
     """Return paths of every record in ``library`` whose group_id matches."""
     rdir = records_dir(library)
-    out: list[str] = []
-    for name in sorted(os.listdir(rdir)):
-        if not name.endswith(RECORD_SUFFIX):
-            continue
-        path = os.path.join(rdir, name)
-        data = read_record(path)
-        if data.get("group_id") == group_id:
-            out.append(path)
-    return out
+    record_paths = [
+        os.path.join(rdir, n) for n in sorted(os.listdir(rdir)) if n.endswith(RECORD_SUFFIX)
+    ]
+    return [p for p in record_paths if read_record(p).get("group_id") == group_id]
