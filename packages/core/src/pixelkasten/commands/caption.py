@@ -16,8 +16,6 @@ from pixelkasten.handlers import is_image, is_video
 from pixelkasten.utils.record import read_record, write_record
 from pixelkasten.utils.record import record_path, records_dir_home
 
-DEFAULT_MODEL = "gemma4:e4b"
-
 # Inherited convention from earlier discovery passes; balances VLM payload size
 # against caption accuracy on typical mid-resolution sources.
 MAX_EDGE = 768
@@ -25,9 +23,9 @@ MAX_EDGE = 768
 
 def caption(
     path: str,
+    model: str,
+    video_frames: int,
     force: bool = False,
-    model: str = DEFAULT_MODEL,
-    video_frames: int = 5,
 ) -> str | None:
     """
     Caption one asset and persist the result to its record.
@@ -72,28 +70,32 @@ def _caption_image(path: str, model: str) -> str | None:
     from PIL import Image
 
     from pixelkasten.utils.ollama import chat
-    from pixelkasten.utils.pil_setup import ensure_pil_plugins
+    from pixelkasten.utils.pil import ensure_pil_plugins
 
     ensure_pil_plugins()
+
     img = Image.open(path).convert("RGB")
     payload = _to_jpeg_bytes(_downscale(img))
+
     return chat(model, "Describe this photo in one short sentence.", images=[payload])
 
 
 def _caption_video(path: str, model: str, n_frames: int) -> str | None:
     from PIL import Image
 
-    from pixelkasten.utils.ffmpeg import extract_frames
+    from pixelkasten.utils.ffmpeg import capture_frames
     from pixelkasten.utils.ollama import chat
 
-    raw_frames = extract_frames(path, n_frames)
+    raw_frames = capture_frames(path, n_frames)
     payloads = [
         _to_jpeg_bytes(_downscale(Image.open(io.BytesIO(b)).convert("RGB"))) for b in raw_frames
     ]
+
     prompt = (
         f"These {len(payloads)} images are frames of a single video sampled evenly "
         "across its duration. Describe the video in one short sentence."
     )
+
     return chat(model, prompt, images=payloads)
 
 

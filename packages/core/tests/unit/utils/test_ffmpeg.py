@@ -1,10 +1,10 @@
-"""Tests for tools/ffmpeg.py — extract_frames orchestration."""
+"""Tests for tools/ffmpeg.py — capture_frames orchestration."""
 
 from unittest.mock import patch, MagicMock
 
 import pytest
 
-from pixelkasten.utils.ffmpeg import extract_frames
+from pixelkasten.utils.ffmpeg import capture_frames
 
 
 def _probe_result(duration: float):
@@ -17,7 +17,7 @@ def _ffmpeg_result(payload: bytes):
     return MagicMock(returncode=0, stdout=b"\xff\xd8\xff" + payload, stderr=b"")
 
 
-class TestExtractFrames:
+class TestCaptureFrames:
     def test_returns_one_bytes_per_requested_frame(self):
         with patch("pixelkasten.utils.ffmpeg.subprocess.run") as mock_run:
             # First call is ffprobe (duration), then n ffmpeg calls.
@@ -28,7 +28,7 @@ class TestExtractFrames:
                 _ffmpeg_result(b"frame-2"),
             ]
 
-            frames = extract_frames("/tmp/video.mov", 3)
+            frames = capture_frames("/tmp/video.mov", 3)
 
             # One JPEG-bytes payload per requested frame (with FF D8 FF prefix)
             assert frames == [
@@ -45,7 +45,7 @@ class TestExtractFrames:
                 _ffmpeg_result(b"b"),
             ]
 
-            extract_frames("/tmp/video.mov", 2)
+            capture_frames("/tmp/video.mov", 2)
 
             # ffmpeg calls (positions 1, 2) include -ss with midpoint timestamps.
             # 10s duration, 2 frames -> midpoints at 2.5 and 7.5.
@@ -58,14 +58,14 @@ class TestExtractFrames:
             mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="boom")
 
             with pytest.raises(RuntimeError, match="ffprobe failed"):
-                extract_frames("/tmp/x.mov", 3)
+                capture_frames("/tmp/x.mov", 3)
 
     def test_raises_when_duration_is_zero(self):
         with patch("pixelkasten.utils.ffmpeg.subprocess.run") as mock_run:
             mock_run.return_value = _probe_result(0.0)
 
             with pytest.raises(RuntimeError, match="Could not determine duration"):
-                extract_frames("/tmp/x.mov", 3)
+                capture_frames("/tmp/x.mov", 3)
 
     def test_raises_when_ffmpeg_capture_fails(self):
         with patch("pixelkasten.utils.ffmpeg.subprocess.run") as mock_run:
@@ -75,11 +75,11 @@ class TestExtractFrames:
             ]
 
             with pytest.raises(RuntimeError, match="ffmpeg frame extraction failed"):
-                extract_frames("/tmp/x.mov", 1)
+                capture_frames("/tmp/x.mov", 1)
 
     def test_rejects_zero_or_negative_frame_count(self):
         with pytest.raises(ValueError):
-            extract_frames("/tmp/x.mov", 0)
+            capture_frames("/tmp/x.mov", 0)
 
     def test_raises_when_ffmpeg_returns_empty_payload(self):
         # Some MP4 variants make ffmpeg exit 0 but produce no decodable frame.
@@ -90,7 +90,7 @@ class TestExtractFrames:
             ]
 
             with pytest.raises(RuntimeError, match="no decodable frame"):
-                extract_frames("/tmp/x.mov", 1)
+                capture_frames("/tmp/x.mov", 1)
 
     def test_raises_when_ffmpeg_returns_non_jpeg_bytes(self):
         # Defensive: payload that doesn't start with FF D8 FF is rejected.
@@ -101,4 +101,4 @@ class TestExtractFrames:
             ]
 
             with pytest.raises(RuntimeError, match="no decodable frame"):
-                extract_frames("/tmp/x.mov", 1)
+                capture_frames("/tmp/x.mov", 1)

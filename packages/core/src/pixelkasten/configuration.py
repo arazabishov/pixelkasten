@@ -60,4 +60,4 @@ class EnrichOptions:
     library: str
 
     # frames sampled per video for both embed and caption
-    video_frames: int = 5
+    video_frames: int

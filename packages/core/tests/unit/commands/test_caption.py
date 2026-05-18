@@ -8,6 +8,14 @@ from PIL import Image
 
 from pixelkasten.commands.caption import caption
 
+TEST_MODEL = "gemma4:e4b"
+TEST_VIDEO_FRAMES = 5
+
+
+def _run_caption(path: str, **overrides):
+    kwargs = {"model": TEST_MODEL, "video_frames": TEST_VIDEO_FRAMES, **overrides}
+    return caption(path, **kwargs)
+
 
 def _make_library_with_asset(tmp_path, asset_name: str, content: bytes, sidecar: dict):
     lib = tmp_path / "lib"
@@ -40,7 +48,7 @@ class TestCaptionImage:
         mock_chat.return_value = "A red square."
         lib = _make_image_library(tmp_path)
 
-        result = caption(os.path.join(lib, "photo.jpg"))
+        result = _run_caption(os.path.join(lib, "photo.jpg"))
 
         # Returns the caption string
         assert result == "A red square."
@@ -49,7 +57,7 @@ class TestCaptionImage:
         # Ollama was called exactly once with the configured model
         assert mock_chat.call_count == 1
         called_args = mock_chat.call_args
-        assert called_args[0][0] == "gemma4:e4b"
+        assert called_args[0][0] == TEST_MODEL
         # Image bytes were passed
         assert isinstance(called_args[1]["images"][0], bytes)
 
@@ -60,7 +68,7 @@ class TestCaptionImage:
             sidecar={"dates": [], "geo": None, "album": None, "caption": "Already captioned."},
         )
 
-        result = caption(os.path.join(lib, "photo.jpg"))
+        result = _run_caption(os.path.join(lib, "photo.jpg"))
 
         # Cached caption returned; model not invoked
         assert result == "Already captioned."
@@ -74,7 +82,7 @@ class TestCaptionImage:
             sidecar={"dates": [], "geo": None, "album": None, "caption": "Stale."},
         )
 
-        result = caption(os.path.join(lib, "photo.jpg"), force=True)
+        result = _run_caption(os.path.join(lib, "photo.jpg"), force=True)
 
         # Caption is regenerated and overwrites the cached value
         assert result == "Fresh caption."
@@ -85,7 +93,7 @@ class TestCaptionImage:
         mock_chat.side_effect = RuntimeError("ollama not running")
         lib = _make_image_library(tmp_path)
 
-        result = caption(os.path.join(lib, "photo.jpg"))
+        result = _run_caption(os.path.join(lib, "photo.jpg"))
 
         # Failure surfaces via None return and a stderr message
         assert result is None
@@ -98,7 +106,7 @@ class TestCaptionImage:
         mock_chat.return_value = None
         lib = _make_image_library(tmp_path)
 
-        result = caption(os.path.join(lib, "photo.jpg"))
+        result = _run_caption(os.path.join(lib, "photo.jpg"))
 
         # Empty model output is treated as failure
         assert result is None
@@ -107,7 +115,7 @@ class TestCaptionImage:
 
 class TestCaptionVideo:
     @patch("pixelkasten.utils.ollama.chat")
-    @patch("pixelkasten.utils.ffmpeg.extract_frames")
+    @patch("pixelkasten.utils.ffmpeg.capture_frames")
     def test_extracts_frames_and_passes_them_to_ollama(self, mock_extract, mock_chat, tmp_path):
         # Build two real JPEG frames so PIL can open them
         frame_buf = []
@@ -127,7 +135,7 @@ class TestCaptionVideo:
             sidecar={"dates": [], "geo": None, "album": None},
         )
 
-        result = caption(os.path.join(lib, "clip.mp4"), video_frames=2)
+        result = _run_caption(os.path.join(lib, "clip.mp4"), video_frames=2)
 
         # Caption recorded on the sidecar
         assert result == "A short blue clip."
@@ -138,7 +146,7 @@ class TestCaptionVideo:
         passed_images = mock_chat.call_args[1]["images"]
         assert len(passed_images) == 2
 
-    @patch("pixelkasten.utils.ffmpeg.extract_frames")
+    @patch("pixelkasten.utils.ffmpeg.capture_frames")
     def test_returns_none_when_frame_extraction_fails(self, mock_extract, tmp_path, capsys):
         mock_extract.side_effect = RuntimeError("ffmpeg crashed")
         lib = _make_library_with_asset(
@@ -148,7 +156,7 @@ class TestCaptionVideo:
             sidecar={"dates": [], "geo": None, "album": None},
         )
 
-        result = caption(os.path.join(lib, "clip.mov"))
+        result = _run_caption(os.path.join(lib, "clip.mov"))
 
         # Failure surfaces; sidecar untouched
         assert result is None
@@ -167,7 +175,7 @@ class TestCaptionValidation:
         import pytest as _pytest
 
         with _pytest.raises(RuntimeError, match="No record"):
-            caption(str(lib / "photo.jpg"))
+            _run_caption(str(lib / "photo.jpg"))
 
     @patch("pixelkasten.utils.ollama.chat")
     def test_returns_none_for_unsupported_extension(self, mock_chat, tmp_path, capsys):
@@ -178,7 +186,7 @@ class TestCaptionValidation:
             sidecar={"dates": [], "geo": None, "album": None},
         )
 
-        result = caption(os.path.join(lib, "raw.dng"))
+        result = _run_caption(os.path.join(lib, "raw.dng"))
 
         # Unsupported extension surfaces as caption failure (no crash)
         assert result is None

@@ -196,7 +196,7 @@ def _embed(
     images = [p for p in pending if is_image(p)]
     videos = [p for p in pending if is_video(p)]
 
-    from pixelkasten.utils.clip_embed import embed_images
+    from pixelkasten.utils.clip import embed_images
 
     new_rows: list[np.ndarray] = []
     new_names: list[str] = []
@@ -260,7 +260,7 @@ def _embed_image_batch(
     """
     from PIL import Image
 
-    from pixelkasten.utils.pil_setup import ensure_pil_plugins
+    from pixelkasten.utils.pil import ensure_pil_plugins
 
     ensure_pil_plugins()
 
@@ -296,11 +296,11 @@ def _embed_image_batch(
 def _embed_video(path: str, video_frames: int, embed_images) -> np.ndarray:
     from PIL import Image
 
-    from pixelkasten.utils.ffmpeg import extract_frames
-    from pixelkasten.utils.pil_setup import ensure_pil_plugins
+    from pixelkasten.utils.ffmpeg import capture_frames
+    from pixelkasten.utils.pil import ensure_pil_plugins
 
     ensure_pil_plugins()
-    frames = extract_frames(path, video_frames)
+    frames = capture_frames(path, video_frames)
     images = [Image.open(io.BytesIO(b)) for b in frames]
     matrix = embed_images(images)
     if matrix.size == 0:
