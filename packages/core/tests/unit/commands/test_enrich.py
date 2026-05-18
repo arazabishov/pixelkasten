@@ -55,7 +55,7 @@ class TestGeocodeStep:
             media={},
         )
 
-        enrich(EnrichOptions(library=lib))
+        enrich(EnrichOptions(library=lib, video_frames=5))
 
         sidecar = _read_sidecar(lib, "a.jpg")
         # location now populated from the reverse-geocode result
@@ -73,7 +73,7 @@ class TestGeocodeStep:
             media={},
         )
 
-        enrich(EnrichOptions(library=lib))
+        enrich(EnrichOptions(library=lib, video_frames=5))
 
         # Nothing to geocode -> reverse_geocoder never called
         mock_rg.assert_not_called()
@@ -97,7 +97,7 @@ class TestGeocodeStep:
             media={},
         )
 
-        enrich(EnrichOptions(library=lib))
+        enrich(EnrichOptions(library=lib, video_frames=5))
 
         # Re-run is a no-op when location is already present
         mock_rg.assert_not_called()
@@ -127,7 +127,7 @@ class TestGeocodeStep:
             media={},
         )
 
-        enrich(EnrichOptions(library=lib))
+        enrich(EnrichOptions(library=lib, video_frames=5))
 
         # One batch call covers both sidecars
         assert mock_rg.call_count == 1
@@ -137,7 +137,7 @@ class TestGeocodeStep:
 
 
 class TestEmbedStep:
-    @patch("pixelkasten.utils.clip_embed.embed_images")
+    @patch("pixelkasten.utils.clip.embed_images")
     @patch("reverse_geocoder.search")
     def test_writes_embeddings_npy_and_paths_json(self, mock_rg, mock_embed, tmp_path):
         # Two image files, mocked CLIP returns a (2, 768) matrix from one batched call.
@@ -153,7 +153,7 @@ class TestEmbedStep:
 
         with patch("PIL.Image.open") as mock_open:
             mock_open.return_value = object()  # PIL image stand-in; embed_images is mocked
-            enrich(EnrichOptions(library=lib))
+            enrich(EnrichOptions(library=lib, video_frames=5))
 
         # CLIP is invoked exactly once for both images
         assert mock_embed.call_count == 1
@@ -166,7 +166,7 @@ class TestEmbedStep:
             paths = json.load(f)
         assert set(paths) == {"a.jpg", "b.jpg"}
 
-    @patch("pixelkasten.utils.clip_embed.embed_images")
+    @patch("pixelkasten.utils.clip.embed_images")
     @patch("reverse_geocoder.search")
     def test_skips_already_embedded_files(self, mock_rg, mock_embed, tmp_path):
         lib = _make_working_library(
@@ -182,7 +182,7 @@ class TestEmbedStep:
             np.full((1, 768), 0.5, dtype=np.float32),
         )
 
-        enrich(EnrichOptions(library=lib))
+        enrich(EnrichOptions(library=lib, video_frames=5))
 
         # CLIP never invoked because the only file is already embedded
         mock_embed.assert_not_called()
@@ -191,8 +191,8 @@ class TestEmbedStep:
             paths = json.load(f)
         assert paths == ["a.jpg"]
 
-    @patch("pixelkasten.utils.clip_embed.embed_images")
-    @patch("pixelkasten.utils.ffmpeg.extract_frames")
+    @patch("pixelkasten.utils.clip.embed_images")
+    @patch("pixelkasten.utils.ffmpeg.capture_frames")
     @patch("reverse_geocoder.search")
     def test_embeds_video_via_mean_of_frame_embeddings(
         self, mock_rg, mock_extract, mock_embed, tmp_path
@@ -222,7 +222,7 @@ class TestEmbedStep:
         # frame extraction was called with the configured frame count
         mock_extract.assert_called_once_with(os.path.join(lib, "v.mp4"), 3)
 
-    @patch("pixelkasten.utils.clip_embed.embed_images")
+    @patch("pixelkasten.utils.clip.embed_images")
     @patch("reverse_geocoder.search")
     def test_logs_and_skips_on_embed_failure(self, mock_rg, mock_embed, tmp_path, capsys):
         # CLIP raises -> file is skipped, not aborted.
@@ -235,7 +235,7 @@ class TestEmbedStep:
 
         with patch("PIL.Image.open") as mock_open:
             mock_open.return_value = object()
-            enrich(EnrichOptions(library=lib))
+            enrich(EnrichOptions(library=lib, video_frames=5))
 
         # Error message printed to stderr; no embeddings file written
         captured = capsys.readouterr()
@@ -249,13 +249,13 @@ class TestEnrichValidation:
         bare.mkdir()
 
         with pytest.raises(RuntimeError, match="working library"):
-            enrich(EnrichOptions(library=str(bare)))
+            enrich(EnrichOptions(library=str(bare), video_frames=5))
 
 
 class TestEnrichResult:
     """Verifies the EnrichResult returned by enrich() reflects what changed."""
 
-    @patch("pixelkasten.utils.clip_embed.embed_images")
+    @patch("pixelkasten.utils.clip.embed_images")
     @patch("reverse_geocoder.search")
     def test_counts_match_what_was_written(self, mock_rg, mock_embed, tmp_path):
         mock_rg.return_value = [{"name": "Berlin", "admin1": "Berlin", "cc": "DE"}]
@@ -274,7 +274,7 @@ class TestEnrichResult:
 
         with patch("PIL.Image.open") as mock_open:
             mock_open.return_value = object()
-            summary = enrich(EnrichOptions(library=lib))
+            summary = enrich(EnrichOptions(library=lib, video_frames=5))
 
         # Verify totals match what landed on disk
         assert summary.records_total == 1
@@ -286,7 +286,7 @@ class TestEnrichResult:
         assert summary.images_failed == []
         assert summary.videos_failed == []
 
-    @patch("pixelkasten.utils.clip_embed.embed_images")
+    @patch("pixelkasten.utils.clip.embed_images")
     @patch("reverse_geocoder.search")
     def test_rerun_reports_zero_new_work(self, mock_rg, mock_embed, tmp_path):
         mock_rg.return_value = [{"name": "Berlin", "admin1": "Berlin", "cc": "DE"}]
@@ -305,9 +305,9 @@ class TestEnrichResult:
 
         with patch("PIL.Image.open") as mock_open:
             mock_open.return_value = object()
-            enrich(EnrichOptions(library=lib))
+            enrich(EnrichOptions(library=lib, video_frames=5))
             # Re-run: everything is idempotent
-            summary = enrich(EnrichOptions(library=lib))
+            summary = enrich(EnrichOptions(library=lib, video_frames=5))
 
         # Verify the second pass adds nothing
         assert summary.locations_added == 0
@@ -317,7 +317,7 @@ class TestEnrichResult:
         assert summary.already_embedded == 1
         assert summary.images_embedded == 0
 
-    @patch("pixelkasten.utils.clip_embed.embed_images")
+    @patch("pixelkasten.utils.clip.embed_images")
     @patch("reverse_geocoder.search")
     def test_failed_image_appears_in_images_failed(self, mock_rg, mock_embed, tmp_path):
         mock_rg.return_value = []
@@ -331,7 +331,7 @@ class TestEnrichResult:
 
         with patch("PIL.Image.open") as mock_open:
             mock_open.return_value = object()
-            summary = enrich(EnrichOptions(library=lib))
+            summary = enrich(EnrichOptions(library=lib, video_frames=5))
 
         # The failed image path is recorded for the renderer
         assert any(p.endswith("a.jpg") for p in summary.images_failed)

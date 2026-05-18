@@ -15,9 +15,9 @@ def check_ffmpeg() -> None:
             raise RuntimeError(f"{binary} is required. Install with `brew install ffmpeg`.")
 
 
-def extract_frames(video_path: str, n_frames: int) -> list[bytes]:
+def capture_frames(video_path: str, n_frames: int) -> list[bytes]:
     """
-    Extract `n_frames` uniformly-distributed JPEG frames from `video_path`.
+    Capture `n_frames` uniformly-distributed JPEG frames from `video_path`.
 
     Returns a list of JPEG bytes, one per sampled frame. Raises RuntimeError
     if ffprobe/ffmpeg fails or the video has zero duration.

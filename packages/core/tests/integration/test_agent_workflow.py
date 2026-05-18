@@ -75,7 +75,7 @@ def _media_basename(lib: Path) -> str:
 
 class TestAgentWorkflow:
     @patch("reverse_geocoder.search")
-    @patch("pixelkasten.utils.clip_embed.embed_images")
+    @patch("pixelkasten.utils.clip.embed_images")
     def test_init_enrich_propose_apply_writes_proposed_album(self, mock_embed, mock_rg, tmp_path):
         source = tmp_path / "source"
         lib = tmp_path / "lib"
@@ -96,7 +96,7 @@ class TestAgentWorkflow:
         mock_embed.return_value = np.full((1, 768), 0.1, dtype=np.float32)
         with patch("PIL.Image.open") as mock_open:
             mock_open.return_value = object()
-            enrich(EnrichOptions(library=str(lib)))
+            enrich(EnrichOptions(library=str(lib), video_frames=5))
 
         # Geocode result is now persisted in the sidecar
         sidecar_path = lib / ".pixelkasten" / f"{media_name}.pk.json"

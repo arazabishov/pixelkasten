@@ -26,7 +26,7 @@ def embeddings_paths_json_path(library: str) -> str:
 
 def load_embeddings(library: str) -> tuple[np.ndarray, list[str]]:
     """Load embeddings.npy + paths.json. Rows are assumed L2-normalized
-    (writers in utils/clip_embed.py and commands/enrich.py uphold this);
+    (writers in utils/clip.py and commands/enrich.py uphold this);
     cosine similarity downstream reduces to a plain dot product."""
     npy_file = embeddings_npy_path(library)
     paths_file = embeddings_paths_json_path(library)
