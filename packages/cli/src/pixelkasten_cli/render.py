@@ -34,7 +34,7 @@ from rich.progress import (
 )
 from rich.table import Column, Table
 
-from pixelkasten.commands.enrich import EnrichResult
+from pixelkasten.commands.enrich import EnrichState
 from pixelkasten.commands.export import ExportResult
 from pixelkasten.commands.ingest import IngestResult
 from pixelkasten.configuration import ExportOptions, IngestOptions
@@ -102,7 +102,7 @@ def render_import(console: Console, result: IngestResult, options: IngestOptions
     _render_error_table(console, result.manifest)
 
 
-def render_enrich(console: Console, summary: EnrichResult) -> None:
+def render_enrich(console: Console, summary: EnrichState) -> None:
     """Two tables — geocoding totals, then embedding totals — plus failure sample."""
     geocode = _make_table("Reverse geocoding", "Action")
     geocode.add_row("Records", str(summary.records_total))
@@ -116,6 +116,8 @@ def render_enrich(console: Console, summary: EnrichResult) -> None:
     embed.add_row("Videos embedded", str(summary.videos_embedded))
     embed.add_row("Images already embedded", str(summary.images_already_embedded))
     embed.add_row("Videos already embedded", str(summary.videos_already_embedded))
+    if summary.unsupported_media:
+        embed.add_row("Unsupported files", str(len(summary.unsupported_media)))
     total_failed = len(summary.images_failed) + len(summary.videos_failed)
     if total_failed:
         embed.add_row("[red]Failed[/red]", f"[red]{total_failed}[/red]")

@@ -54,16 +54,6 @@ def record_path(library: str, asset_name: str) -> str:
     return os.path.join(library, RECORDS_DIR, asset_name + RECORD_SUFFIX)
 
 
-def record_paths(library: str) -> list[str]:
-    """Sorted paths of every record in ``library``."""
-    rdir = records_dir(library)
-    return [
-        os.path.join(rdir, name)
-        for name in sorted(os.listdir(rdir))
-        if name.endswith(RECORD_SUFFIX)
-    ]
-
-
 def read_record(path: str) -> dict:
     """Read a ``.pk.json`` record. Raises if missing — keepers always have one."""
     if not os.path.exists(path):

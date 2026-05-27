@@ -62,7 +62,7 @@ packages/core/src/pixelkasten/
     ingest/           # multi-stage pipeline (CLI: `pixelkasten import`)
       __init__.py     # exports ingest() + IngestResult
       stages/         # scan, link, dedupe, reconcile, group, emit, report
-    enrich/           # multi-stage command (geocode, embed)
+    enrich/           # multi-stage command (scan, geocode, embed)
     export.py         # standalone command
     caption.py cluster.py propose.py similar.py
   utils/              # shared wrappers around external dependencies and shared helpers
@@ -298,7 +298,7 @@ One pattern, one place. **All terminal rendering lives in `packages/cli/src/pixe
 commands/<x>.py → return value → cli.py → render_<x>() in render.py → console
 ```
 
-Result types that need a typed shape are collocated with their command (`EnrichResult` in `commands/enrich/enrich.py`, `ExportResult` in `commands/export.py`, `IngestResult` in `commands/ingest/ingest.py`). Trivial returns (a string for `caption`, a list of paths for `propose`) stay primitive. Don't invent a new dataclass for two scalars.
+Result types that need a typed shape are collocated with their command (`ExportResult` in `commands/export.py`, `IngestResult` in `commands/ingest/ingest.py`). Multi-stage commands that share mutable command state keep that type in their package (`EnrichState` in `commands/enrich/state.py`). Trivial returns (a string for `caption`, a list of paths for `propose`) stay primitive. Don't invent a new dataclass for two scalars.
 
 **Result types don't duplicate option fields.** If a renderer needs an option's value (e.g. `dry_run`), it takes the `options` object as an extra renderer argument. That keeps result types focused on what the run actually *produced* and avoids the ambiguity of two sources of truth for the same field.
 

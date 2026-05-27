@@ -1,32 +1,18 @@
 """Reverse-geocode records with geo coordinates."""
 
 from collections.abc import Callable
-from dataclasses import dataclass
 
-from pixelkasten.utils.record import read_record, record_paths, write_record
-
-
-@dataclass
-class GeocodeResult:
-    """Counts produced by the geocode stage."""
-
-    # total records walked across the working library
-    records_total: int = 0
-
-    # records that gained a `location` field this run
-    locations_added: int = 0
-
-    # records skipped because `location` was already set
-    locations_already_set: int = 0
+from pixelkasten.commands.enrich.state import EnrichState
+from pixelkasten.utils.record import read_record, write_record
 
 
-def geocode(library: str, progress: Callable) -> GeocodeResult:
+def geocode(records: list[str], state: EnrichState, progress: Callable) -> None:
     """Reverse-geocode every record with geo set but no location yet."""
-    result = GeocodeResult()
-    pending = _pending_geocodes(library, result)
+    pending, locations_already_set = _pending_geocodes(records)
+    state.locations_already_set = locations_already_set
 
     if not pending:
-        return result
+        return
 
     import reverse_geocoder as rg
 
@@ -42,27 +28,23 @@ def geocode(library: str, progress: Callable) -> GeocodeResult:
                 data = read_record(record_file)
                 data["location"] = location
                 write_record(record_file, data)
-                result.locations_added += 1
+                state.locations_added += 1
                 done += 1
                 tick(done)
 
-    return result
 
-
-def _pending_geocodes(library: str, result: GeocodeResult) -> dict[tuple[float, float], list[str]]:
+def _pending_geocodes(records: list[str]) -> tuple[dict[tuple[float, float], list[str]], int]:
     """Group records-needing-geocoding by rounded coordinate."""
-    paths = record_paths(library)
-    result.records_total = len(paths)
-
+    locations_already_set = 0
     pending: dict[tuple[float, float], list[str]] = {}
-    for path in paths:
+    for path in records:
         data = read_record(path)
         if data.get("location") is not None:
-            result.locations_already_set += 1
+            locations_already_set += 1
         elif geo := data.get("geo"):
             lat, lon = round(geo["latitude"], 2), round(geo["longitude"], 2)
             pending.setdefault((lat, lon), []).append(path)
-    return pending
+    return pending, locations_already_set
 
 
 def _format_location(rg_result: dict) -> dict:

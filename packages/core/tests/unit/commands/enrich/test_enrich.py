@@ -256,16 +256,22 @@ class TestEmbedStep:
 
 
 class TestEnrichValidation:
+    def test_rejects_missing_library(self, tmp_path):
+        missing = tmp_path / "missing-library"
+
+        with pytest.raises(FileNotFoundError, match="Library directory not found"):
+            enrich(EnrichOptions(library=str(missing), video_frames=5))
+
     def test_rejects_non_working_library(self, tmp_path):
         bare = tmp_path / "not-a-library"
         bare.mkdir()
 
-        with pytest.raises(RuntimeError, match="working library"):
+        with pytest.raises(FileNotFoundError, match="Working library records not found"):
             enrich(EnrichOptions(library=str(bare), video_frames=5))
 
 
-class TestEnrichResult:
-    """Verifies the EnrichResult returned by enrich() reflects what changed."""
+class TestEnrichState:
+    """Verifies the EnrichState returned by enrich() reflects what changed."""
 
     @patch("pixelkasten.utils.clip.embed_images")
     @patch("reverse_geocoder.search")
@@ -296,8 +302,24 @@ class TestEnrichResult:
         assert summary.videos_embedded == 0
         assert summary.images_already_embedded == 0
         assert summary.videos_already_embedded == 0
+        assert summary.unsupported_media == []
         assert summary.images_failed == []
         assert summary.videos_failed == []
+
+    @patch("reverse_geocoder.search")
+    def test_reports_unsupported_top_level_files(self, mock_rg, tmp_path):
+        lib = _make_working_library(
+            tmp_path,
+            records={},
+            media={"notes.txt": b"not-media"},
+        )
+
+        summary = enrich(EnrichOptions(library=lib, video_frames=5))
+
+        # Verify unsupported top-level files are captured for reporting
+        assert [os.path.basename(p) for p in summary.unsupported_media] == ["notes.txt"]
+        # No records with geo -> geocoder is not called
+        mock_rg.assert_not_called()
 
     @patch("pixelkasten.utils.clip.embed_images")
     @patch("reverse_geocoder.search")
