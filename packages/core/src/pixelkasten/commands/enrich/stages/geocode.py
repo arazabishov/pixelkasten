@@ -1,23 +1,32 @@
 """Reverse-geocode records with geo coordinates."""
 
 from collections.abc import Callable
-from typing import Protocol
+from dataclasses import dataclass
 
 from pixelkasten.utils.record import read_record, record_paths, write_record
 
 
-class GeocodeSummary(Protocol):
-    records_total: int
-    locations_added: int
-    locations_already_set: int
+@dataclass
+class GeocodeResult:
+    """Counts produced by the geocode stage."""
+
+    # total records walked across the working library
+    records_total: int = 0
+
+    # records that gained a `location` field this run
+    locations_added: int = 0
+
+    # records skipped because `location` was already set
+    locations_already_set: int = 0
 
 
-def geocode(library: str, summary: GeocodeSummary, progress: Callable) -> None:
+def geocode(library: str, progress: Callable) -> GeocodeResult:
     """Reverse-geocode every record with geo set but no location yet."""
-    pending = _pending_geocodes(library, summary)
+    result = GeocodeResult()
+    pending = _pending_geocodes(library, result)
 
     if not pending:
-        return
+        return result
 
     import reverse_geocoder as rg
 
@@ -27,29 +36,29 @@ def geocode(library: str, summary: GeocodeSummary, progress: Callable) -> None:
     total = sum(len(v) for v in pending.values())
     with progress("Reverse geocoding", total) as tick:
         done = 0
-        for coord, result in zip(coords, results):
-            location = _format_location(result)
+        for coord, geocode_data in zip(coords, results):
+            location = _format_location(geocode_data)
             for record_file in pending[coord]:
                 data = read_record(record_file)
                 data["location"] = location
                 write_record(record_file, data)
-                summary.locations_added += 1
+                result.locations_added += 1
                 done += 1
                 tick(done)
 
+    return result
 
-def _pending_geocodes(
-    library: str, summary: GeocodeSummary
-) -> dict[tuple[float, float], list[str]]:
+
+def _pending_geocodes(library: str, result: GeocodeResult) -> dict[tuple[float, float], list[str]]:
     """Group records-needing-geocoding by rounded coordinate."""
     paths = record_paths(library)
-    summary.records_total = len(paths)
+    result.records_total = len(paths)
 
     pending: dict[tuple[float, float], list[str]] = {}
     for path in paths:
         data = read_record(path)
         if data.get("location") is not None:
-            summary.locations_already_set += 1
+            result.locations_already_set += 1
         elif geo := data.get("geo"):
             lat, lon = round(geo["latitude"], 2), round(geo["longitude"], 2)
             pending.setdefault((lat, lon), []).append(path)

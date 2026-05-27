@@ -3,7 +3,7 @@
 import os
 import sys
 from collections.abc import Callable
-from typing import Protocol
+from dataclasses import dataclass, field
 
 import numpy as np
 
@@ -12,32 +12,47 @@ from pixelkasten.utils.clip import embed_video
 from pixelkasten.utils.embeddings import load_embeddings, save_embeddings
 
 
-class EmbedSummary(Protocol):
-    images_embedded: int
-    videos_embedded: int
-    images_already_embedded: int
-    videos_already_embedded: int
-    images_failed: list[str]
-    videos_failed: list[str]
+@dataclass
+class EmbedResult:
+    """Counts and failures produced by the embed stage."""
+
+    # images that gained an embedding this run
+    images_embedded: int = 0
+
+    # videos that gained an embedding this run
+    videos_embedded: int = 0
+
+    # images skipped because their filename is already in embeddings.paths.json
+    images_already_embedded: int = 0
+
+    # videos skipped because their filename is already in embeddings.paths.json
+    videos_already_embedded: int = 0
+
+    # absolute paths of images that failed to embed (corrupt, decode error)
+    images_failed: list[str] = field(default_factory=list)
+
+    # absolute paths of videos that failed to embed (ffmpeg / CLIP failure)
+    videos_failed: list[str] = field(default_factory=list)
 
 
 # Number of images per CLIP forward pass; 32 is a conservative CPU/GPU default.
 EMBED_BATCH_SIZE = 32
 
 
-def embed(library: str, video_frames: int, summary: EmbedSummary, progress: Callable) -> None:
+def embed(library: str, video_frames: int, progress: Callable) -> EmbedResult:
     """CLIP-embed every media file not already represented in embeddings.paths.json."""
     existing_matrix, embedded_names = load_embeddings(library, strict=False)
     embedded_set = set(embedded_names)
+    result = EmbedResult()
 
     media = sorted(_list_media(library))
     embedded = [m for m in media if os.path.basename(m) in embedded_set]
     pending = [m for m in media if os.path.basename(m) not in embedded_set]
-    summary.images_already_embedded = sum(1 for p in embedded if is_image(p))
-    summary.videos_already_embedded = sum(1 for p in embedded if is_video(p))
+    result.images_already_embedded = sum(1 for p in embedded if is_image(p))
+    result.videos_already_embedded = sum(1 for p in embedded if is_video(p))
 
     if not pending:
-        return
+        return result
 
     images = [p for p in pending if is_image(p)]
     videos = [p for p in pending if is_video(p)]
@@ -51,8 +66,8 @@ def embed(library: str, video_frames: int, summary: EmbedSummary, progress: Call
             batch_rows, batch_names, batch_failed = _embed_image_batch(batch_paths)
             new_rows.extend(batch_rows)
             new_names.extend(batch_names)
-            summary.images_embedded += len(batch_names)
-            summary.images_failed.extend(batch_failed)
+            result.images_embedded += len(batch_names)
+            result.images_failed.extend(batch_failed)
             completed += len(batch_paths)
             tick(completed)
 
@@ -61,17 +76,17 @@ def embed(library: str, video_frames: int, summary: EmbedSummary, progress: Call
                 row = embed_video(video_path, video_frames)
             except Exception as e:
                 print(f"enrich: skipping {video_path}: {e}", file=sys.stderr)
-                summary.videos_failed.append(video_path)
+                result.videos_failed.append(video_path)
             else:
                 new_rows.append(row)
                 new_names.append(os.path.basename(video_path))
-                summary.videos_embedded += 1
+                result.videos_embedded += 1
 
             completed += 1
             tick(completed)
 
     if not new_rows:
-        return
+        return result
 
     new_matrix = np.vstack(new_rows).astype(np.float32)
 
@@ -81,6 +96,7 @@ def embed(library: str, video_frames: int, summary: EmbedSummary, progress: Call
         combined_matrix = np.vstack([existing_matrix, new_matrix]).astype(np.float32)
 
     save_embeddings(library, combined_matrix, embedded_names + new_names)
+    return result
 
 
 def _embed_image_batch(paths: list[str]) -> tuple[list[np.ndarray], list[str], list[str]]:
