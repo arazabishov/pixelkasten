@@ -20,7 +20,7 @@ def cluster(paths: list[str], library: str, min_cluster_size: int) -> dict[int, 
     Run HDBSCAN on the embeddings for ``paths``. Returns {label: [path, ...]}.
 
     Uses cosine distance. Rows are assumed L2-normalized (writers in
-    utils/clip.py and commands/enrich.py uphold this); cosine distance
+    utils/clip.py and commands/enrich/stages/embed.py uphold this); cosine distance
     reduces to 1 - dot_product, consistent with how ``similar`` scores results.
 
     Both images and videos are eligible — each video is represented as the

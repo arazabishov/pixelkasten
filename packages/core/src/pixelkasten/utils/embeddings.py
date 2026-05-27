@@ -67,7 +67,7 @@ def save_embeddings(library: str, matrix: np.ndarray, paths: list[str]) -> None:
 
 def _load_files(npy_file: str, paths_file: str) -> tuple[np.ndarray, list[str]]:
     """Load embeddings.npy + paths.json. Rows are assumed L2-normalized
-    (writers in utils/clip.py and commands/enrich.py uphold this);
+    (writers in utils/clip.py and commands/enrich/stages/embed.py uphold this);
     cosine similarity downstream reduces to a plain dot product."""
     matrix = np.load(npy_file)
     with open(paths_file) as f:
