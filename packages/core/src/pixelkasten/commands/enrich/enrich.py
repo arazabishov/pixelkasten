@@ -75,9 +75,17 @@ def enrich(options: EnrichOptions, progress: Callable | None = None) -> EnrichRe
         )
 
     progress = progress or _noop_progress
-    summary = EnrichResult()
+    geocode_result = geocode(library, progress)
+    embed_result = embed(library, options.video_frames, progress)
 
-    geocode(library, summary, progress)
-    embed(library, options.video_frames, summary, progress)
-
-    return summary
+    return EnrichResult(
+        records_total=geocode_result.records_total,
+        locations_added=geocode_result.locations_added,
+        locations_already_set=geocode_result.locations_already_set,
+        images_embedded=embed_result.images_embedded,
+        videos_embedded=embed_result.videos_embedded,
+        images_already_embedded=embed_result.images_already_embedded,
+        videos_already_embedded=embed_result.videos_already_embedded,
+        images_failed=embed_result.images_failed,
+        videos_failed=embed_result.videos_failed,
+    )
