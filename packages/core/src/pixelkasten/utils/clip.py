@@ -1,5 +1,5 @@
 """
-CLIP image embeddings for enrich and similar.
+CLIP image and video embeddings for enrich, similar, and cluster.
 
 Loads a CLIP model once via open_clip and exposes a helper that embeds a
 list of PIL images. Heavy dependencies (torch, open_clip) are imported
@@ -8,6 +8,8 @@ lazily inside functions so users running only `init` don't pay for them.
 
 from __future__ import annotations
 
+import io
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -60,7 +62,7 @@ def _ensure_model(model_name: str = "ViT-L-14") -> tuple[Any, Any, str]:
     return model, preprocess, device
 
 
-def embed_images(images: list[PILImage], model_name: str = "ViT-L-14") -> np.ndarray:
+def embed_images(images: Sequence[PILImage], model_name: str = "ViT-L-14") -> np.ndarray:
     """
     Embed a batch of PIL images. Returns a (N, 768) float32 L2-normalized array.
 
@@ -81,3 +83,22 @@ def embed_images(images: list[PILImage], model_name: str = "ViT-L-14") -> np.nda
         embeddings = embeddings / embeddings.norm(dim=-1, keepdim=True)
 
     return embeddings.cpu().numpy().astype(np.float32)
+
+
+def embed_video(path: str, video_frames: int) -> np.ndarray:
+    """Represent a video as the L2-normalized mean of sampled-frame embeddings."""
+    from PIL import Image
+
+    from pixelkasten.utils.ffmpeg import capture_frames
+    from pixelkasten.utils.pil import ensure_pil_plugins
+
+    ensure_pil_plugins()
+
+    frames = capture_frames(path, video_frames)
+    images = [Image.open(io.BytesIO(frame)) for frame in frames]
+    matrix = embed_images(images)
+    if matrix.size == 0:
+        raise RuntimeError(f"Empty embedding for {path}")
+
+    mean = matrix.mean(axis=0)
+    return mean / np.linalg.norm(mean)

@@ -114,7 +114,8 @@ def render_enrich(console: Console, summary: EnrichResult) -> None:
     embed = _make_table("Embedding", "Action")
     embed.add_row("Images embedded", str(summary.images_embedded))
     embed.add_row("Videos embedded", str(summary.videos_embedded))
-    embed.add_row("Already embedded", str(summary.already_embedded))
+    embed.add_row("Images already embedded", str(summary.images_already_embedded))
+    embed.add_row("Videos already embedded", str(summary.videos_already_embedded))
     total_failed = len(summary.images_failed) + len(summary.videos_failed)
     if total_failed:
         embed.add_row("[red]Failed[/red]", f"[red]{total_failed}[/red]")
