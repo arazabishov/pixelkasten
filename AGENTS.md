@@ -62,7 +62,7 @@ packages/core/src/pixelkasten/
     ingest/           # multi-stage pipeline (CLI: `pixelkasten import`)
       __init__.py     # exports ingest() + IngestResult
       stages/         # scan, link, dedupe, reconcile, group, emit, report
-    enrich.py         # standalone command
+    enrich/           # multi-stage command (geocode, embed)
     export.py         # standalone command
     caption.py cluster.py propose.py similar.py
   utils/              # shared wrappers around external dependencies and shared helpers
@@ -73,7 +73,7 @@ packages/core/src/pixelkasten/
     dates.py pil_setup.py clip_embed.py
 ```
 
-Commands live under `commands/`. The `ingest` command is multi-stage — its orchestrator lives in `commands/ingest/__init__.py` and the individual stages under `commands/ingest/stages/`. Other commands are single-file modules. The Python module is named `ingest` (not `import`) because `import` is a reserved keyword; the CLI command name `pixelkasten import` is independent of the Python module name. Utilities — wrappers around external dependencies and shared helpers — live under `utils/`.
+Commands live under `commands/`. Multi-stage commands use a package: `ingest` has its orchestrator in `commands/ingest/ingest.py` and stages under `commands/ingest/stages/`; `enrich` follows the same shape with `commands/enrich/enrich.py` plus geocode/embed stages. Other commands are single-file modules. The Python module is named `ingest` (not `import`) because `import` is a reserved keyword; the CLI command name `pixelkasten import` is independent of the Python module name. Utilities — wrappers around external dependencies and shared helpers — live under `utils/`.
 
 ### Import pipeline
 
@@ -298,7 +298,7 @@ One pattern, one place. **All terminal rendering lives in `packages/cli/src/pixe
 commands/<x>.py → return value → cli.py → render_<x>() in render.py → console
 ```
 
-Result types that need a typed shape are collocated with their command (`EnrichResult` in `commands/enrich.py`, `ExportResult` in `commands/export.py`, `IngestResult` in `commands/ingest/ingest.py`). Trivial returns (a string for `caption`, a list of paths for `propose`) stay primitive. Don't invent a new dataclass for two scalars.
+Result types that need a typed shape are collocated with their command (`EnrichResult` in `commands/enrich/enrich.py`, `ExportResult` in `commands/export.py`, `IngestResult` in `commands/ingest/ingest.py`). Trivial returns (a string for `caption`, a list of paths for `propose`) stay primitive. Don't invent a new dataclass for two scalars.
 
 **Result types don't duplicate option fields.** If a renderer needs an option's value (e.g. `dry_run`), it takes the `options` object as an extra renderer argument. That keeps result types focused on what the run actually *produced* and avoids the ambiguity of two sources of truth for the same field.
 
