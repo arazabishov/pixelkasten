@@ -191,6 +191,18 @@ class TestEmbedStep:
             paths = json.load(f)
         assert paths == ["a.jpg"]
 
+    def test_rejects_incomplete_embeddings_store(self, tmp_path):
+        lib = _make_working_library(
+            tmp_path,
+            sidecars={"a.jpg": {"dates": [], "geo": None, "album": None}},
+            media={"a.jpg": b"\xff"},
+        )
+        with open(os.path.join(lib, ".pixelkasten", "embeddings.paths.json"), "w") as f:
+            json.dump(["a.jpg"], f)
+
+        with pytest.raises(RuntimeError, match="Incomplete embeddings"):
+            enrich(EnrichOptions(library=lib, video_frames=5))
+
     @patch("pixelkasten.utils.clip.embed_images")
     @patch("pixelkasten.utils.ffmpeg.capture_frames")
     @patch("reverse_geocoder.search")
@@ -282,7 +294,8 @@ class TestEnrichResult:
         assert summary.locations_already_set == 0
         assert summary.images_embedded == 1
         assert summary.videos_embedded == 0
-        assert summary.already_embedded == 0
+        assert summary.images_already_embedded == 0
+        assert summary.videos_already_embedded == 0
         assert summary.images_failed == []
         assert summary.videos_failed == []
 
@@ -314,7 +327,8 @@ class TestEnrichResult:
         # The record's location was set in the first run
         assert summary.locations_already_set == 1
         # The image is already in embeddings.paths.json
-        assert summary.already_embedded == 1
+        assert summary.images_already_embedded == 1
+        assert summary.videos_already_embedded == 0
         assert summary.images_embedded == 0
 
     @patch("pixelkasten.utils.clip.embed_images")

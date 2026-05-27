@@ -9,7 +9,7 @@ Each stage enriches an in-memory manifest; only ``emit`` (and ``reconcile``,
 read-only) touches the filesystem. ``ingest`` composes them and returns
 an ``IngestResult`` covering every stage.
 
-The CLI command name is ``pixelkasten import``; the Python module is
+The user-facing command name is ``pixelkasten import``; the Python module is
 ``ingest`` because ``import`` is a reserved keyword.
 """
 
@@ -29,7 +29,7 @@ from pixelkasten.manifest import ManifestEntry
 
 @dataclass
 class IngestResult:
-    """Manifest + the pre-link state the renderer needs (not derivable from the manifest alone)."""
+    """Manifest plus pre-link state that is not derivable from the manifest alone."""
 
     manifest: list[ManifestEntry]
     raw_collections: dict

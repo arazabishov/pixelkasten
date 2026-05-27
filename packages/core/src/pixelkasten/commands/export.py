@@ -269,7 +269,7 @@ def _sanitize_album(name: str) -> str:
 
 
 def _summarize(operations: list[tuple[str, str]], destination: str) -> ExportResult:
-    """Count buckets so the CLI can print a summary."""
+    """Count target buckets for the command result."""
     # Undated files keep the working-library filename and land at the root,
     # so their destination has no subdirectory between dest and the file.
     undated = sum(
