@@ -7,28 +7,26 @@ Ported from packages/core/src/stages/dedupe.js.
 import hashlib
 from collections.abc import Callable
 
-from pixelkasten.manifest import Dedupe, DedupeResult, ManifestEntry, Status
 from pixelkasten.configuration import IngestOptions
+from pixelkasten.manifest import Dedupe, DedupeResult, ManifestEntry, Status
+from pixelkasten.utils.progress import noop_progress
 
 
-def dedupe_hash(
-    manifest: list[ManifestEntry],
-    on_progress: Callable[[int], None] | None = None,
-) -> None:
+def dedupe_hash(manifest: list[ManifestEntry], progress: Callable = noop_progress) -> None:
     """
     Compute SHA-256 for each manifest entry.
 
     Mutates entries in-place, setting entry.dedupe with hash and PENDING status.
     On error, sets entry.dedupe with ERROR status.
     """
-    for i, entry in enumerate(manifest):
-        try:
-            sha256 = _calculate_hash(entry.media_path)
-            entry.dedupe = Dedupe(status=Status.PENDING, hash=sha256)
-        except Exception as e:
-            entry.dedupe = Dedupe(status=Status.ERROR, error=str(e))
-        if on_progress is not None:
-            on_progress(i + 1)
+    with progress("Hashing files", len(manifest)) as tick:
+        for i, entry in enumerate(manifest):
+            try:
+                sha256 = _calculate_hash(entry.media_path)
+                entry.dedupe = Dedupe(status=Status.PENDING, hash=sha256)
+            except Exception as e:
+                entry.dedupe = Dedupe(status=Status.ERROR, error=str(e))
+            tick(i + 1)
 
 
 def dedupe_resolve(manifest: list[ManifestEntry], options: IngestOptions) -> None:

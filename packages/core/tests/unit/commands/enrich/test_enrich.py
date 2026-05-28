@@ -39,6 +39,15 @@ def _read_record(library: str, name: str) -> dict:
         return json.load(f)
 
 
+def _mark_embedded(library: str, names: list[str]) -> None:
+    with open(os.path.join(library, ".pixelkasten", "embeddings.paths.json"), "w") as f:
+        json.dump(names, f)
+    np.save(
+        os.path.join(library, ".pixelkasten", "embeddings.npy"),
+        np.full((len(names), 768), 0.5, dtype=np.float32),
+    )
+
+
 class TestGeocodeStep:
     @patch("reverse_geocoder.search")
     def test_writes_location_for_records_with_geo(self, mock_rg, tmp_path):
@@ -52,8 +61,9 @@ class TestGeocodeStep:
                     "album": None,
                 }
             },
-            media={},
+            media={"a.jpg": b"image-bytes"},
         )
+        _mark_embedded(lib, ["a.jpg"])
 
         enrich(EnrichOptions(library=lib, video_frames=5))
 
@@ -70,8 +80,9 @@ class TestGeocodeStep:
             records={
                 "a.jpg": {"dates": [], "geo": None, "album": None},
             },
-            media={},
+            media={"a.jpg": b"image-bytes"},
         )
+        _mark_embedded(lib, ["a.jpg"])
 
         enrich(EnrichOptions(library=lib, video_frames=5))
 
@@ -94,8 +105,9 @@ class TestGeocodeStep:
                     "location": existing_location,
                 }
             },
-            media={},
+            media={"a.jpg": b"image-bytes"},
         )
+        _mark_embedded(lib, ["a.jpg"])
 
         enrich(EnrichOptions(library=lib, video_frames=5))
 
@@ -124,8 +136,9 @@ class TestGeocodeStep:
                     "album": None,
                 },
             },
-            media={},
+            media={"a.jpg": b"image-bytes", "b.jpg": b"image-bytes"},
         )
+        _mark_embedded(lib, ["a.jpg", "b.jpg"])
 
         enrich(EnrichOptions(library=lib, video_frames=5))
 
@@ -259,7 +272,7 @@ class TestEnrichValidation:
     def test_rejects_missing_library(self, tmp_path):
         missing = tmp_path / "missing-library"
 
-        with pytest.raises(FileNotFoundError, match="Library directory not found"):
+        with pytest.raises(FileNotFoundError, match="Working library records not found"):
             enrich(EnrichOptions(library=str(missing), video_frames=5))
 
     def test_rejects_non_working_library(self, tmp_path):
@@ -295,7 +308,7 @@ class TestEnrichState:
             summary = enrich(EnrichOptions(library=lib, video_frames=5))
 
         # Verify totals match what landed on disk
-        assert summary.records_total == 1
+        assert summary.entries_total == 1
         assert summary.locations_added == 1
         assert summary.locations_already_set == 0
         assert summary.images_embedded == 1
@@ -319,6 +332,38 @@ class TestEnrichState:
         # Verify unsupported top-level files are captured for reporting
         assert [os.path.basename(p) for p in summary.unsupported_media] == ["notes.txt"]
         # No records with geo -> geocoder is not called
+        mock_rg.assert_not_called()
+
+    @patch("reverse_geocoder.search")
+    def test_reports_supported_media_without_record(self, mock_rg, tmp_path):
+        lib = _make_working_library(
+            tmp_path,
+            records={},
+            media={"orphan.jpg": b"image-bytes"},
+        )
+
+        summary = enrich(EnrichOptions(library=lib, video_frames=5))
+
+        # Verify supported media without a record is captured for reporting
+        assert [os.path.basename(p) for p in summary.missing_records] == ["orphan.jpg"]
+        # No paired records -> geocoder is not called
+        mock_rg.assert_not_called()
+
+    @patch("reverse_geocoder.search")
+    def test_reports_records_without_matching_media(self, mock_rg, tmp_path):
+        # Record exists but its media file was deleted from the library root.
+        lib = _make_working_library(
+            tmp_path,
+            records={"ghost.jpg": {"dates": [], "geo": None, "album": None}},
+            media={},
+        )
+
+        summary = enrich(EnrichOptions(library=lib, video_frames=5))
+
+        # Verify the orphan record path is captured for reporting
+        assert len(summary.orphan_records) == 1
+        assert summary.orphan_records[0].endswith("ghost.jpg.pk.json")
+        # No paired entries -> geocoder is not called
         mock_rg.assert_not_called()
 
     @patch("pixelkasten.utils.clip.embed_images")

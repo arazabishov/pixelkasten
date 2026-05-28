@@ -18,7 +18,6 @@ EMBED_BATCH_SIZE = 32
 
 def embed(
     library: str,
-    media: list[str],
     state: EnrichState,
     video_frames: int,
     progress: Callable,
@@ -27,6 +26,7 @@ def embed(
     existing_matrix, embedded_names = load_embeddings(library, strict=False)
     embedded_set = set(embedded_names)
 
+    media = [entry.media for entry in state.entries]
     embedded = [m for m in media if os.path.basename(m) in embedded_set]
     pending = [m for m in media if os.path.basename(m) not in embedded_set]
     state.images_already_embedded = sum(1 for p in embedded if is_image(p))
@@ -75,7 +75,6 @@ def embed(
         combined_matrix = new_matrix
     else:
         combined_matrix = np.vstack([existing_matrix, new_matrix]).astype(np.float32)
-    save_embeddings(library, combined_matrix, embedded_names + new_names)
     save_embeddings(library, combined_matrix, embedded_names + new_names)
 
 

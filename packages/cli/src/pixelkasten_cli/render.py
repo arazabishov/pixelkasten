@@ -105,7 +105,7 @@ def render_import(console: Console, result: IngestResult, options: IngestOptions
 def render_enrich(console: Console, summary: EnrichState) -> None:
     """Two tables — geocoding totals, then embedding totals — plus failure sample."""
     geocode = _make_table("Reverse geocoding", "Action")
-    geocode.add_row("Records", str(summary.records_total))
+    geocode.add_row("Records", str(summary.entries_total))
     geocode.add_row("Geocoded this run", str(summary.locations_added))
     geocode.add_row("Already set", str(summary.locations_already_set))
     console.print(geocode)
@@ -116,6 +116,10 @@ def render_enrich(console: Console, summary: EnrichState) -> None:
     embed.add_row("Videos embedded", str(summary.videos_embedded))
     embed.add_row("Images already embedded", str(summary.images_already_embedded))
     embed.add_row("Videos already embedded", str(summary.videos_already_embedded))
+    if summary.missing_records:
+        embed.add_row("Missing records", str(len(summary.missing_records)))
+    if summary.orphan_records:
+        embed.add_row("Orphan records", str(len(summary.orphan_records)))
     if summary.unsupported_media:
         embed.add_row("Unsupported files", str(len(summary.unsupported_media)))
     total_failed = len(summary.images_failed) + len(summary.videos_failed)

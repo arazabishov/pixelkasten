@@ -23,13 +23,14 @@ from collections.abc import Callable
 from pixelkasten.configuration import IngestOptions
 from pixelkasten.manifest import Apply, ApplyResult, ManifestEntry, Status
 from pixelkasten.utils.exiftool import write_metadata
+from pixelkasten.utils.progress import noop_progress
 from pixelkasten.utils.record import record_path, records_dir, write_record
 
 
 def emit(
     manifest: list[ManifestEntry],
     options: IngestOptions,
-    on_progress: Callable[[int], None] | None = None,
+    progress: Callable = noop_progress,
 ) -> None:
     """Emit the working library: per-file uuid-named copies + per-asset records."""
     if options.destination is None:
@@ -42,13 +43,13 @@ def emit(
 
     os.makedirs(records_dir(destination), exist_ok=True)
 
-    for i, entry in enumerate(keepers):
-        try:
-            entry.apply = _emit_entry(entry, destination)
-        except Exception as e:
-            entry.apply = Apply(status=Status.ERROR, error=str(e))
-        if on_progress is not None:
-            on_progress(i + 1)
+    with progress("Emitting working library", len(keepers)) as tick:
+        for i, entry in enumerate(keepers):
+            try:
+                entry.apply = _emit_entry(entry, destination)
+            except Exception as e:
+                entry.apply = Apply(status=Status.ERROR, error=str(e))
+            tick(i + 1)
 
 
 def _emit_entry(entry: ManifestEntry, destination: str) -> Apply:
