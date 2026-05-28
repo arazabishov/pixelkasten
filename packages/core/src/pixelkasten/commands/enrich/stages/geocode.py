@@ -2,13 +2,13 @@
 
 from collections.abc import Callable
 
-from pixelkasten.commands.enrich.state import EnrichState
+from pixelkasten.commands.enrich.state import EnrichEntry, EnrichState
 from pixelkasten.utils.record import read_record, write_record
 
 
-def geocode(records: list[str], state: EnrichState, progress: Callable) -> None:
+def geocode(state: EnrichState, progress: Callable) -> None:
     """Reverse-geocode every record with geo set but no location yet."""
-    pending, locations_already_set = _pending_geocodes(records)
+    pending, locations_already_set = _pending_geocodes(state.entries)
     state.locations_already_set = locations_already_set
 
     if not pending:
@@ -33,17 +33,19 @@ def geocode(records: list[str], state: EnrichState, progress: Callable) -> None:
                 tick(done)
 
 
-def _pending_geocodes(records: list[str]) -> tuple[dict[tuple[float, float], list[str]], int]:
+def _pending_geocodes(
+    entries: list[EnrichEntry],
+) -> tuple[dict[tuple[float, float], list[str]], int]:
     """Group records-needing-geocoding by rounded coordinate."""
     locations_already_set = 0
     pending: dict[tuple[float, float], list[str]] = {}
-    for path in records:
-        data = read_record(path)
+    for entry in entries:
+        data = read_record(entry.record)
         if data.get("location") is not None:
             locations_already_set += 1
         elif geo := data.get("geo"):
             lat, lon = round(geo["latitude"], 2), round(geo["longitude"], 2)
-            pending.setdefault((lat, lon), []).append(path)
+            pending.setdefault((lat, lon), []).append(entry.record)
     return pending, locations_already_set
 
 

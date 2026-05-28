@@ -9,11 +9,12 @@ write_tags for any metadata missing from disk.
 import os
 from collections.abc import Callable
 
+from pixelkasten.configuration import IngestOptions
+from pixelkasten.handlers import handlers
+from pixelkasten.manifest import Geo, ManifestEntry, Metadata, Status
 from pixelkasten.utils.dates import parse_photo_taken_time
 from pixelkasten.utils.exiftool import read_metadata
-from pixelkasten.manifest import Geo, ManifestEntry, Metadata, Status
-from pixelkasten.handlers import handlers
-from pixelkasten.configuration import IngestOptions
+from pixelkasten.utils.progress import noop_progress
 from pixelkasten.utils.sidecar import read_sidecar
 
 BATCH_SIZE = 512
@@ -22,7 +23,7 @@ BATCH_SIZE = 512
 def reconcile(
     manifest: list[ManifestEntry],
     options: IngestOptions,
-    on_progress: Callable[[int], None] | None = None,
+    progress: Callable = noop_progress,
 ) -> None:
     """
     Compare disk EXIF with sidecar data, queue write_tags for missing metadata.
@@ -37,24 +38,24 @@ def reconcile(
     # Collect all tags required by all handlers (deduplicated).
     all_tags = list({tag for h in handlers.values() for tag in h.read_tags})
 
-    # Process in batches to prevent OOM with large manifests.
-    for offset in range(0, len(keepers), BATCH_SIZE):
-        batch = keepers[offset : offset + BATCH_SIZE]
-        batch_paths = [e.media_path for e in batch]
+    with progress("Reading metadata", len(keepers)) as tick:
+        # Process in batches to prevent OOM with large manifests.
+        for offset in range(0, len(keepers), BATCH_SIZE):
+            batch = keepers[offset : offset + BATCH_SIZE]
+            batch_paths = [e.media_path for e in batch]
 
-        raw_metadata = read_metadata(batch_paths, all_tags)
+            raw_metadata = read_metadata(batch_paths, all_tags)
 
-        for entry in batch:
-            raw_disk_tags = raw_metadata.get(entry.media_path)
-            json_path = entry.sidecar.path if entry.sidecar else None
+            for entry in batch:
+                raw_disk_tags = raw_metadata.get(entry.media_path)
+                json_path = entry.sidecar.path if entry.sidecar else None
 
-            try:
-                entry.metadata = _resolve(entry.media_path, json_path, raw_disk_tags, options)
-            except Exception as e:
-                entry.metadata = Metadata(status=Status.ERROR, error=str(e))
+                try:
+                    entry.metadata = _resolve(entry.media_path, json_path, raw_disk_tags, options)
+                except Exception as e:
+                    entry.metadata = Metadata(status=Status.ERROR, error=str(e))
 
-        if on_progress is not None:
-            on_progress(min(offset + BATCH_SIZE, len(keepers)))
+            tick(min(offset + BATCH_SIZE, len(keepers)))
 
 
 def _resolve(

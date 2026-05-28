@@ -47,25 +47,23 @@ def ingest(options: IngestOptions, progress: Callable) -> IngestResult:
     manifest, link_stats = link_result["manifest"], link_result["stats"]
 
     if not options.skip_dedupe:
-        # SHA-256 hash every file, then resolve duplicates per --prefer (Takeout) or lex-smallest (archive).
-        with progress("Hashing files", len(manifest)) as tick:
-            dedupe_hash(manifest, on_progress=tick)
+        # SHA-256 hash every file to identify duplicates.
+        dedupe_hash(manifest, progress)
+
+        # Resolve duplicates per --prefer (Takeout) or lex-smallest (archive).
         dedupe_resolve(manifest, options)
 
     # Read disk EXIF, queue write_tags for any metadata only the sidecar has.
-    count = sum(1 for e in manifest if e.can_keep())
-    with progress("Reading metadata", count) as tick:
-        reconcile(manifest, options, on_progress=tick)
+    reconcile(manifest, options, progress)
 
     # Assign a shared group_id to logical asset groups (Live Photo siblings, edited variants).
     group(manifest, options)
 
     if not options.dry_run:
         # Copy files to the destination, write per-asset records, apply queued EXIF tags.
-        count = sum(1 for e in manifest if e.can_keep())
-        with progress("Emitting working library", count) as tick:
-            emit(manifest, options, on_progress=tick)
+        emit(manifest, options, progress)
 
+    if not options.dry_run:
         # Per-file CSV summary of what happened to each entry.
         report(manifest, options)
 

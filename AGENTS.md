@@ -62,7 +62,7 @@ packages/core/src/pixelkasten/
     ingest/           # multi-stage pipeline (CLI: `pixelkasten import`)
       __init__.py     # exports ingest() + IngestResult
       stages/         # scan, link, dedupe, reconcile, group, emit, report
-    enrich/           # multi-stage command (scan, geocode, embed)
+    enrich/           # multi-stage command (scan, link, geocode, embed)
     export.py         # standalone command
     caption.py cluster.py propose.py similar.py
   utils/              # shared wrappers around external dependencies and shared helpers
