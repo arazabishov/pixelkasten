@@ -8,12 +8,12 @@ import hashlib
 from collections.abc import Callable
 
 from pixelkasten.configuration import IngestOptions
-from pixelkasten.manifest import Dedupe, DedupeResult, ManifestEntry
+from pixelkasten.commands.ingest.state import Dedupe, DedupeResult, IngestEntry
 from pixelkasten.pipeline import Status
 from pixelkasten.utils.progress import noop_progress
 
 
-def dedupe_hash(manifest: list[ManifestEntry], progress: Callable = noop_progress) -> None:
+def dedupe_hash(manifest: list[IngestEntry], progress: Callable = noop_progress) -> None:
     """
     Compute SHA-256 for each manifest entry.
 
@@ -30,7 +30,7 @@ def dedupe_hash(manifest: list[ManifestEntry], progress: Callable = noop_progres
             tick(i + 1)
 
 
-def dedupe_resolve(manifest: list[ManifestEntry], options: IngestOptions) -> None:
+def dedupe_resolve(manifest: list[IngestEntry], options: IngestOptions) -> None:
     """
     Resolve duplicates by hash. Works the same for Takeout and archive
     input — both populate ``source.type`` (album / loose), so a single
@@ -47,7 +47,7 @@ def dedupe_resolve(manifest: list[ManifestEntry], options: IngestOptions) -> Non
     Mutates entries in-place, setting dedupe.status and dedupe.result.
     """
     # Group by hash, skipping errored entries.
-    groups: dict[str, list[tuple[ManifestEntry, Dedupe]]] = {}
+    groups: dict[str, list[tuple[IngestEntry, Dedupe]]] = {}
     for entry in manifest:
         if entry.dedupe is None or entry.dedupe.hash is None:
             continue
@@ -58,7 +58,7 @@ def dedupe_resolve(manifest: list[ManifestEntry], options: IngestOptions) -> Non
 
 
 def _resolve(
-    groups: dict[str, list[tuple[ManifestEntry, Dedupe]]],
+    groups: dict[str, list[tuple[IngestEntry, Dedupe]]],
     prefer: str,
 ) -> None:
     for duplicates in groups.values():
@@ -101,7 +101,7 @@ def _calculate_hash(file_path: str) -> str:
     return hasher.hexdigest()
 
 
-def _check_invariants(manifest: list[ManifestEntry]) -> None:
+def _check_invariants(manifest: list[IngestEntry]) -> None:
     """Verify all dedupe entries have a valid result or error status."""
     for entry in manifest:
         if entry.dedupe is None:

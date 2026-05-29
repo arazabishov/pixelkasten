@@ -21,7 +21,7 @@ import uuid
 from collections.abc import Callable
 
 from pixelkasten.configuration import IngestOptions
-from pixelkasten.manifest import Apply, ApplyResult, ManifestEntry
+from pixelkasten.commands.ingest.state import Apply, ApplyResult, IngestEntry
 from pixelkasten.pipeline import Status
 from pixelkasten.utils.exiftool import write_metadata
 from pixelkasten.utils.progress import noop_progress
@@ -29,7 +29,7 @@ from pixelkasten.utils.record import record_path, records_dir, write_record
 
 
 def emit(
-    manifest: list[ManifestEntry],
+    manifest: list[IngestEntry],
     options: IngestOptions,
     progress: Callable = noop_progress,
 ) -> None:
@@ -53,7 +53,7 @@ def emit(
             tick(i + 1)
 
 
-def _emit_entry(entry: ManifestEntry, destination: str) -> Apply:
+def _emit_entry(entry: IngestEntry, destination: str) -> Apply:
     """Copy one entry to the working library and write its record."""
     if entry.metadata and entry.metadata.status == Status.SKIPPED:
         # Unsupported handlers leave the file out of the working library.
@@ -84,7 +84,7 @@ def _emit_entry(entry: ManifestEntry, destination: str) -> Apply:
     )
 
 
-def _build_record(entry: ManifestEntry) -> dict:
+def _build_record(entry: IngestEntry) -> dict:
     """Four-field record: dates, geo, album, group_id."""
     dates = list(entry.metadata.dates) if entry.metadata else []
 

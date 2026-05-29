@@ -39,7 +39,7 @@ from pixelkasten.commands.export import ExportResult
 from pixelkasten.commands.ingest import IngestResult
 from pixelkasten.configuration import ExportOptions, IngestOptions
 from pixelkasten.handlers import is_image, is_video
-from pixelkasten.manifest import ApplyResult, DedupeResult, ManifestEntry
+from pixelkasten.commands.ingest.state import ApplyResult, DedupeResult, IngestEntry
 from pixelkasten.pipeline import Status
 
 # Progress bar labels are padded to this width so the bars start at the
@@ -215,7 +215,7 @@ def _render_scan_table(console: Console, raw_collections: dict) -> None:
     console.print()
 
 
-def _render_link_table(console: Console, manifest: list[ManifestEntry], stats: dict) -> None:
+def _render_link_table(console: Console, manifest: list[IngestEntry], stats: dict) -> None:
     confidence_counts = {3: 0, 2: 0, 1: 0}
     for entry in manifest:
         if entry.sidecar and entry.sidecar.confidence in confidence_counts:
@@ -239,7 +239,7 @@ def _render_link_table(console: Console, manifest: list[ManifestEntry], stats: d
     console.print()
 
 
-def _render_reconcile_table(console: Console, manifest: list[ManifestEntry]) -> None:
+def _render_reconcile_table(console: Console, manifest: list[IngestEntry]) -> None:
     keepers = [e for e in manifest if e.can_keep()]
 
     n_processed = sum(
@@ -267,7 +267,7 @@ def _render_reconcile_table(console: Console, manifest: list[ManifestEntry]) -> 
     console.print()
 
 
-def _render_dedupe_table(console: Console, manifest: list[ManifestEntry]) -> None:
+def _render_dedupe_table(console: Console, manifest: list[IngestEntry]) -> None:
     n_delete = sum(1 for e in manifest if e.dedupe and e.dedupe.result == DedupeResult.DELETE)
     n_keep = sum(1 for e in manifest if e.dedupe and e.dedupe.result == DedupeResult.KEEP)
     n_error = sum(1 for e in manifest if e.dedupe and e.dedupe.status == Status.ERROR)
@@ -283,7 +283,7 @@ def _render_dedupe_table(console: Console, manifest: list[ManifestEntry]) -> Non
     console.print()
 
 
-def _render_apply_table(console: Console, manifest: list[ManifestEntry]) -> None:
+def _render_apply_table(console: Console, manifest: list[IngestEntry]) -> None:
     n_skipped = sum(1 for e in manifest if e.dedupe and e.dedupe.result == DedupeResult.DELETE)
     n_copied = sum(1 for e in manifest if e.apply and e.apply.result == ApplyResult.COPIED)
     n_written = sum(1 for e in manifest if e.apply and e.apply.result == ApplyResult.WRITTEN)
@@ -301,7 +301,7 @@ def _render_apply_table(console: Console, manifest: list[ManifestEntry]) -> None
     console.print()
 
 
-def _render_error_table(console: Console, manifest: list[ManifestEntry]) -> None:
+def _render_error_table(console: Console, manifest: list[IngestEntry]) -> None:
     errors: list[tuple[str, str, str]] = []
 
     for entry in manifest:

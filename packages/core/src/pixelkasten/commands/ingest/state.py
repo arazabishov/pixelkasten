@@ -1,8 +1,9 @@
 """
-Manifest types and helpers for the unified pipeline.
+Ingest pipeline state — the in-memory manifest and its entry types.
 
-Each stage enriches ManifestEntry in-place; downstream stages consume what
-upstream stages wrote. Types are grouped by pipeline stage:
+Each stage enriches an ``IngestEntry`` in place; downstream stages consume
+what upstream stages wrote. The pipeline carries all work as a list of these
+entries (the "manifest"). Types are grouped by pipeline stage:
 
   scan → link → dedupe → reconcile → group → emit
 """
@@ -102,7 +103,7 @@ class Apply:
 
 
 @dataclass
-class ManifestEntry:
+class IngestEntry:
     # absolute path to the source media file
     media_path: str
 

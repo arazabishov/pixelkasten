@@ -1,7 +1,7 @@
 import hashlib
 
 from helpers import make_options
-from pixelkasten.manifest import Dedupe, DedupeResult, ManifestEntry, Source
+from pixelkasten.commands.ingest.state import Dedupe, DedupeResult, IngestEntry, Source
 from pixelkasten.pipeline import Status
 from pixelkasten.commands.ingest.stages.dedupe import dedupe_hash, dedupe_resolve
 
@@ -9,7 +9,7 @@ from pixelkasten.commands.ingest.stages.dedupe import dedupe_hash, dedupe_resolv
 def _entry(media_path, source_type, source_name=None, hash_val="hash1"):
     """Helper to create a manifest entry with dedupe pending status."""
     source = Source(type=source_type, name=source_name)
-    return ManifestEntry(
+    return IngestEntry(
         media_path=media_path,
         source=source,
         dedupe=Dedupe(status=Status.PENDING, hash=hash_val),
@@ -180,7 +180,7 @@ class TestDedupeHash:
         f = tmp_path / "test.jpg"
         f.write_bytes(b"hello world")
 
-        manifest = [ManifestEntry(media_path=str(f), source=Source(type="loose"))]
+        manifest = [IngestEntry(media_path=str(f), source=Source(type="loose"))]
         dedupe_hash(manifest)
 
         expected = hashlib.sha256(b"hello world").hexdigest()
@@ -189,7 +189,7 @@ class TestDedupeHash:
         assert manifest[0].dedupe.status == Status.PENDING
 
     def test_handles_read_error(self):
-        manifest = [ManifestEntry(media_path="/nonexistent/file.jpg", source=Source(type="loose"))]
+        manifest = [IngestEntry(media_path="/nonexistent/file.jpg", source=Source(type="loose"))]
         dedupe_hash(manifest)
 
         assert manifest[0].dedupe is not None
