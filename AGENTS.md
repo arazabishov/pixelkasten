@@ -136,7 +136,7 @@ Subsequent commands add fields without modifying the originals:
 
 | Field | Written by | Shape |
 |---|---|---|
-| `location` | `enrich` (reverse geocode) | `{"name": "Berlin, Germany", "region": "Berlin", "country": "DE"}` or `null` |
+| `location` | `enrich` (reverse geocode) | `{"city": "Berlin", "region": "Berlin", "country": "DE"}` or `null` |
 | `caption` | `caption` (VLM) | one short string, or absent |
 | `proposed_album` | `propose` | string the agent chose, or absent |
 
@@ -148,7 +148,7 @@ Beyond `import`, the CLI exposes a small set of commands that the agent (or a hu
 
 | Command | Purpose | Writes to |
 |---|---|---|
-| `pixelkasten enrich <library>` | Bulk reverse-geocode + CLIP embed every asset. Idempotent — re-runs skip already-enriched files. | `.pixelkasten/*.pk.json`, `.pixelkasten/embeddings.npy` |
+| `pixelkasten enrich <library>` | Bulk reverse-geocode + CLIP embed every asset. Each run is a full run — re-geocodes and re-embeds every asset, overwriting prior output (no resume). | `.pixelkasten/*.pk.json`, `.pixelkasten/embeddings.npy` |
 | `pixelkasten caption <path>` | On-demand VLM caption for one asset. Cached in the record; `--force` to re-caption. | One `.pk.json` record |
 | `pixelkasten similar <path> [--k N]` | k-NN over `embeddings.npy` by cosine. | Stdout (JSON) |
 | `pixelkasten cluster [paths…]` | HDBSCAN over a scoped slice of embeddings. Reads paths from args or stdin. | Stdout (JSON) |

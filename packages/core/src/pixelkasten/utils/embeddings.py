@@ -1,9 +1,9 @@
 """
-CLIP embeddings store — path helpers and the shared loader.
+CLIP embeddings store — path helpers and the shared reader.
 
 The on-disk artifacts (``embeddings.npy`` + ``embeddings.paths.json``)
 live inside each working library's records directory. This module owns
-both the path-building helpers that locate them and the loader that
+both the path-building helpers that locate them and the reader that
 ``similar`` and ``cluster`` use to require them. The L2-normalization
 invariant is documented here in exactly one place.
 """
@@ -26,17 +26,17 @@ def embeddings_paths_json_path(library: str) -> str:
 
 
 @overload
-def load_embeddings(library: str, strict: Literal[True] = True) -> tuple[np.ndarray, list[str]]: ...
+def read_embeddings(library: str, strict: Literal[True] = True) -> tuple[np.ndarray, list[str]]: ...
 
 
 @overload
-def load_embeddings(
+def read_embeddings(
     library: str, strict: Literal[False]
 ) -> tuple[np.ndarray | None, list[str]]: ...
 
 
-def load_embeddings(library: str, strict: bool = True) -> tuple[np.ndarray | None, list[str]]:
-    """Load embeddings, optionally allowing a missing store."""
+def read_embeddings(library: str, strict: bool = True) -> tuple[np.ndarray | None, list[str]]:
+    """Read embeddings, optionally allowing a missing store."""
     npy_file = embeddings_npy_path(library)
     paths_file = embeddings_paths_json_path(library)
     has_npy = os.path.exists(npy_file)
@@ -50,11 +50,11 @@ def load_embeddings(library: str, strict: bool = True) -> tuple[np.ndarray | Non
             f"Incomplete embeddings store in {library}; expected both "
             f"{EMBEDDINGS_NPY} and {EMBEDDINGS_PATHS_JSON}."
         )
-    return _load_files(npy_file, paths_file)
+    return _read_files(npy_file, paths_file)
 
 
-def save_embeddings(library: str, matrix: np.ndarray, paths: list[str]) -> None:
-    """Persist embeddings.npy and paths.json after checking row alignment."""
+def write_embeddings(library: str, matrix: np.ndarray, paths: list[str]) -> None:
+    """Write embeddings.npy and paths.json after checking row alignment."""
     if matrix.shape[0] != len(paths):
         raise RuntimeError(
             f"Embeddings row count ({matrix.shape[0]}) doesn't match paths list ({len(paths)})."
@@ -65,8 +65,8 @@ def save_embeddings(library: str, matrix: np.ndarray, paths: list[str]) -> None:
         json.dump(paths, f)
 
 
-def _load_files(npy_file: str, paths_file: str) -> tuple[np.ndarray, list[str]]:
-    """Load embeddings.npy + paths.json. Rows are assumed L2-normalized
+def _read_files(npy_file: str, paths_file: str) -> tuple[np.ndarray, list[str]]:
+    """Read embeddings.npy + paths.json. Rows are assumed L2-normalized
     (writers in utils/clip.py and commands/enrich/stages/embed.py uphold this);
     cosine similarity downstream reduces to a plain dot product."""
     matrix = np.load(npy_file)

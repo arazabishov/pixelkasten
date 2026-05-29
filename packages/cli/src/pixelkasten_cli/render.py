@@ -38,7 +38,9 @@ from pixelkasten.commands.enrich import EnrichState
 from pixelkasten.commands.export import ExportResult
 from pixelkasten.commands.ingest import IngestResult
 from pixelkasten.configuration import ExportOptions, IngestOptions
-from pixelkasten.manifest import ApplyResult, DedupeResult, ManifestEntry, Status
+from pixelkasten.handlers import is_image, is_video
+from pixelkasten.manifest import ApplyResult, DedupeResult, ManifestEntry
+from pixelkasten.pipeline import Status
 
 # Progress bar labels are padded to this width so the bars start at the
 # same column regardless of label length. Set to the longest label we use
@@ -102,39 +104,45 @@ def render_import(console: Console, result: IngestResult, options: IngestOptions
     _render_error_table(console, result.manifest)
 
 
-def render_enrich(console: Console, summary: EnrichState) -> None:
-    """Two tables — geocoding totals, then embedding totals — plus failure sample."""
-    geocode = _make_table("Reverse geocoding", "Action")
-    geocode.add_row("Records", str(summary.entries_total))
-    geocode.add_row("Geocoded this run", str(summary.locations_added))
-    geocode.add_row("Already set", str(summary.locations_already_set))
-    console.print(geocode)
+def render_enrich(console: Console, state: EnrichState) -> None:
+    """Two tables — geocoding totals, then embedding totals — plus failure sample.
+
+    Every count is derived from the entries here, the same way ``render_import``
+    derives its tables from the manifest — the state carries no counters.
+    """
+    entries = state.entries
+    n_geocoded = sum(1 for e in entries if e.location is not None)
+    n_no_geo = sum(1 for e in entries if e.location is None)
+
+    geocode_table = _make_table("Reverse geocoding", "Action")
+    geocode_table.add_row("Records", str(len(entries)))
+    geocode_table.add_row("Geocoded", str(n_geocoded))
+    geocode_table.add_row("No geo", str(n_no_geo))
+    console.print(geocode_table)
     console.print()
 
-    embed = _make_table("Embedding", "Action")
-    embed.add_row("Images embedded", str(summary.images_embedded))
-    embed.add_row("Videos embedded", str(summary.videos_embedded))
-    embed.add_row("Images already embedded", str(summary.images_already_embedded))
-    embed.add_row("Videos already embedded", str(summary.videos_already_embedded))
-    if summary.missing_records:
-        embed.add_row("Missing records", str(len(summary.missing_records)))
-    if summary.orphan_records:
-        embed.add_row("Orphan records", str(len(summary.orphan_records)))
-    if summary.unsupported_media:
-        embed.add_row("Unsupported files", str(len(summary.unsupported_media)))
-    total_failed = len(summary.images_failed) + len(summary.videos_failed)
-    if total_failed:
-        embed.add_row("[red]Failed[/red]", f"[red]{total_failed}[/red]")
-    console.print(embed)
+    embedded = [e for e in entries if e.embed and e.embed.status == Status.PROCESSED]
+    failed = [e for e in entries if e.embed and e.embed.status == Status.ERROR]
 
-    # Inline a small sample of failure paths so the user knows which files
-    # to investigate; full lists are on stderr already.
-    sample = (summary.images_failed + summary.videos_failed)[:3]
-    if sample:
+    embed_table = _make_table("Embedding", "Action")
+    embed_table.add_row("Images embedded", str(sum(1 for e in embedded if is_image(e.media))))
+    embed_table.add_row("Videos embedded", str(sum(1 for e in embedded if is_video(e.media))))
+    if state.unmatched_media:
+        embed_table.add_row("Unmatched media", str(len(state.unmatched_media)))
+    if state.unmatched_records:
+        embed_table.add_row("Unmatched records", str(len(state.unmatched_records)))
+    if state.unsupported_media:
+        embed_table.add_row("Unsupported files", str(len(state.unsupported_media)))
+    if failed:
+        embed_table.add_row("[red]Failed[/red]", f"[red]{len(failed)}[/red]")
+    console.print(embed_table)
+
+    # Inline a small sample of failure paths so the user knows which files to investigate.
+    if failed:
         console.print()
         console.print("[red]Failed paths (first 3):[/red]")
-        for path in sample:
-            console.print(f"  {path}")
+        for entry in failed[:3]:
+            console.print(f"  {entry.media}")
     console.print()
 
 

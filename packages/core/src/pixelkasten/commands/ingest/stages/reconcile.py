@@ -11,7 +11,8 @@ from collections.abc import Callable
 
 from pixelkasten.configuration import IngestOptions
 from pixelkasten.handlers import handlers
-from pixelkasten.manifest import Geo, ManifestEntry, Metadata, Status
+from pixelkasten.manifest import Geo, ManifestEntry, Metadata
+from pixelkasten.pipeline import Status
 from pixelkasten.utils.dates import parse_photo_taken_time
 from pixelkasten.utils.exiftool import read_metadata
 from pixelkasten.utils.progress import noop_progress

@@ -102,7 +102,7 @@ class TestAgentWorkflow:
         sidecar_path = lib / ".pixelkasten" / f"{media_name}.pk.json"
         with open(sidecar_path) as f:
             sidecar = json.load(f)
-        assert sidecar["location"]["name"] == "Paris, IDF, FR"
+        assert sidecar["location"] == {"city": "Paris", "region": "IDF", "country": "FR"}
 
         # 3. propose -> agent's decision recorded
         propose(str(lib / media_name), "Paris weekend")

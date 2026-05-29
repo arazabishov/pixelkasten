@@ -12,7 +12,7 @@ result.
 import os
 import sys
 
-from pixelkasten.utils.embeddings import load_embeddings
+from pixelkasten.utils.embeddings import read_embeddings
 
 
 def cluster(paths: list[str], library: str, min_cluster_size: int) -> dict[int, list[str]]:
@@ -36,7 +36,7 @@ def cluster(paths: list[str], library: str, min_cluster_size: int) -> dict[int, 
     if not paths:
         return {}
 
-    matrix, all_paths = load_embeddings(library)
+    matrix, all_paths = read_embeddings(library)
 
     # basename -> row index in the embeddings matrix
     index_by_name = {name: i for i, name in enumerate(all_paths)}

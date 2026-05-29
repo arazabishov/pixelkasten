@@ -8,7 +8,8 @@ import hashlib
 from collections.abc import Callable
 
 from pixelkasten.configuration import IngestOptions
-from pixelkasten.manifest import Dedupe, DedupeResult, ManifestEntry, Status
+from pixelkasten.manifest import Dedupe, DedupeResult, ManifestEntry
+from pixelkasten.pipeline import Status
 from pixelkasten.utils.progress import noop_progress
 
 
