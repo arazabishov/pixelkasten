@@ -8,7 +8,13 @@ Mocks read_metadata (I/O) and read_sidecar (I/O). Uses real handlers
 from unittest.mock import patch
 
 from helpers import make_options
-from pixelkasten.manifest import Dedupe, DedupeResult, ManifestEntry, SidecarMatch, Source
+from pixelkasten.commands.ingest.state import (
+    Dedupe,
+    DedupeResult,
+    IngestEntry,
+    SidecarMatch,
+    Source,
+)
 from pixelkasten.pipeline import Status
 from pixelkasten.commands.ingest.stages.reconcile import reconcile
 
@@ -16,7 +22,7 @@ from pixelkasten.commands.ingest.stages.reconcile import reconcile
 def _entry(media_path, json_path=None, dedupe_result=DedupeResult.KEEP):
     """Helper to create a manifest entry."""
     sidecar = SidecarMatch(path=json_path, confidence=3) if json_path else None
-    return ManifestEntry(
+    return IngestEntry(
         media_path=media_path,
         source=Source(type="loose"),
         sidecar=sidecar,

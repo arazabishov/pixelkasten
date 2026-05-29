@@ -15,17 +15,17 @@ import re
 from unittest.mock import patch
 
 from helpers import make_options
-from pixelkasten.manifest import (
+from pixelkasten.commands.ingest.state import (
     ApplyResult,
     Dedupe,
     DedupeResult,
     Geo,
-    ManifestEntry,
+    IngestEntry,
     Metadata,
     SidecarMatch,
     Source,
-    Status,
 )
+from pixelkasten.pipeline import Status
 from pixelkasten.commands.ingest.stages.emit import emit
 
 UUID_HEX = re.compile(r"^[0-9a-f]{32}$")
@@ -61,7 +61,7 @@ def _entry(
         )
     if metadata_status == Status.SKIPPED and metadata is None:
         metadata = Metadata(status=Status.SKIPPED, error="unsupported")
-    return ManifestEntry(
+    return IngestEntry(
         media_path=media_path,
         source=Source(type=source_type, name=source_name),
         dedupe=Dedupe(status=Status.PROCESSED, result=dedupe_result, hash="abc"),

@@ -1,14 +1,14 @@
 """Tests for the group stage — shared group_id for logical asset groups."""
 
 from helpers import make_options
-from pixelkasten.manifest import (
+from pixelkasten.commands.ingest.state import (
     Dedupe,
     DedupeResult,
-    ManifestEntry,
+    IngestEntry,
     SidecarMatch,
     Source,
-    Status,
 )
+from pixelkasten.pipeline import Status
 from pixelkasten.commands.ingest.stages.group import group
 
 
@@ -23,7 +23,7 @@ def _entry(
         None if skip_dedupe else Dedupe(status=Status.PROCESSED, result=dedupe_result, hash="abc")
     )
     sidecar = SidecarMatch(path=sidecar_path, confidence=3) if sidecar_path else None
-    return ManifestEntry(
+    return IngestEntry(
         media_path=media_path,
         source=Source(type="loose"),
         dedupe=dedupe,
@@ -100,7 +100,7 @@ class TestGroup:
         assert manifest[1].group_id is not None
 
     def test_empty_manifest_does_not_error(self):
-        manifest: list[ManifestEntry] = []
+        manifest: list[IngestEntry] = []
         group(manifest, make_options())
 
         # No-op on an empty manifest

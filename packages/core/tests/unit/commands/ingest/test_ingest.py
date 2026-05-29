@@ -8,7 +8,7 @@ All I/O-bound stages are mocked.
 from unittest.mock import patch
 
 from helpers import make_options, noop_progress
-from pixelkasten.manifest import ManifestEntry, Source
+from pixelkasten.commands.ingest.state import IngestEntry, Source
 
 # Patch the stage names where they're looked up — inside the ingest module
 # itself, not the package's __init__.
@@ -138,9 +138,7 @@ class TestPipeline:
             "files_metadata_albums": [],
         }
         mock_scan.return_value = scan_collections
-        expected_manifest = [
-            ManifestEntry(media_path="/src/photo.jpg", source=Source(type="loose"))
-        ]
+        expected_manifest = [IngestEntry(media_path="/src/photo.jpg", source=Source(type="loose"))]
         expected_stats = {"unmatched_metadata_files": set(), "unmatched_media_files": set()}
         mock_link.return_value = {"manifest": expected_manifest, "stats": expected_stats}
 

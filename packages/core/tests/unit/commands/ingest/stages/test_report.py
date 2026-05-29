@@ -7,17 +7,17 @@ import os
 
 from helpers import make_options
 from pixelkasten.commands.ingest.stages.report import report, _resolve_status
-from pixelkasten.manifest import (
+from pixelkasten.commands.ingest.state import (
     Apply,
     ApplyResult,
     Dedupe,
     DedupeResult,
-    ManifestEntry,
+    IngestEntry,
     Metadata,
     SidecarMatch,
     Source,
-    Status,
 )
+from pixelkasten.pipeline import Status
 
 
 def _entry(
@@ -32,7 +32,7 @@ def _entry(
     apply_error=None,
     apply_target=None,
 ):
-    """Helper to build ManifestEntry for report tests."""
+    """Helper to build IngestEntry for report tests."""
     sidecar = (
         SidecarMatch(path=sidecar_path, confidence=sidecar_confidence or 0)
         if sidecar_path
@@ -54,7 +54,7 @@ def _entry(
     elif apply_error is not None:
         apply_obj = Apply(status=Status.ERROR, error=apply_error)
 
-    return ManifestEntry(
+    return IngestEntry(
         media_path=media_path,
         source=Source(type="loose"),
         sidecar=sidecar,

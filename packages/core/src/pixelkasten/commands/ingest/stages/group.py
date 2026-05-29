@@ -21,10 +21,10 @@ import os
 import uuid
 
 from pixelkasten.configuration import IngestOptions
-from pixelkasten.manifest import ManifestEntry
+from pixelkasten.commands.ingest.state import IngestEntry
 
 
-def group(manifest: list[ManifestEntry], options: IngestOptions) -> None:
+def group(manifest: list[IngestEntry], options: IngestOptions) -> None:
     """Assign entry.group_id to every keeper in the manifest."""
     keepers = [e for e in manifest if e.can_keep()]
     if not keepers:
@@ -41,18 +41,18 @@ def group(manifest: list[ManifestEntry], options: IngestOptions) -> None:
             entry.group_id = group_id
 
 
-def _bucket_takeout(keepers: list[ManifestEntry]) -> dict[object, list[ManifestEntry]]:
+def _bucket_takeout(keepers: list[IngestEntry]) -> dict[object, list[IngestEntry]]:
     """Bucket by sidecar.path; sidecar-less keepers each get their own bucket."""
-    buckets: dict[object, list[ManifestEntry]] = {}
+    buckets: dict[object, list[IngestEntry]] = {}
     for entry in keepers:
         key = entry.sidecar.path if entry.sidecar else id(entry)
         buckets.setdefault(key, []).append(entry)
     return buckets
 
 
-def _bucket_archive(keepers: list[ManifestEntry]) -> dict[object, list[ManifestEntry]]:
+def _bucket_archive(keepers: list[IngestEntry]) -> dict[object, list[IngestEntry]]:
     """Bucket by (directory, stem) — literal basename-without-extension."""
-    buckets: dict[object, list[ManifestEntry]] = {}
+    buckets: dict[object, list[IngestEntry]] = {}
     for entry in keepers:
         name = os.path.splitext(os.path.basename(entry.media_path))[0]
         buckets.setdefault((os.path.dirname(entry.media_path), name), []).append(entry)

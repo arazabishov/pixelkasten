@@ -9,11 +9,11 @@ import os
 
 from pixelkasten.configuration import IngestOptions
 from pixelkasten.utils.record import records_dir
-from pixelkasten.manifest import ApplyResult, DedupeResult, ManifestEntry
+from pixelkasten.commands.ingest.state import ApplyResult, DedupeResult, IngestEntry
 from pixelkasten.pipeline import Status
 
 
-def report(manifest: list[ManifestEntry], options: IngestOptions) -> str:
+def report(manifest: list[IngestEntry], options: IngestOptions) -> str:
     """
     Write a per-file CSV report inside the records directory.
 
@@ -51,7 +51,7 @@ def report(manifest: list[ManifestEntry], options: IngestOptions) -> str:
     return report_path
 
 
-def _resolve_status(entry: ManifestEntry) -> tuple[str, str]:
+def _resolve_status(entry: IngestEntry) -> tuple[str, str]:
     """
     Determine what happened to an entry by checking stages in reverse
     pipeline order. Later stages take priority because they represent

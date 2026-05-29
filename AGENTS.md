@@ -6,7 +6,7 @@ The core objective of this tool is to help organize a photo library. The `pixelk
 
 Two unrelated file types are easy to confuse, and earlier versions of the codebase used "sidecar" for both. The codebase now keeps them strictly distinct:
 
-- **Sidecar** — Google Takeout's per-asset `.json` files. Read-only input to `import`. Parsed by `utils/sidecar.py:read_sidecar()`. Represented in `ManifestEntry.sidecar` as a `SidecarMatch` dataclass holding the matched path + confidence score.
+- **Sidecar** — Google Takeout's per-asset `.json` files. Read-only input to `import`. Parsed by `utils/sidecar.py:read_sidecar()`. Represented in `IngestEntry.sidecar` as a `SidecarMatch` dataclass holding the matched path + confidence score.
 - **Record** — pixelkasten's `.pk.json` files in `<library>/.pixelkasten/`. Canonical per-asset state across the lifecycle: written by `emit`, enriched by `enrich`/`caption`/`propose`, read by `export`. The constants are `RECORDS_DIR` and `RECORD_SUFFIX` in `configuration.py`; everything else lives in `utils/record.py` — `read_record`, `write_record`, the path helpers (`records_dir`, `record_path`), and `resolve_library` (walks up from any file to find its enclosing library).
 
 Files that end in `.pk.json` are records. Files that Google wrote are sidecars. The word never refers to both in code or docs.
@@ -56,13 +56,13 @@ A simple `core/` and `cli/` directory split inside one package would not be enou
 ```
 packages/core/src/pixelkasten/
   configuration.py    # Options, EnrichOptions, ExportOptions + RECORDS_DIR / RECORD_SUFFIX / EMBEDDINGS_* constants
-  manifest.py         # ManifestEntry and its sub-dataclasses
   handlers/           # format-specific metadata handlers (EXIF, QuickTime, shared)
   commands/           # user-facing operations
     ingest/           # multi-stage pipeline (CLI: `pixelkasten import`)
       __init__.py     # exports ingest() + IngestResult
+      state.py        # IngestEntry + its sub-dataclasses (the in-memory manifest)
       stages/         # scan, link, dedupe, reconcile, group, emit, report
-    enrich/           # multi-stage command (scan, link, geocode, embed)
+    enrich/           # multi-stage command (scan, link, geocode, embed, emit)
     export.py         # standalone command
     caption.py cluster.py propose.py similar.py
   utils/              # shared wrappers around external dependencies and shared helpers
@@ -267,22 +267,22 @@ Never coerce `None` to a default value with `or` (e.g., `destination = options.d
 
 #### os.path only — no pathlib
 
-All path manipulation MUST use `os.path`. Do not use `pathlib.Path` anywhere in the codebase. The link stage requires `os.path` because pathlib normalizes double extensions (`.MP.jpg`) and duplicate markers `(1)`, which breaks Takeout filename parsing. All other stages use `os.path` for consistency. File paths are represented as plain strings throughout the pipeline — in `ManifestEntry`, in function signatures, and in return values.
+All path manipulation MUST use `os.path`. Do not use `pathlib.Path` anywhere in the codebase. The link stage requires `os.path` because pathlib normalizes double extensions (`.MP.jpg`) and duplicate markers `(1)`, which breaks Takeout filename parsing. All other stages use `os.path` for consistency. File paths are represented as plain strings throughout the pipeline — in `IngestEntry`, in function signatures, and in return values.
 
 #### Typing at boundaries
 
-Stages are the type boundary, not individual functions within a stage. Internal helpers (exiftool, sidecar, handlers) can freely use raw dicts — they never leave the stage. But when a stage writes to `ManifestEntry`, it must use the typed structures from `manifest.py` (e.g., `Geo`, `Metadata`, `Dedupe`). This keeps typing focused where it matters (the manifest contract between stages) without fighting Python's dynamic nature inside stage internals.
+Stages are the type boundary, not individual functions within a stage. Internal helpers (exiftool, sidecar, handlers) can freely use raw dicts — they never leave the stage. But when a stage writes to `IngestEntry`, it must use the typed structures from `commands/ingest/state.py` (e.g., `Geo`, `Metadata`, `Dedupe`). This keeps typing focused where it matters (the manifest contract between stages) without fighting Python's dynamic nature inside stage internals.
 
 #### Stage structure
 
-Each mutating stage follows the same shape: filter keepers, iterate entries, try/except per entry, set the stage's field on `ManifestEntry`. The try body should be extracted into a private helper that returns the result type — this keeps the main function flat and the per-entry logic testable. See `_resolve` in reconcile and `_emit_entry` in emit for examples.
+Each mutating stage follows the same shape: filter keepers, iterate entries, try/except per entry, set the stage's field on `IngestEntry`. The try body should be extracted into a private helper that returns the result type — this keeps the main function flat and the per-entry logic testable. See `_resolve` in reconcile and `_emit_entry` in emit for examples.
 
 #### Batching shape
 
 For loops that slice work into constant-size batches and call an external service once per batch:
 
 - **Inline the per-batch work** when it's a single external call followed by simple result handling (one example: `reconcile`'s exiftool batch).
-- **Extract a `_batch(...)` helper** when error handling diverges between per-file failures and per-batch failures, or when the per-batch body grows beyond a handful of lines (one example: `enrich`'s `_embed_image_batch`, where per-file PIL decode failures and per-batch CLIP failures need distinct messaging).
+- **Extract a `_batch(...)` helper** when error handling diverges between per-file failures and per-batch failures, or when the per-batch body grows beyond a handful of lines (one example: `enrich`'s `_embed_image_batch`, where a per-file PIL decode failure marks just that entry and the batch continues, but a per-batch CLIP failure is fatal and propagates).
 
 Either shape is fine on its own; the divergence has a reason, but a fresh reader shouldn't have to guess at it.
 

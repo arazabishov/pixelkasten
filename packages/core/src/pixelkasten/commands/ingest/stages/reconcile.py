@@ -11,7 +11,7 @@ from collections.abc import Callable
 
 from pixelkasten.configuration import IngestOptions
 from pixelkasten.handlers import handlers
-from pixelkasten.manifest import Geo, ManifestEntry, Metadata
+from pixelkasten.commands.ingest.state import Geo, IngestEntry, Metadata
 from pixelkasten.pipeline import Status
 from pixelkasten.utils.dates import parse_photo_taken_time
 from pixelkasten.utils.exiftool import read_metadata
@@ -22,7 +22,7 @@ BATCH_SIZE = 512
 
 
 def reconcile(
-    manifest: list[ManifestEntry],
+    manifest: list[IngestEntry],
     options: IngestOptions,
     progress: Callable = noop_progress,
 ) -> None:

@@ -11,7 +11,7 @@ silently normalizes double extensions (.MP.jpg) and duplicate markers (1).
 import os
 import re
 
-from pixelkasten.manifest import ManifestEntry, SidecarMatch, Source
+from pixelkasten.commands.ingest.state import IngestEntry, SidecarMatch, Source
 from pixelkasten.configuration import IngestOptions
 
 # Truncated variants of .supplemental-metadata (longest first for greedy matching).
@@ -71,7 +71,7 @@ def _link_archive(files_media: list[str], source_root: str) -> dict:
     files at the source root stay loose."""
     source_root = os.path.normpath(source_root)
     manifest = [
-        ManifestEntry(
+        IngestEntry(
             media_path=fp,
             source=_archive_source(fp, source_root),
             sidecar=None,
@@ -124,7 +124,7 @@ def _link_takeout(raw_collections: dict, options: IngestOptions) -> dict:
     parsed_media = [_parse_media(fp) for fp in files_media]
 
     # Stage 4: match media files to their metadata sidecars.
-    manifest: list[ManifestEntry] = []
+    manifest: list[IngestEntry] = []
     for media in parsed_media:
         dir_path = os.path.dirname(media["path"])
         candidates = metadata_by_dir.get(dir_path, [])
@@ -143,7 +143,7 @@ def _link_takeout(raw_collections: dict, options: IngestOptions) -> dict:
         )
 
         manifest.append(
-            ManifestEntry(
+            IngestEntry(
                 media_path=media["path"],
                 source=source,
                 sidecar=sidecar,

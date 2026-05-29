@@ -1,14 +1,11 @@
-from pixelkasten.manifest import (
-    Dedupe,
-    DedupeResult,
-    ManifestEntry,
-    Source,
-    Status,
-)
+"""Tests for the ingest pipeline state types (IngestEntry.can_keep)."""
+
+from pixelkasten.commands.ingest.state import Dedupe, DedupeResult, IngestEntry, Source
+from pixelkasten.pipeline import Status
 
 
 def _entry(dedupe=None):
-    return ManifestEntry(media_path="/a.jpg", source=Source(type="loose"), dedupe=dedupe)
+    return IngestEntry(media_path="/a.jpg", source=Source(type="loose"), dedupe=dedupe)
 
 
 class TestCanKeep:
