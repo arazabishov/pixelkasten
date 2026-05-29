@@ -162,12 +162,17 @@ def enrich(
         "--video-frames",
         help="Number of frames to sample per video for embeddings and captions.",
     ),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Compute geocoding and embeddings but do not write to disk.",
+    ),
 ):
     """Bulk geocode + CLIP embed for an existing working library."""
     from pixelkasten.configuration import EnrichOptions
     from pixelkasten.commands.enrich import enrich as run_enrich
 
-    options = EnrichOptions(library=str(library), video_frames=video_frames)
+    options = EnrichOptions(library=str(library), video_frames=video_frames, dry_run=dry_run)
 
     console.print(f"\n[bold]Enriching {library}...[/bold]\n")
     summary = run_enrich(options, progress=build_progress_factory(console))

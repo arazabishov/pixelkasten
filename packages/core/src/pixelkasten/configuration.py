@@ -61,3 +61,6 @@ class EnrichOptions:
 
     # frames sampled per video for both embed and caption
     video_frames: int
+
+    # compute geocoding and embeddings but do not write to disk
+    dry_run: bool = False

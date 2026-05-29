@@ -15,7 +15,7 @@ import os
 
 import numpy as np
 
-from pixelkasten.utils.embeddings import load_embeddings
+from pixelkasten.utils.embeddings import read_embeddings
 
 
 def similar(query_path: str, library: str, k: int) -> list[dict]:
@@ -30,7 +30,7 @@ def similar(query_path: str, library: str, k: int) -> list[dict]:
     if k < 1:
         raise ValueError("k must be >= 1")
 
-    matrix, paths = load_embeddings(library)
+    matrix, paths = read_embeddings(library)
     if matrix.size == 0:
         raise RuntimeError(f"No embeddings in {library}; run `pixelkasten enrich` first.")
 

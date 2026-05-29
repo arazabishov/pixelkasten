@@ -10,12 +10,7 @@ upstream stages wrote. Types are grouped by pipeline stage:
 from dataclasses import dataclass, field
 from enum import Enum
 
-
-class Status(Enum):
-    PENDING = "pending"
-    PROCESSED = "processed"
-    SKIPPED = "skipped"
-    ERROR = "error"
+from pixelkasten.pipeline import Status
 
 
 class DedupeResult(Enum):

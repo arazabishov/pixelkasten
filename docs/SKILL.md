@@ -18,8 +18,8 @@ Every keeper in the working library has a record at `<library>/.pixelkasten/<fil
   "geo": {"latitude": 52.52, "longitude": 13.40, "altitude": 34.0},  // import (reconcile)
   "album": "Wedding 2019",                                    // import (Takeout source folder or archive subfolder; null for root-level archive files)
   "group_id": "3f2a1b8cdef01234567890abcdef0123",             // import (emit) — shared across siblings
-  "location": {"name": "Berlin, Germany",
-               "region": "Berlin", "country": "DE"},          // enrich (geocode)
+  "location": {"city": "Berlin", "region": "Berlin",          // enrich (geocode)
+               "country": "DE"},
   "caption": "Street scene with cyclists.",                   // caption (on demand)
   "proposed_album": "Berlin trip"                             // propose (your decision)
 }

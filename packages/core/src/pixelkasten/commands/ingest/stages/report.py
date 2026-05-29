@@ -9,7 +9,8 @@ import os
 
 from pixelkasten.configuration import IngestOptions
 from pixelkasten.utils.record import records_dir
-from pixelkasten.manifest import ApplyResult, DedupeResult, ManifestEntry, Status
+from pixelkasten.manifest import ApplyResult, DedupeResult, ManifestEntry
+from pixelkasten.pipeline import Status
 
 
 def report(manifest: list[ManifestEntry], options: IngestOptions) -> str:
