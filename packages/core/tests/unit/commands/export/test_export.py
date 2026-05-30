@@ -353,8 +353,8 @@ class TestForceAndDryRun:
         assert record_after == record_before
 
 
-class TestSanitization:
-    def test_sanitizes_album_path_separators(self, tmp_path):
+class TestInvalidAlbumNames:
+    def test_rejects_invalid_album_path_separators(self, tmp_path):
         lib = _build_library(
             tmp_path,
             [
@@ -367,7 +367,8 @@ class TestSanitization:
         )
         dst = str(tmp_path / "out")
 
-        export(lib, dst, ExportOptions())
+        with pytest.raises(RuntimeError, match="invalid album name"):
+            export(lib, dst, ExportOptions())
 
-        # Slashes are replaced with hyphens so they don't break the folder layout
-        assert _listing(dst) == ["2024/20240601-Trip-with-slashes/20240601-143022.jpg"]
+        # Invalid names fail before export writes anything
+        assert not os.path.exists(dst) or _listing(dst) == []

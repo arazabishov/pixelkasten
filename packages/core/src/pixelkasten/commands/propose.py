@@ -10,6 +10,7 @@ removes the field (--clear).
 
 import os
 
+from pixelkasten.utils.album import check_album_name
 from pixelkasten.utils.record import read_record, write_record
 from pixelkasten.utils.record import record_path, records_dir, records_dir_home
 from pixelkasten.configuration import RECORD_SUFFIX
@@ -54,10 +55,10 @@ def propose(path: str, album: str | None) -> list[str]:
 
 
 def _validate_album_name(album: str) -> None:
-    if not album.strip():
-        raise ValueError("Album name must be non-empty.")
     if album.lower() == "null":
         raise ValueError("'null' is reserved; use --clear to remove proposed_album.")
+    if not check_album_name(album):
+        raise ValueError(f"Invalid album name {album!r}: non-empty, no separators/control chars.")
 
 
 def _siblings_by_group(library: str, group_id: str) -> list[str]:

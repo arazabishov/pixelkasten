@@ -170,6 +170,11 @@ def render_propose(console: Console, paths: list[str], album: str | None) -> Non
     typer.echo(f"{action} {len(paths)} file(s)")
 
 
+def render_check(console: Console, report: dict) -> None:
+    """Machine output: JSON report of conflicts + invalid album names."""
+    typer.echo(json.dumps(report, indent=2))
+
+
 def render_caption(console: Console, text: str | None) -> None:
     """Caption text to stdout for piping; nothing on failure (CLI exits non-zero)."""
     if text is not None:

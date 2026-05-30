@@ -64,7 +64,7 @@ packages/core/src/pixelkasten/
       stages/         # scan, link, dedupe, reconcile, group, emit, report
     enrich/           # multi-stage command (read, geocode, embed, emit)
     export/           # multi-stage command (read, plan, emit)
-    caption.py cluster.py propose.py similar.py
+    caption.py check.py cluster.py propose.py similar.py
   tools/              # wrappers around external tools & services (installed/loaded separately)
     exiftool.py ffmpeg.py ollama.py clip.py
   utils/              # pixelkasten's own shared helpers (no external process)
@@ -72,6 +72,7 @@ packages/core/src/pixelkasten/
     record.py         # .pk.json I/O, path helpers (records_dir, record_path), resolve_library
     embeddings.py     # embeddings.npy I/O + path helpers (embeddings_npy_path, etc.)
     library.py        # working-library walk shared by enrich + export (read_library)
+    album.py          # album-name validation + proposed_album conflict detection (propose, check, export)
     dates.py pil.py progress.py
 ```
 
@@ -155,6 +156,7 @@ Beyond `import`, the CLI exposes a small set of commands that the agent (or a hu
 | `pixelkasten similar <path> [--k N]` | k-NN over `embeddings.npy` by cosine. | Stdout (JSON) |
 | `pixelkasten cluster [paths…]` | HDBSCAN over a scoped slice of embeddings. Reads paths from args or stdin. | Stdout (JSON) |
 | `pixelkasten propose <path> <album>` / `--clear` | Write `proposed_album` to the file's record and to every group sibling. | Records |
+| `pixelkasten check <library>` | Report `proposed_album` conflicts (group members disagreeing) and invalid album names as JSON; exits non-zero when any are found. The agent runs it after organizing to confirm `export` will succeed. | Stdout (JSON) |
 | `pixelkasten export <library> --to <dst>` | Export the working library to an organized photo library. Reads records, resolves albums by fallback chain (`proposed_album → album → date-driven year folder → destination root for undated files`), copies into year/album folders. | Files at `<dst>` |
 
 ### Export library layout
@@ -165,7 +167,7 @@ Beyond `import`, the CLI exposes a small set of commands that the agent (or a hu
 <dst>/
   bbe90b6fd17f468c86da78ab484fd469.jpg   # no parseable date -> keeps working-library uuid name
   2024/
-    20240615-Wedding/                    # album: <YYYYMMDD>-<sanitized_name>
+    20240615-Wedding/                    # album: <YYYYMMDD>-<album_name>
       20240615-143022.heic
       20240615-143022.mov                # group sibling, same timestamp, diff ext
     20240620-100530.jpg                  # loose file in year folder
