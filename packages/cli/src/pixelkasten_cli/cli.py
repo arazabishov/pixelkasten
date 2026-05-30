@@ -18,6 +18,7 @@ from rich.console import Console
 from pixelkasten_cli.render import (
     build_progress_factory,
     render_caption,
+    render_check,
     render_cluster,
     render_enrich,
     render_export,
@@ -213,6 +214,26 @@ def export(
     options = ExportOptions(force=force, dry_run=dry_run)
     summary = run_export(str(library), str(to), options)
     render_export(console, summary, options)
+
+
+@app.command()
+def check(
+    library: Path = typer.Argument(
+        ...,
+        help="Working library to inspect for proposed_album conflicts before export.",
+        exists=True,
+        file_okay=False,
+        resolve_path=True,
+    ),
+):
+    """Report proposed_album conflicts + invalid album names as JSON; exit 1 if any."""
+    from pixelkasten.commands.check import check as run_check
+
+    report = run_check(str(library))
+    render_check(console, report)
+
+    if not report["ok"]:
+        raise typer.Exit(code=1)
 
 
 @app.command()
