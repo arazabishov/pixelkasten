@@ -29,11 +29,11 @@ def read_library(library: str) -> dict:
         raise FileNotFoundError(f"Working library records not found: {rdir}")
 
     # All record files up front, so we can flag the ones no media file claims.
-    records_remaining = {
-        os.path.join(rdir, name)
-        for name in os.listdir(rdir)
-        if name.endswith(RECORD_SUFFIX) and os.path.isfile(os.path.join(rdir, name))
-    }
+    records_remaining: set[str] = set()
+    for name in os.listdir(rdir):
+        path = os.path.join(rdir, name)
+        if name.endswith(RECORD_SUFFIX) and os.path.isfile(path):
+            records_remaining.add(path)
 
     entries: list[tuple[str, str]] = []
     unmatched_media: list[str] = []
@@ -42,13 +42,16 @@ def read_library(library: str) -> dict:
     # Sort so embeddings.paths.json append order is stable across runs/filesystems.
     for filename in sorted(os.listdir(library)):
         full_path = os.path.join(library, filename)
+
         # Skip dotfiles: macOS writes AppleDouble `._IMG.heic` resource forks on
         # FAT/SMB/USB — same extension, but a 4 KB metadata blob, not media.
         if not os.path.isfile(full_path) or filename.startswith("."):
             continue
+
         if os.path.splitext(filename)[1].lower() not in SUPPORTED_EXTENSIONS:
             unsupported_media.append(full_path)
             continue
+
         record_file = record_path(library, filename)
         if record_file in records_remaining:
             records_remaining.discard(record_file)
