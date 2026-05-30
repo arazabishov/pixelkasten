@@ -15,6 +15,7 @@ def plan(state: ExportState) -> None:
     """Read each entry's record onto the entry, bucket by group, reject
     proposed_album conflicts, and set each entry's relative ``target``. Only
     mutates entries in memory; ``emit`` performs the copies."""
+
     for entry in state.entries:
         data = read_record(entry.record)
         entry.dates = data.get("dates") or []
@@ -22,14 +23,21 @@ def plan(state: ExportState) -> None:
         entry.proposed_album = data.get("proposed_album")
         entry.group_id = data.get("group_id")
 
-    groups = _bucket_by_group_id(state.entries)
+    # Group entries by ``group_id``
+    groups: dict[str, list[ExportEntry]] = {}
+    for entry in state.entries:
+        group_id = entry.group_id or os.path.basename(entry.media)
+        groups.setdefault(group_id, []).append(entry)
+
     _check_proposal_conflicts(groups)
 
     album_min_dates = _compute_album_min_dates(groups)
     used_paths: set[str] = set()
+
     # Process groups in deterministic order so collision tie-breaking is stable.
-    for key in sorted(groups):
-        group = groups[key]
+    for group_id in sorted(groups):
+        group = groups[group_id]
+
         album = _group_target_album(group)
         group_min_date = _group_min_date(group)
         # The folder's date prefix uses the album's earliest date across all
@@ -40,17 +48,6 @@ def plan(state: ExportState) -> None:
             target = _resolve_member_path(entry, album, folder_min_date, group_min_date, used_paths)
             used_paths.add(target)
             entry.target = target
-
-
-def _bucket_by_group_id(entries: list[ExportEntry]) -> dict[str, list[ExportEntry]]:
-    """Group entries by ``group_id``. Entries without one are keyed by their
-    (unique) media filename so they behave like singleton groups."""
-    out: dict[str, list[ExportEntry]] = {}
-    for entry in entries:
-        key = entry.group_id or os.path.basename(entry.media)
-        out.setdefault(key, []).append(entry)
-    return out
-
 
 def _check_proposal_conflicts(groups: dict[str, list[ExportEntry]]) -> None:
     """Raise if any group's members carry two distinct ``proposed_album`` values.
