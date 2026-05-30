@@ -17,12 +17,12 @@ Per-media failures are recorded on the entry and the run continues.
 
 from collections.abc import Callable
 
-from pixelkasten.commands.enrich.state import EnrichState
+from pixelkasten.commands.enrich.state import EnrichEntry, EnrichState
 from pixelkasten.commands.enrich.stages.embed import embed
 from pixelkasten.commands.enrich.stages.emit import emit
 from pixelkasten.commands.enrich.stages.geocode import geocode
-from pixelkasten.commands.enrich.stages.read import read
 from pixelkasten.configuration import EnrichOptions
+from pixelkasten.utils.library import read_library
 from pixelkasten.utils.progress import noop_progress
 
 
@@ -31,7 +31,15 @@ def enrich(options: EnrichOptions, progress: Callable = noop_progress) -> Enrich
     library = options.library
 
     # Read the working library: pair each supported media file with its record.
-    state = read(library)
+    raw_library = read_library(library)
+
+    # Initialize the command state
+    state = EnrichState(
+        entries=[EnrichEntry(media=media, record=record) for media, record in raw_library["entries"]],
+        unmatched_media=raw_library["unmatched_media"],
+        unmatched_records=raw_library["unmatched_records"],
+        unsupported_media=raw_library["unsupported_media"],
+    )
 
     # Record a `location` on every entry whose record has geo coordinates.
     geocode(state, progress)
