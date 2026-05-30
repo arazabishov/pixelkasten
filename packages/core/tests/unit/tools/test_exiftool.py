@@ -11,18 +11,18 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from pixelkasten.utils.exiftool import read_metadata, write_metadata
+from pixelkasten.tools.exiftool import read_metadata, write_metadata
 
 
 class TestWriteMetadata:
-    @patch("pixelkasten.utils.exiftool.subprocess.run")
+    @patch("pixelkasten.tools.exiftool.subprocess.run")
     def test_returns_without_subprocess_for_empty_tags(self, mock_run):
         write_metadata("/some/file.jpg", [])
 
         # subprocess.run should never be called
         mock_run.assert_not_called()
 
-    @patch("pixelkasten.utils.exiftool.subprocess.run")
+    @patch("pixelkasten.tools.exiftool.subprocess.run")
     def test_constructs_correct_exiftool_args(self, mock_run):
         mock_run.return_value = MagicMock(returncode=0, stderr="")
 
@@ -41,14 +41,14 @@ class TestWriteMetadata:
         assert "-SubSecDateTimeOriginal=2023:05:20 14:30:00+00:00" in call_args
         assert call_args[-1] == "/some/file.jpg"
 
-    @patch("pixelkasten.utils.exiftool.subprocess.run")
+    @patch("pixelkasten.tools.exiftool.subprocess.run")
     def test_raises_on_nonzero_exit(self, mock_run):
         mock_run.return_value = MagicMock(returncode=2, stderr="some error")
 
         with pytest.raises(RuntimeError, match="Failed to write metadata"):
             write_metadata("/some/file.jpg", ["Tag=Value"])
 
-    @patch("pixelkasten.utils.exiftool.subprocess.run")
+    @patch("pixelkasten.tools.exiftool.subprocess.run")
     def test_handles_multiple_tags(self, mock_run):
         mock_run.return_value = MagicMock(returncode=0, stderr="")
 
@@ -66,7 +66,7 @@ class TestReadMetadata:
 
         assert result == {}
 
-    @patch("pixelkasten.utils.exiftool.subprocess.run")
+    @patch("pixelkasten.tools.exiftool.subprocess.run")
     def test_includes_tag_args_when_provided(self, mock_run):
         mock_run.return_value = MagicMock(
             returncode=0,

@@ -14,7 +14,7 @@ from pixelkasten.handlers import handlers
 from pixelkasten.commands.ingest.state import Geo, IngestEntry, Metadata
 from pixelkasten.pipeline import Status
 from pixelkasten.utils.dates import parse_photo_taken_time
-from pixelkasten.utils.exiftool import read_metadata
+from pixelkasten.tools.exiftool import read_metadata
 from pixelkasten.utils.progress import noop_progress
 from pixelkasten.utils.sidecar import read_sidecar
 

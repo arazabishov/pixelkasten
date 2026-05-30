@@ -21,7 +21,7 @@ from pixelkasten.configuration import ExportOptions, EnrichOptions
 from pixelkasten.commands.ingest import ingest
 from pixelkasten.commands.enrich import enrich
 from pixelkasten.commands.export import export as run_export
-from pixelkasten.utils.exiftool import check_exiftool
+from pixelkasten.tools.exiftool import check_exiftool
 from pixelkasten.commands.propose import propose
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "media"
@@ -75,7 +75,7 @@ def _media_basename(lib: Path) -> str:
 
 class TestAgentWorkflow:
     @patch("reverse_geocoder.search")
-    @patch("pixelkasten.utils.clip.embed_images")
+    @patch("pixelkasten.tools.clip.embed_images")
     def test_init_enrich_propose_apply_writes_proposed_album(self, mock_embed, mock_rg, tmp_path):
         source = tmp_path / "source"
         lib = tmp_path / "lib"

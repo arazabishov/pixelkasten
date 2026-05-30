@@ -69,7 +69,7 @@ def _generate(path: str, model: str, video_frames: int) -> str | None:
 def _caption_image(path: str, model: str) -> str | None:
     from PIL import Image
 
-    from pixelkasten.utils.ollama import chat
+    from pixelkasten.tools.ollama import chat
     from pixelkasten.utils.pil import ensure_pil_plugins
 
     ensure_pil_plugins()
@@ -83,8 +83,8 @@ def _caption_image(path: str, model: str) -> str | None:
 def _caption_video(path: str, model: str, n_frames: int) -> str | None:
     from PIL import Image
 
-    from pixelkasten.utils.ffmpeg import capture_frames
-    from pixelkasten.utils.ollama import chat
+    from pixelkasten.tools.ffmpeg import capture_frames
+    from pixelkasten.tools.ollama import chat
 
     raw_frames = capture_frames(path, n_frames)
     payloads = [

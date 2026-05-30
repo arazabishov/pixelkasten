@@ -5,7 +5,7 @@ from collections.abc import Callable
 from pixelkasten.commands.enrich.state import Embed, EnrichEntry, EnrichState
 from pixelkasten.handlers import is_image, is_video
 from pixelkasten.pipeline import Status
-from pixelkasten.utils.clip import embed_video
+from pixelkasten.tools.clip import embed_video
 
 
 # Number of images per CLIP forward pass; 32 is a conservative CPU/GPU default.
@@ -58,7 +58,7 @@ def _embed_image_batch(entries: list[EnrichEntry]) -> None:
     """
     from PIL import Image
 
-    from pixelkasten.utils.clip import embed_images
+    from pixelkasten.tools.clip import embed_images
     from pixelkasten.utils.pil import ensure_pil_plugins
 
     ensure_pil_plugins()

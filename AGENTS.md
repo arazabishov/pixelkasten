@@ -62,18 +62,20 @@ packages/core/src/pixelkasten/
       __init__.py     # exports ingest() + IngestResult
       state.py        # IngestEntry + its sub-dataclasses (the in-memory manifest)
       stages/         # scan, link, dedupe, reconcile, group, emit, report
-    enrich/           # multi-stage command (scan, link, geocode, embed, emit)
-    export.py         # standalone command
+    enrich/           # multi-stage command (read, geocode, embed, emit)
+    export/           # multi-stage command (read, plan, emit)
     caption.py cluster.py propose.py similar.py
-  utils/              # shared wrappers around external dependencies and shared helpers
-    exiftool.py ffmpeg.py ollama.py
+  tools/              # wrappers around external tools & services (installed/loaded separately)
+    exiftool.py ffmpeg.py ollama.py clip.py
+  utils/              # pixelkasten's own shared helpers (no external process)
     sidecar.py        # Google Takeout sidecar parser
     record.py         # .pk.json I/O, path helpers (records_dir, record_path), resolve_library
     embeddings.py     # embeddings.npy I/O + path helpers (embeddings_npy_path, etc.)
-    dates.py pil_setup.py clip_embed.py
+    library.py        # working-library walk shared by enrich + export (read_library)
+    dates.py pil.py progress.py
 ```
 
-Commands live under `commands/`. Multi-stage commands use a package: `ingest` has its orchestrator in `commands/ingest/ingest.py` and stages under `commands/ingest/stages/`; `enrich` follows the same shape with `commands/enrich/enrich.py` plus geocode/embed stages. Other commands are single-file modules. The Python module is named `ingest` (not `import`) because `import` is a reserved keyword; the CLI command name `pixelkasten import` is independent of the Python module name. Utilities — wrappers around external dependencies and shared helpers — live under `utils/`.
+Commands live under `commands/`. Multi-stage commands use a package: `ingest` has its orchestrator in `commands/ingest/ingest.py` and stages under `commands/ingest/stages/`; `enrich` and `export` follow the same shape (orchestrator + `state.py` + `stages/`) and share their working-library walk via `utils/library.py` — `read_library` returns a plain dict (`(media, record)` pairs plus the files that didn't pair), which each command's `read` stage maps onto its own entry type. The remaining commands — `caption`, `cluster`, `propose`, `similar` — are single-file modules. The Python module is named `ingest` (not `import`) because `import` is a reserved keyword; the CLI command name `pixelkasten import` is independent of the Python module name. Wrappers around external tools and services (`exiftool`, `ffmpeg`, `ollama`, `clip`) live under `tools/`; pixelkasten's own shared helpers live under `utils/`.
 
 ### Import pipeline
 
@@ -298,7 +300,7 @@ One pattern, one place. **All terminal rendering lives in `packages/cli/src/pixe
 commands/<x>.py → return value → cli.py → render_<x>() in render.py → console
 ```
 
-Result types that need a typed shape are collocated with their command (`ExportResult` in `commands/export.py`, `IngestResult` in `commands/ingest/ingest.py`). Multi-stage commands that share mutable command state keep that type in their package (`EnrichState` in `commands/enrich/state.py`). Trivial returns (a string for `caption`, a list of paths for `propose`) stay primitive. Don't invent a new dataclass for two scalars.
+Result types that need a typed shape are collocated with their command (`ExportResult` in `commands/export/state.py`, `IngestResult` in `commands/ingest/ingest.py`). Multi-stage commands that share mutable command state keep that type in their package (`EnrichState` in `commands/enrich/state.py`). Trivial returns (a string for `caption`, a list of paths for `propose`) stay primitive. Don't invent a new dataclass for two scalars.
 
 **Result types don't duplicate option fields.** If a renderer needs an option's value (e.g. `dry_run`), it takes the `options` object as an extra renderer argument. That keeps result types focused on what the run actually *produced* and avoids the ambiguity of two sources of truth for the same field.
 

@@ -115,7 +115,7 @@ def import_cmd(
     from pixelkasten.commands.ingest import ingest
 
     if mode == "takeout" and not skip_metadata_write:
-        from pixelkasten.utils.exiftool import check_exiftool
+        from pixelkasten.tools.exiftool import check_exiftool
 
         try:
             check_exiftool()

@@ -89,7 +89,7 @@ def embed_video(path: str, video_frames: int) -> np.ndarray:
     """Represent a video as the L2-normalized mean of sampled-frame embeddings."""
     from PIL import Image
 
-    from pixelkasten.utils.ffmpeg import capture_frames
+    from pixelkasten.tools.ffmpeg import capture_frames
     from pixelkasten.utils.pil import ensure_pil_plugins
 
     ensure_pil_plugins()

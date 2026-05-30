@@ -25,7 +25,7 @@ from pixelkasten.configuration import ExportOptions
 from pixelkasten.commands.ingest import ingest
 from pixelkasten.commands.export import export as run_export
 from pixelkasten.commands.propose import propose
-from pixelkasten.utils.exiftool import check_exiftool
+from pixelkasten.tools.exiftool import check_exiftool
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "media"
 

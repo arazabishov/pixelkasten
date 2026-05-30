@@ -17,7 +17,7 @@ from pathlib import Path
 import pytest
 
 from helpers import make_options, noop_progress
-from pixelkasten.utils.exiftool import check_exiftool, read_metadata
+from pixelkasten.tools.exiftool import check_exiftool, read_metadata
 from pixelkasten.commands.ingest import ingest
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "media"

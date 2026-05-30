@@ -43,7 +43,7 @@ def _read_sidecar(library: str, name: str) -> dict:
 
 
 class TestCaptionImage:
-    @patch("pixelkasten.utils.ollama.chat")
+    @patch("pixelkasten.tools.ollama.chat")
     def test_runs_ollama_and_writes_caption_to_sidecar(self, mock_chat, tmp_path):
         mock_chat.return_value = "A red square."
         lib = _make_image_library(tmp_path)
@@ -61,7 +61,7 @@ class TestCaptionImage:
         # Image bytes were passed
         assert isinstance(called_args[1]["images"][0], bytes)
 
-    @patch("pixelkasten.utils.ollama.chat")
+    @patch("pixelkasten.tools.ollama.chat")
     def test_returns_cached_caption_without_calling_model(self, mock_chat, tmp_path):
         lib = _make_image_library(
             tmp_path,
@@ -74,7 +74,7 @@ class TestCaptionImage:
         assert result == "Already captioned."
         mock_chat.assert_not_called()
 
-    @patch("pixelkasten.utils.ollama.chat")
+    @patch("pixelkasten.tools.ollama.chat")
     def test_force_recaptions_even_when_present(self, mock_chat, tmp_path):
         mock_chat.return_value = "Fresh caption."
         lib = _make_image_library(
@@ -88,7 +88,7 @@ class TestCaptionImage:
         assert result == "Fresh caption."
         assert _read_sidecar(lib, "photo.jpg")["caption"] == "Fresh caption."
 
-    @patch("pixelkasten.utils.ollama.chat")
+    @patch("pixelkasten.tools.ollama.chat")
     def test_returns_none_and_leaves_sidecar_when_ollama_fails(self, mock_chat, tmp_path, capsys):
         mock_chat.side_effect = RuntimeError("ollama not running")
         lib = _make_image_library(tmp_path)
@@ -101,7 +101,7 @@ class TestCaptionImage:
         # Record is untouched: no caption written
         assert "caption" not in _read_sidecar(lib, "photo.jpg")
 
-    @patch("pixelkasten.utils.ollama.chat")
+    @patch("pixelkasten.tools.ollama.chat")
     def test_returns_none_when_model_returns_empty(self, mock_chat, tmp_path, capsys):
         mock_chat.return_value = None
         lib = _make_image_library(tmp_path)
@@ -114,8 +114,8 @@ class TestCaptionImage:
 
 
 class TestCaptionVideo:
-    @patch("pixelkasten.utils.ollama.chat")
-    @patch("pixelkasten.utils.ffmpeg.capture_frames")
+    @patch("pixelkasten.tools.ollama.chat")
+    @patch("pixelkasten.tools.ffmpeg.capture_frames")
     def test_extracts_frames_and_passes_them_to_ollama(self, mock_extract, mock_chat, tmp_path):
         # Build two real JPEG frames so PIL can open them
         frame_buf = []
@@ -146,7 +146,7 @@ class TestCaptionVideo:
         passed_images = mock_chat.call_args[1]["images"]
         assert len(passed_images) == 2
 
-    @patch("pixelkasten.utils.ffmpeg.capture_frames")
+    @patch("pixelkasten.tools.ffmpeg.capture_frames")
     def test_returns_none_when_frame_extraction_fails(self, mock_extract, tmp_path, capsys):
         mock_extract.side_effect = RuntimeError("ffmpeg crashed")
         lib = _make_library_with_asset(
@@ -165,7 +165,7 @@ class TestCaptionVideo:
 
 
 class TestCaptionValidation:
-    @patch("pixelkasten.utils.ollama.chat")
+    @patch("pixelkasten.tools.ollama.chat")
     def test_raises_when_no_record(self, mock_chat, tmp_path):
         lib = tmp_path / "lib"
         (lib / ".pixelkasten").mkdir(parents=True)
@@ -177,7 +177,7 @@ class TestCaptionValidation:
         with _pytest.raises(RuntimeError, match="No record"):
             _run_caption(str(lib / "photo.jpg"))
 
-    @patch("pixelkasten.utils.ollama.chat")
+    @patch("pixelkasten.tools.ollama.chat")
     def test_returns_none_for_unsupported_extension(self, mock_chat, tmp_path, capsys):
         lib = _make_library_with_asset(
             tmp_path,
