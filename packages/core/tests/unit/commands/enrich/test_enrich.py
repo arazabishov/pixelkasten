@@ -57,7 +57,7 @@ def fake_clip():
     want to override its behavior (e.g. simulate a forward-pass crash)."""
     with (
         patch("PIL.Image.open", return_value=object()),
-        patch("pixelkasten.utils.clip.embed_images") as mock_embed,
+        patch("pixelkasten.tools.clip.embed_images") as mock_embed,
     ):
         mock_embed.side_effect = lambda images: np.full((len(images), 768), 0.1, dtype=np.float32)
         yield mock_embed
@@ -195,8 +195,8 @@ class TestEmbedStep:
             paths = json.load(f)
         assert paths == ["a.jpg"]
 
-    @patch("pixelkasten.utils.clip.embed_images")
-    @patch("pixelkasten.utils.ffmpeg.capture_frames")
+    @patch("pixelkasten.tools.clip.embed_images")
+    @patch("pixelkasten.tools.ffmpeg.capture_frames")
     def test_embeds_video_via_mean_of_frame_embeddings(self, mock_extract, mock_embed, tmp_path):
         mock_extract.return_value = [b"f1", b"f2", b"f3"]
         # Three frame embeddings; mean should be normalized to unit length.
@@ -238,7 +238,7 @@ class TestEmbedStep:
         # The run aborts before emit, so no store is written
         assert not os.path.exists(os.path.join(lib, ".pixelkasten", "embeddings.npy"))
 
-    @patch("pixelkasten.utils.clip.embed_images")
+    @patch("pixelkasten.tools.clip.embed_images")
     def test_per_file_decode_failure_is_isolated(self, mock_embed, tmp_path):
         # One unreadable image is marked ERROR; the rest still embed and the run continues.
         mock_embed.side_effect = lambda imgs: np.full((len(imgs), 768), 0.1, dtype=np.float32)

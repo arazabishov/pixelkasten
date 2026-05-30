@@ -1,7 +1,7 @@
 """
-Tests for the export stage (`apply --to <dst>`).
+Tests for the export command (`pixelkasten export --to <dst>`).
 
-Builds working-library fixtures on disk (real files + sidecars in
+Builds working-library fixtures on disk (real files + records in
 .pixelkasten/) and asserts the exported layout. Heavy steps are not mocked
 since these are pure file-system operations.
 """
@@ -312,7 +312,7 @@ class TestForceAndDryRun:
         # Pre-existing file is gone after force-overwrite
         assert _listing(str(dst)) == ["2024/20240601-143022.jpg"]
 
-    def test_dry_run_writes_nothing(self, tmp_path, capsys):
+    def test_dry_run_writes_nothing(self, tmp_path):
         lib = _build_library(
             tmp_path,
             [{"filename": "abc.jpg", "dates": ["2024-06-01T14:30:22"]}],
@@ -323,12 +323,10 @@ class TestForceAndDryRun:
 
         # No files created
         assert not dst.exists()
-        # Summary still reports the planned count (1 file would have been exported)
-        assert summary.total == 1
-        # Plan was printed
-        assert "copy" in capsys.readouterr().out
+        # The plan still reports the one copy that would have run
+        assert len(summary.operations) == 1
 
-    def test_working_library_is_untouched_after_apply(self, tmp_path):
+    def test_working_library_is_untouched_after_export(self, tmp_path):
         lib = _build_library(
             tmp_path,
             [
@@ -342,7 +340,7 @@ class TestForceAndDryRun:
         )
         # Snapshot the working library before
         before = _listing(lib)
-        sidecar_before = json.loads(
+        record_before = json.loads(
             open(os.path.join(lib, ".pixelkasten", "abc.jpg.pk.json")).read()
         )
 
@@ -351,10 +349,8 @@ class TestForceAndDryRun:
         # File listing unchanged
         assert _listing(lib) == before
         # Record unchanged — proposed_album persists for re-runs
-        sidecar_after = json.loads(
-            open(os.path.join(lib, ".pixelkasten", "abc.jpg.pk.json")).read()
-        )
-        assert sidecar_after == sidecar_before
+        record_after = json.loads(open(os.path.join(lib, ".pixelkasten", "abc.jpg.pk.json")).read())
+        assert record_after == record_before
 
 
 class TestSanitization:

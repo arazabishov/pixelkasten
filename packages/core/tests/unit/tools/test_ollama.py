@@ -6,7 +6,7 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from pixelkasten.utils.ollama import check_ollama, chat
+from pixelkasten.tools.ollama import check_ollama, chat
 
 
 class TestCheckOllama:

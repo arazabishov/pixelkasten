@@ -4,7 +4,7 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from pixelkasten.utils.ffmpeg import capture_frames
+from pixelkasten.tools.ffmpeg import capture_frames
 
 
 def _probe_result(duration: float):
@@ -19,7 +19,7 @@ def _ffmpeg_result(payload: bytes):
 
 class TestCaptureFrames:
     def test_returns_one_bytes_per_requested_frame(self):
-        with patch("pixelkasten.utils.ffmpeg.subprocess.run") as mock_run:
+        with patch("pixelkasten.tools.ffmpeg.subprocess.run") as mock_run:
             # First call is ffprobe (duration), then n ffmpeg calls.
             mock_run.side_effect = [
                 _probe_result(10.0),
@@ -38,7 +38,7 @@ class TestCaptureFrames:
             ]
 
     def test_samples_timestamps_at_segment_midpoints(self):
-        with patch("pixelkasten.utils.ffmpeg.subprocess.run") as mock_run:
+        with patch("pixelkasten.tools.ffmpeg.subprocess.run") as mock_run:
             mock_run.side_effect = [
                 _probe_result(10.0),
                 _ffmpeg_result(b"a"),
@@ -54,21 +54,21 @@ class TestCaptureFrames:
             assert timestamps == ["2.500", "7.500"]
 
     def test_raises_when_ffprobe_fails(self):
-        with patch("pixelkasten.utils.ffmpeg.subprocess.run") as mock_run:
+        with patch("pixelkasten.tools.ffmpeg.subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="boom")
 
             with pytest.raises(RuntimeError, match="ffprobe failed"):
                 capture_frames("/tmp/x.mov", 3)
 
     def test_raises_when_duration_is_zero(self):
-        with patch("pixelkasten.utils.ffmpeg.subprocess.run") as mock_run:
+        with patch("pixelkasten.tools.ffmpeg.subprocess.run") as mock_run:
             mock_run.return_value = _probe_result(0.0)
 
             with pytest.raises(RuntimeError, match="Could not determine duration"):
                 capture_frames("/tmp/x.mov", 3)
 
     def test_raises_when_ffmpeg_capture_fails(self):
-        with patch("pixelkasten.utils.ffmpeg.subprocess.run") as mock_run:
+        with patch("pixelkasten.tools.ffmpeg.subprocess.run") as mock_run:
             mock_run.side_effect = [
                 _probe_result(5.0),
                 MagicMock(returncode=1, stdout=b"", stderr=b"corrupt video"),
@@ -83,7 +83,7 @@ class TestCaptureFrames:
 
     def test_raises_when_ffmpeg_returns_empty_payload(self):
         # Some MP4 variants make ffmpeg exit 0 but produce no decodable frame.
-        with patch("pixelkasten.utils.ffmpeg.subprocess.run") as mock_run:
+        with patch("pixelkasten.tools.ffmpeg.subprocess.run") as mock_run:
             mock_run.side_effect = [
                 _probe_result(5.0),
                 MagicMock(returncode=0, stdout=b"", stderr=b""),
@@ -94,7 +94,7 @@ class TestCaptureFrames:
 
     def test_raises_when_ffmpeg_returns_non_jpeg_bytes(self):
         # Defensive: payload that doesn't start with FF D8 FF is rejected.
-        with patch("pixelkasten.utils.ffmpeg.subprocess.run") as mock_run:
+        with patch("pixelkasten.tools.ffmpeg.subprocess.run") as mock_run:
             mock_run.side_effect = [
                 _probe_result(5.0),
                 MagicMock(returncode=0, stdout=b"not-a-jpeg", stderr=b""),
