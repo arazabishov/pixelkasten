@@ -212,8 +212,8 @@ def export(
     from pixelkasten.commands.export import export as run_export
 
     options = ExportOptions(force=force, dry_run=dry_run)
-    summary = run_export(str(library), str(to), options)
-    render_export(console, summary, options)
+    result = run_export(str(library), str(to), options)
+    render_export(console, result, options)
 
 
 @app.command()
