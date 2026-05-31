@@ -2,6 +2,7 @@
 
 import os
 from datetime import datetime
+from itertools import count
 
 from pixelkasten.commands.export.types import Export, Group
 
@@ -24,19 +25,21 @@ def plan(state: Export) -> None:
         album = group.target_album()
 
         for entry in group.entries:
+            extension = os.path.splitext(entry.media)[1]
             own_date = entry.record.first_date()
-            ext = os.path.splitext(entry.media)[1]
+            name = f"{own_date.strftime('%Y%m%d-%H%M%S')}{extension}"
 
             if album:
                 # Folder uses the album-wide earliest date so all its groups collapse
                 # into one folder; the filename uses the file's own date.
                 folder_date = album_min_dates[album]
                 folder = f"{folder_date.year}/{folder_date.strftime('%Y%m%d')}-{album}"
-                rel = os.path.join(folder, _timestamp_name(own_date, ext))
-            else:
-                rel = os.path.join(str(own_date.year), _timestamp_name(own_date, ext))
 
-            entry.target = _disambiguate(rel, used_paths)
+                target = os.path.join(folder, name)
+            else:
+                target = os.path.join(str(own_date.year), name)
+
+            entry.target = _disambiguate(target, used_paths)
             used_paths.add(entry.target)
 
 
@@ -55,18 +58,10 @@ def _compute_album_min_dates(groups: list[Group]) -> dict[str, datetime]:
     return out
 
 
-def _timestamp_name(date: datetime, ext: str) -> str:
-    return f"{date.strftime('%Y%m%d-%H%M%S')}{ext}"
-
-
 def _disambiguate(rel_path: str, used: set[str]) -> str:
     """Append -1, -2, ... before extension when ``rel_path`` is already taken."""
     if rel_path not in used:
         return rel_path
     root, ext = os.path.splitext(rel_path)
-    counter = 1
-    while True:
-        candidate = f"{root}-{counter}{ext}"
-        if candidate not in used:
-            return candidate
-        counter += 1
+    candidates = (f"{root}-{n}{ext}" for n in count(1))
+    return next(c for c in candidates if c not in used)

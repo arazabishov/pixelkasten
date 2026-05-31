@@ -27,7 +27,7 @@ Or without extension: `<name>[-edited][(N)]`
 
 > ² The `(N)` marker resolves filename collisions at export time. It is assigned based on export order, not source file identity. For example, if you edit both `photo.jpg` and `photo(1).jpg`, the first edit exported becomes `photo-edited.jpg` and the second becomes `photo-edited(1).jpg`—regardless of which source file was edited.
 
-**Key insight**: Google shrinks filenames from right to left, preserving only `.<ext>`. For example, `-edited` shrinks progressively before the `name` starts shrinking. The `name` may contain dot-separated segments like `.MP` (Motion Photos), but these are not treated specially—they shrink like any other part of the name. The `(N)` marker is added _after_ truncation if needed to resolve filename collisions.
+**Key insight**: Google shrinks filenames from right to left, preserving only `.<ext>`. For example, `-edited` shrinks progressively before the `name` starts shrinking. The `name` may contain dot-separated segments like `.MP` (Motion Photos) or `.NIGHT` (Night Sight) — these are Pixel capture-mode tags, part of the name, not file-format extensions; the actual format is `.jpg`. They shrink like any other part of the name and are not treated specially. The `(N)` marker is added _after_ truncation if needed to resolve filename collisions.
 
 ### Examples
 
@@ -41,6 +41,7 @@ Or without extension: `<name>[-edited][(N)]`
 | `photo.MP(1).jpg`        | `photo.MP`  | -         | `1` | `jpg` |
 | `photo.MP-edited.jpg`    | `photo.MP`  | `-edited` | -   | `jpg` |
 | `photo.MP-edited(1).jpg` | `photo.MP`  | `-edited` | `1` | `jpg` |
+| `photo.NIGHT.jpg`        | `photo.NIGHT` | -       | -   | `jpg` |
 | `longname-edi(1).jpg`    | `longname`  | `-edi`    | `1` | `jpg` |
 | `longname.(1).jpg`       | `longname.` | -         | `1` | `jpg` |
 | `photo`                  | `photo`     | -         | -   | -     |
