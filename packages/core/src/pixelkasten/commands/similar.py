@@ -15,7 +15,7 @@ import os
 
 import numpy as np
 
-from pixelkasten.utils.embeddings import read_embeddings
+from pixelkasten.stores.embeddings import read_embeddings
 
 
 def similar(query_path: str, library: str, k: int) -> list[dict]:

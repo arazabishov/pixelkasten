@@ -5,7 +5,7 @@ Reads the ``.json`` files Google Photos Takeout writes alongside each
 media file, extracting timestamps and geo data. The word "sidecar" here
 refers to Google's format; pixelkasten's own per-asset state lives in
 ``.pk.json`` *records* under ``<library>/.pixelkasten/`` and is handled
-by ``layout.read_record`` / ``write_record``.
+by ``stores/record.py``'s ``read_record`` / ``write_record``.
 """
 
 import json

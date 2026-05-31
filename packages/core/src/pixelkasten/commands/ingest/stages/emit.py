@@ -25,7 +25,7 @@ from pixelkasten.commands.ingest.state import Apply, ApplyResult, IngestEntry
 from pixelkasten.pipeline import Status
 from pixelkasten.tools.exiftool import write_metadata
 from pixelkasten.utils.progress import noop_progress
-from pixelkasten.utils.record import record_path, records_dir, write_record
+from pixelkasten.stores.record import Record, record_path, records_dir, write_record
 
 
 def emit(
@@ -75,7 +75,7 @@ def _emit_entry(entry: IngestEntry, destination: str) -> Apply:
     if write_tags:
         write_metadata(dest_path, write_tags)
 
-    write_record(record_path(destination, dest_name), _build_record(entry))
+    write_record(_build_record(record_path(destination, dest_name), entry))
 
     return Apply(
         status=Status.PROCESSED,
@@ -84,7 +84,7 @@ def _emit_entry(entry: IngestEntry, destination: str) -> Apply:
     )
 
 
-def _build_record(entry: IngestEntry) -> dict:
+def _build_record(path: str, entry: IngestEntry) -> Record:
     """Four-field record: dates, geo, album, group_id."""
     dates = list(entry.metadata.dates) if entry.metadata else []
 
@@ -99,4 +99,4 @@ def _build_record(entry: IngestEntry) -> dict:
 
     album = entry.source.name if entry.source.type == "album" else None
 
-    return {"dates": dates, "geo": geo, "album": album, "group_id": entry.group_id}
+    return Record(path=path, dates=dates, geo=geo, album=album, group_id=entry.group_id)

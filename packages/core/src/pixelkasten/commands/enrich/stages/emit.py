@@ -14,22 +14,17 @@ import numpy as np
 
 from pixelkasten.commands.enrich.state import EnrichState
 from pixelkasten.pipeline import Status
-from pixelkasten.utils.embeddings import write_embeddings
-from pixelkasten.utils.record import read_record, write_record
+from pixelkasten.stores.embeddings import write_embeddings
+from pixelkasten.stores.record import write_record
 
 
 def emit(library: str, state: EnrichState, progress: Callable) -> None:
-    """Write geocoded locations into records, then overwrite the embeddings store."""
-    # Merge each geocoded location into its record.
-    with progress("Writing locations", len(state.entries)) as tick:
-        for i, entry in enumerate(state.entries):
-            if entry.location is not None:
-                # Intentional second read (geocode read this for geo): enrich updates records
-                # that other commands also write (caption, proposed_album), so we work from the
-                # current on-disk version rather than carry a dict that could clobber their fields.
-                data = read_record(entry.record)
-                data["location"] = entry.location
-                write_record(entry.record, data)
+    """Persist records geocode located, then overwrite the embeddings store."""
+    # geocode set `location` on the record of every geo-bearing entry; persist those.
+    located = [entry for entry in state.entries if entry.record.location is not None]
+    with progress("Writing locations", len(located)) as tick:
+        for i, entry in enumerate(located):
+            write_record(entry.record)
             tick(i + 1)
 
     # Overwrite the embeddings store with this run's successful embeddings. Skipped

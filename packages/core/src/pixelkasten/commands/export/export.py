@@ -13,7 +13,7 @@ from pixelkasten.commands.export.stages.emit import emit
 from pixelkasten.commands.export.stages.plan import plan
 from pixelkasten.commands.export.state import ExportEntry, ExportResult, ExportState
 from pixelkasten.configuration import ExportOptions
-from pixelkasten.utils.library import read_library
+from pixelkasten.stores.library import read_library
 
 
 def export(library: str, destination: str, options: ExportOptions) -> ExportResult:
@@ -30,10 +30,12 @@ def export(library: str, destination: str, options: ExportOptions) -> ExportResu
 
     # Initialize the command state
     state = ExportState(
-        entries=[ExportEntry(media=media, record=record) for media, record in raw_library["entries"]],
-        unmatched_media=raw_library["unmatched_media"],
-        unmatched_records=raw_library["unmatched_records"],
-        unsupported_media=raw_library["unsupported_media"],
+        entries=[
+            ExportEntry(media=entry.media, record=entry.record) for entry in raw_library.entries
+        ],
+        unmatched_media=raw_library.unmatched_media,
+        unmatched_records=[record.path for record in raw_library.unmatched_records],
+        unsupported_media=raw_library.unsupported_media,
     )
 
     plan(state)

@@ -2,27 +2,22 @@
 
 from dataclasses import dataclass, field
 
+from pixelkasten.stores.record.types import Record
+
 
 @dataclass
 class ExportEntry:
     """One working-library media file paired with its record.
 
-    `read` sets the two paths; `plan` reads the record onto the middle fields
-    (which drive the layout) and sets `target` (the relative destination path);
-    `emit` copies `media` to `target`.
+    `plan` reads typed fields from `record` and sets `target` (the relative
+    destination path); `emit` copies `media` to `target`.
     """
 
     # top-level media file in the working library
     media: str
 
-    # matching .pk.json record for the media file
-    record: str
-
-    # record fields the layout depends on, read onto the entry by `plan`
-    dates: list[str] = field(default_factory=list)
-    album: str | None = None
-    proposed_album: str | None = None
-    group_id: str | None = None
+    # parsed .pk.json record for the media file
+    record: Record
 
     # relative destination path, set by `plan` (None until planned)
     target: str | None = None

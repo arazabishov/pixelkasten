@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from pixelkasten.pipeline import Status
+from pixelkasten.stores.record.types import Record
 
 if TYPE_CHECKING:
     import numpy as np
@@ -37,11 +38,8 @@ class EnrichEntry:
     # top-level media file in the working library
     media: str
 
-    # matching .pk.json record for the media file
-    record: str
-
-    # geocoded location dict (None = the record had no geo to geocode)
-    location: dict | None = None
+    # parsed .pk.json record for the media file; geocode writes `location` onto it
+    record: Record
 
     # embedding outcome
     embed: Embed | None = None

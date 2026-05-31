@@ -22,7 +22,7 @@ from pixelkasten.commands.enrich.stages.embed import embed
 from pixelkasten.commands.enrich.stages.emit import emit
 from pixelkasten.commands.enrich.stages.geocode import geocode
 from pixelkasten.configuration import EnrichOptions
-from pixelkasten.utils.library import read_library
+from pixelkasten.stores.library import read_library
 from pixelkasten.utils.progress import noop_progress
 
 
@@ -35,13 +35,15 @@ def enrich(options: EnrichOptions, progress: Callable = noop_progress) -> Enrich
 
     # Initialize the command state
     state = EnrichState(
-        entries=[EnrichEntry(media=media, record=record) for media, record in raw_library["entries"]],
-        unmatched_media=raw_library["unmatched_media"],
-        unmatched_records=raw_library["unmatched_records"],
-        unsupported_media=raw_library["unsupported_media"],
+        entries=[
+            EnrichEntry(media=entry.media, record=entry.record) for entry in raw_library.entries
+        ],
+        unmatched_media=raw_library.unmatched_media,
+        unmatched_records=[record.path for record in raw_library.unmatched_records],
+        unsupported_media=raw_library.unsupported_media,
     )
 
-    # Record a `location` on every entry whose record has geo coordinates.
+    # Set a `location` on the record of every entry that has geo coordinates.
     geocode(state, progress)
 
     # Compute an embedding for every entry; record it (or the failure) on the entry.

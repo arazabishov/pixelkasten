@@ -3,16 +3,20 @@ Record I/O, path helpers, and library detection.
 
 A *record* is pixelkasten's canonical per-asset state, living under
 ``<library>/.pixelkasten/<asset>.pk.json``. (Distinct from a Google
-Takeout *sidecar* — see ``utils/sidecar.py`` for those.) A working
+Takeout *sidecar* — see ``stores/sidecar.py`` for those.) A working
 library is identified by the presence of a records directory; that's
 how ``records_dir_home`` walks up from any path to find its enclosing
 library.
+
+The ``Record`` model itself lives in ``types.py``; ``read_record`` parses
+one off disk and ``write_record`` serializes it back.
 """
 
 import json
 import os
 
 from pixelkasten.configuration import RECORD_SUFFIX, RECORDS_DIR
+from pixelkasten.stores.record.types import Record
 
 
 def records_dir(library: str) -> str:
@@ -54,15 +58,15 @@ def record_path(library: str, asset_name: str) -> str:
     return os.path.join(library, RECORDS_DIR, asset_name + RECORD_SUFFIX)
 
 
-def read_record(path: str) -> dict:
-    """Read a ``.pk.json`` record. Raises if missing — keepers always have one."""
+def read_record(path: str) -> Record:
+    """Read and parse a ``.pk.json`` record. Raises if missing — keepers always have one."""
     if not os.path.exists(path):
         raise RuntimeError(f"No record at {path}; was this asset emitted by import?")
     with open(path) as f:
-        return json.load(f)
+        return Record.from_dict(path, json.load(f))
 
 
-def write_record(path: str, data: dict) -> None:
-    """Write a ``.pk.json`` record."""
-    with open(path, "w") as f:
-        json.dump(data, f)
+def write_record(record: Record) -> None:
+    """Serialize ``record`` to its own ``path``."""
+    with open(record.path, "w") as f:
+        json.dump(record.to_dict(), f)

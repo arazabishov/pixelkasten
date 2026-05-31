@@ -12,7 +12,7 @@ result.
 import os
 import sys
 
-from pixelkasten.utils.embeddings import read_embeddings
+from pixelkasten.stores.embeddings import read_embeddings
 
 
 def cluster(paths: list[str], library: str, min_cluster_size: int) -> dict[int, list[str]]:
