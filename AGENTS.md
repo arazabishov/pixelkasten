@@ -6,8 +6,8 @@ The core objective of this tool is to help organize a photo library. The `pixelk
 
 Two unrelated file types are easy to confuse, and earlier versions of the codebase used "sidecar" for both. The codebase now keeps them strictly distinct:
 
-- **Sidecar** — Google Takeout's per-asset `.json` files. Read-only input to `import`. Parsed by `utils/sidecar.py:read_sidecar()`. Represented in `IngestEntry.sidecar` as a `SidecarMatch` dataclass holding the matched path + confidence score.
-- **Record** — pixelkasten's `.pk.json` files in `<library>/.pixelkasten/`. Canonical per-asset state across the lifecycle: written by `emit`, enriched by `enrich`/`caption`/`propose`, read by `export`. The constants are `RECORDS_DIR` and `RECORD_SUFFIX` in `configuration.py`; everything else lives in `utils/record.py` — `read_record`, `write_record`, the path helpers (`records_dir`, `record_path`), and `resolve_library` (walks up from any file to find its enclosing library).
+- **Sidecar** — Google Takeout's per-asset `.json` files. Read-only input to `import`. Parsed by `stores/sidecar.py:read_sidecar()`. Represented in `IngestEntry.sidecar` as a `SidecarMatch` dataclass holding the matched path + confidence score.
+- **Record** — pixelkasten's `.pk.json` files in `<library>/.pixelkasten/`. Canonical per-asset state across the lifecycle: written by `emit`, enriched by `enrich`/`caption`/`propose`, read by `export`. The constants are `RECORDS_DIR` and `RECORD_SUFFIX` in `configuration.py`; everything else lives in `stores/record/` — the `Record` model (in `types.py`), plus `read_record`, `write_record`, the path helpers (`records_dir`, `record_path`), and `records_dir_home` (walks up from any file to find its enclosing library) in `record.py`.
 
 Files that end in `.pk.json` are records. Files that Google wrote are sidecars. The word never refers to both in code or docs.
 
@@ -67,16 +67,21 @@ packages/core/src/pixelkasten/
     caption.py check.py cluster.py propose.py similar.py
   tools/              # wrappers around external tools & services (installed/loaded separately)
     exiftool.py ffmpeg.py ollama.py clip.py
-  utils/              # pixelkasten's own shared helpers (no external process)
+  stores/             # disk I/O for the working library's artifacts (its model + persistence)
+    record/           # the per-asset .pk.json record
+      record.py       # read_record / write_record + path helpers (records_dir, record_path, records_dir_home)
+      types.py        # Record model
+    library/          # working-library walk shared by enrich + export
+      library.py      # read_library (the walk)
+      types.py        # Library / LibraryEntry
     sidecar.py        # Google Takeout sidecar parser
-    record.py         # .pk.json I/O, path helpers (records_dir, record_path), resolve_library
     embeddings.py     # embeddings.npy I/O + path helpers (embeddings_npy_path, etc.)
-    library.py        # working-library walk shared by enrich + export (read_library)
+  utils/              # generic, domain-free helpers (no disk I/O of library artifacts)
     album.py          # album-name validation + proposed_album conflict detection (propose, check, export)
     dates.py pil.py progress.py
 ```
 
-Commands live under `commands/`. Multi-stage commands use a package: `ingest` has its orchestrator in `commands/ingest/ingest.py` and stages under `commands/ingest/stages/`; `enrich` and `export` follow the same shape (orchestrator + `state.py` + `stages/`) and share their working-library walk via `utils/library.py` — `read_library` returns a plain dict (`(media, record)` pairs plus the files that didn't pair), which each command's `read` stage maps onto its own entry type. The remaining commands — `caption`, `cluster`, `propose`, `similar` — are single-file modules. The Python module is named `ingest` (not `import`) because `import` is a reserved keyword; the CLI command name `pixelkasten import` is independent of the Python module name. Wrappers around external tools and services (`exiftool`, `ffmpeg`, `ollama`, `clip`) live under `tools/`; pixelkasten's own shared helpers live under `utils/`.
+Commands live under `commands/`. Multi-stage commands use a package: `ingest` has its orchestrator in `commands/ingest/ingest.py` and stages under `commands/ingest/stages/`; `enrich` and `export` follow the same shape (orchestrator + `state.py` + `stages/`) and share their working-library walk via `stores/library` — `read_library` returns typed library entries with a media path and parsed `Record` plus the files/records that didn't pair, and each command maps those entries onto its own state type. The remaining commands — `caption`, `cluster`, `propose`, `similar` — are single-file modules. The Python module is named `ingest` (not `import`) because `import` is a reserved keyword; the CLI command name `pixelkasten import` is independent of the Python module name. Wrappers around external tools and services (`exiftool`, `ffmpeg`, `ollama`, `clip`) live under `tools/`; the disk I/O for the working library's artifacts (its `Record`/`Library` models + persistence) lives under `stores/`; generic domain-free helpers (including pure validation like `album`) live under `utils/`.
 
 ### Import pipeline
 

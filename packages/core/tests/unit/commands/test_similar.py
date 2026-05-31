@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from pixelkasten.commands.similar import similar
-from pixelkasten.utils.record import records_dir_home
+from pixelkasten.stores.record import records_dir_home
 
 
 def _make_library(tmp_path, embeddings: np.ndarray, paths: list[str]):

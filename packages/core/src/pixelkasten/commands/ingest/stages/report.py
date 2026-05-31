@@ -8,7 +8,7 @@ import csv
 import os
 
 from pixelkasten.configuration import IngestOptions
-from pixelkasten.utils.record import records_dir
+from pixelkasten.stores.record import records_dir
 from pixelkasten.commands.ingest.state import ApplyResult, DedupeResult, IngestEntry
 from pixelkasten.pipeline import Status
 

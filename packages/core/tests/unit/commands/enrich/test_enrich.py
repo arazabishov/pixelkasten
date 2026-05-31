@@ -307,7 +307,7 @@ class TestEnrichState:
         # One paired entry, geocoded and embedded
         assert len(summary.entries) == 1
         entry = summary.entries[0]
-        assert entry.location is not None
+        assert entry.record.location is not None
         assert entry.embed.status == Status.PROCESSED
         # No leftover files on either side
         assert summary.unmatched_media == []
@@ -382,7 +382,7 @@ class TestEnrichState:
         # No resume: the second run geocodes and embeds the same file again
         assert mock_rg.call_count == 2
         assert fake_clip.call_count == 2
-        assert summary.entries[0].location is not None
+        assert summary.entries[0].record.location is not None
         assert summary.entries[0].embed.status == Status.PROCESSED
 
 
@@ -406,7 +406,7 @@ class TestDryRun:
 
         # The work is computed and staged on the entry...
         entry = summary.entries[0]
-        assert entry.location is not None
+        assert entry.record.location is not None
         assert entry.embed.status == Status.PROCESSED
         assert entry.embed.embedding.shape == (768,)
 

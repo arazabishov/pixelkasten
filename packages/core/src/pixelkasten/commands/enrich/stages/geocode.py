@@ -3,23 +3,22 @@
 from collections.abc import Callable
 
 from pixelkasten.commands.enrich.state import EnrichEntry, EnrichState
-from pixelkasten.utils.record import read_record
 
 
 def geocode(state: EnrichState, progress: Callable) -> None:
-    """Record a `location` on every entry whose record has geo coordinates.
+    """Set `location` on the record of every entry that has geo coordinates.
 
-    Pure stage: results are stashed on `entry.location` and `emit` persists
-    them. Every run recomputes from scratch — there is no skip-if-already-set,
+    Stays pure with respect to disk: the location is written onto the held
+    in-memory `Record`, and `emit` is still the only stage that persists it.
+    Every run recomputes from scratch — there is no skip-if-already-set,
     matching ingest's "each run is a full run".
     """
-    located: list[EnrichEntry] = []
     coordinates: list[tuple[float, float]] = []
+    located: list[EnrichEntry] = []
     for entry in state.entries:
-        data = read_record(entry.record)
-        if geo := data.get("geo"):
-            located.append(entry)
+        if geo := entry.record.geo:
             coordinates.append((geo["latitude"], geo["longitude"]))
+            located.append(entry)
 
     if not coordinates:
         return
@@ -32,7 +31,7 @@ def geocode(state: EnrichState, progress: Callable) -> None:
 
     with progress("Reverse geocoding", len(located)) as tick:
         for i, (entry, hit) in enumerate(zip(located, results)):
-            entry.location = {
+            entry.record.location = {
                 "city": hit.get("name", ""),
                 "region": hit.get("admin1", ""),
                 "country": hit.get("cc", ""),

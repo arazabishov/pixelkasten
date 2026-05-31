@@ -11,8 +11,8 @@ removes the field (--clear).
 import os
 
 from pixelkasten.utils.album import check_album_name
-from pixelkasten.utils.record import read_record, write_record
-from pixelkasten.utils.record import record_path, records_dir, records_dir_home
+from pixelkasten.stores.record import Record, read_record, write_record
+from pixelkasten.stores.record import record_path, records_dir, records_dir_home
 from pixelkasten.configuration import RECORD_SUFFIX
 
 
@@ -28,9 +28,9 @@ def propose(path: str, album: str | None) -> list[str]:
     library = records_dir_home(path)
 
     own_record_path = record_path(library, os.path.basename(path))
-    own_data = read_record(own_record_path)
+    own_record = read_record(own_record_path)
 
-    group_id = own_data.get("group_id")
+    group_id = own_record.group_id
     if not group_id:
         raise RuntimeError(
             f"Record at {own_record_path} has no group_id; "
@@ -41,16 +41,10 @@ def propose(path: str, album: str | None) -> list[str]:
 
     # paths of records updated by this call
     updated: list[str] = []
-    for sibling_path in sibling_records:
-        sibling_data = read_record(sibling_path)
-
-        if album is None:
-            sibling_data.pop("proposed_album", None)
-        else:
-            sibling_data["proposed_album"] = album
-
-        write_record(sibling_path, sibling_data)
-        updated.append(sibling_path)
+    for sibling in sibling_records:
+        sibling.proposed_album = album
+        write_record(sibling)
+        updated.append(sibling.path)
     return updated
 
 
@@ -61,10 +55,11 @@ def _validate_album_name(album: str) -> None:
         raise ValueError(f"Invalid album name {album!r}: non-empty, no separators/control chars.")
 
 
-def _siblings_by_group(library: str, group_id: str) -> list[str]:
-    """Return paths of every record in ``library`` whose group_id matches."""
+def _siblings_by_group(library: str, group_id: str) -> list[Record]:
+    """Return every record in ``library`` whose group_id matches."""
     rdir = records_dir(library)
     record_paths = [
         os.path.join(rdir, n) for n in sorted(os.listdir(rdir)) if n.endswith(RECORD_SUFFIX)
     ]
-    return [p for p in record_paths if read_record(p).get("group_id") == group_id]
+    records = [read_record(p) for p in record_paths]
+    return [r for r in records if r.group_id == group_id]

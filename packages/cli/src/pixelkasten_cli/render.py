@@ -111,8 +111,8 @@ def render_enrich(console: Console, state: EnrichState) -> None:
     derives its tables from the manifest — the state carries no counters.
     """
     entries = state.entries
-    n_geocoded = sum(1 for e in entries if e.location is not None)
-    n_no_geo = sum(1 for e in entries if e.location is None)
+    n_geocoded = sum(1 for e in entries if e.record.location is not None)
+    n_no_geo = sum(1 for e in entries if e.record.location is None)
 
     geocode_table = _make_table("Reverse geocoding", "Action")
     geocode_table.add_row("Records", str(len(entries)))

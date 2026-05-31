@@ -33,6 +33,8 @@ def embed(state: EnrichState, video_frames: int, progress: Callable) -> None:
         for start in range(0, len(images), EMBED_BATCH_SIZE):
             batch = images[start : start + EMBED_BATCH_SIZE]
             _embed_image_batch(batch)
+
+            # Update the progress callback.
             completed += len(batch)
             tick(completed)
 

@@ -13,8 +13,8 @@ import os
 import sys
 
 from pixelkasten.handlers import is_image, is_video
-from pixelkasten.utils.record import read_record, write_record
-from pixelkasten.utils.record import record_path, records_dir_home
+from pixelkasten.stores.record import read_record, write_record
+from pixelkasten.stores.record import record_path, records_dir_home
 
 # Inherited convention from earlier discovery passes; balances VLM payload size
 # against caption accuracy on typical mid-resolution sources.
@@ -36,11 +36,10 @@ def caption(
     """
     library = records_dir_home(path)
     rpath = record_path(library, os.path.basename(path))
-    data = read_record(rpath)
+    record = read_record(rpath)
 
-    existing = data.get("caption")
-    if existing and not force:
-        return existing
+    if record.caption and not force:
+        return record.caption
 
     try:
         text = _generate(path, model, video_frames)
@@ -52,8 +51,8 @@ def caption(
         print(f"caption: model returned empty caption for {path}", file=sys.stderr)
         return None
 
-    data["caption"] = text
-    write_record(rpath, data)
+    record.caption = text
+    write_record(record)
     return text
 
 

@@ -1,40 +1,29 @@
-"""Plan: read each record onto its entry and resolve a relative destination
-``target``. Reads records but writes nothing — ``emit`` is the only writer."""
+"""Plan each entry's relative destination ``target`` from its loaded record data."""
 
 import os
-import re
 from datetime import datetime
 
 from pixelkasten.commands.export.state import ExportEntry, ExportState
-from pixelkasten.utils.record import read_record
-
-_INVALID_NAME_CHARS = re.compile(r"[/\\\x00-\x1f]")
+from pixelkasten.utils.album import check_album_conflicts, check_album_name
 
 
 def plan(state: ExportState) -> None:
-    """Read each entry's record onto the entry, bucket by group, reject
-    proposed_album conflicts, and set each entry's relative ``target``. Only
-    mutates entries in memory; ``emit`` performs the copies."""
-
-    for entry in state.entries:
-        data = read_record(entry.record)
-        entry.dates = data.get("dates") or []
-        entry.album = data.get("album")
-        entry.proposed_album = data.get("proposed_album")
-        entry.group_id = data.get("group_id")
-
-    # Group entries by ``group_id``
+    """Map record data onto entries, reject conflicts, and set ``target``."""
+    # Bucket entries by group — one logical asset's files (e.g. an HEIC and its
+    # .mov / -edited variant) share a group_id and export to one album together.
     groups: dict[str, list[ExportEntry]] = {}
     for entry in state.entries:
-        group_id = entry.group_id or os.path.basename(entry.media)
+        group_id = entry.record.group_id or os.path.basename(entry.media)
         groups.setdefault(group_id, []).append(entry)
 
-    _check_proposal_conflicts(groups)
+    _reject_proposal_conflicts(groups)
+    _reject_invalid_album_names(groups)
 
     album_min_dates = _compute_album_min_dates(groups)
     used_paths: set[str] = set()
 
-    # Process groups in deterministic order so collision tie-breaking is stable.
+    # Sort groups so collision suffixes (-1, -2) are assigned in a stable,
+    # reproducible order when unrelated files resolve to the same target path.
     for group_id in sorted(groups):
         group = groups[group_id]
 
@@ -49,33 +38,51 @@ def plan(state: ExportState) -> None:
             used_paths.add(target)
             entry.target = target
 
-def _check_proposal_conflicts(groups: dict[str, list[ExportEntry]]) -> None:
-    """Raise if any group's members carry two distinct ``proposed_album`` values.
 
-    A group exports to a single album (``_group_target_album`` picks the one
-    non-null proposal and applies it to every member), so members only need to
-    *agree* — a partial proposal (some members null) resolves fine.
+def _reject_proposal_conflicts(groups: dict[str, list[ExportEntry]]) -> None:
+    """Raise if any group's members disagree on ``proposed_album``.
+
+    ``check`` surfaces the same conflicts for the agent to resolve (via
+    ``propose``) before export; this is the hard stop if one slips through.
     """
-    conflicts: list[str] = []
-    for key, entries in groups.items():
-        proposals = {e.proposed_album for e in entries if e.proposed_album}
-        if len(proposals) > 1:
-            conflicts.append(f"  {key}: {sorted(proposals)}")
-    if conflicts:
-        raise RuntimeError(
-            "proposed_album disagreement within group(s); resolve before exporting:\n"
-            + "\n".join(conflicts)
-        )
+    proposals_by_group: dict[str, set[str]] = {}
+    for group_id, group in groups.items():
+        proposals_by_group[group_id] = {
+            e.record.proposed_album for e in group if e.record.proposed_album
+        }
+
+    conflicts = check_album_conflicts(proposals_by_group)
+    if not conflicts:
+        return
+
+    detail = "\n".join(f"  {group_id}: {proposals}" for group_id, proposals in conflicts)
+    raise RuntimeError(
+        "proposed_album disagreement within group(s); resolve before exporting:\n" + detail
+    )
+
+
+def _reject_invalid_album_names(groups: dict[str, list[ExportEntry]]) -> None:
+    invalid: set[str] = set()
+    for group in groups.values():
+        album = _group_target_album(group)
+        if album and not check_album_name(album):
+            invalid.add(album)
+
+    if not invalid:
+        return
+
+    detail = "\n".join(f"  {album!r}" for album in sorted(invalid))
+    raise RuntimeError("invalid album name(s); resolve before exporting:\n" + detail)
 
 
 def _compute_album_min_dates(groups: dict[str, list[ExportEntry]]) -> dict[str, datetime]:
-    """For each target album, the earliest date across every group's members."""
+    """For each target album, the earliest date across every group in it."""
     out: dict[str, datetime] = {}
-    for entries in groups.values():
-        album = _group_target_album(entries)
+    for group in groups.values():
+        album = _group_target_album(group)
         if not album:
             continue
-        group_date = _group_min_date(entries)
+        group_date = _group_min_date(group)
         if group_date is None:
             continue
         existing = out.get(album)
@@ -84,23 +91,18 @@ def _compute_album_min_dates(groups: dict[str, list[ExportEntry]]) -> dict[str, 
     return out
 
 
-def _group_target_album(entries: list[ExportEntry]) -> str | None:
+def _group_target_album(group: list[ExportEntry]) -> str | None:
     """proposed_album wins; otherwise the import-time album; otherwise None."""
-    proposed = next((e.proposed_album for e in entries if e.proposed_album), None)
+    proposed = next((e.record.proposed_album for e in group if e.record.proposed_album), None)
     if proposed:
         return proposed
-    return next((e.album for e in entries if e.album), None)
+    return next((e.record.album for e in group if e.record.album), None)
 
 
-def _group_min_date(entries: list[ExportEntry]) -> datetime | None:
-    """Earliest valid date across all members, used as the album folder date."""
-    best: datetime | None = None
-    for entry in entries:
-        for d in entry.dates:
-            parsed = _parse_iso(d)
-            if parsed is not None and (best is None or parsed < best):
-                best = parsed
-    return best
+def _group_min_date(group: list[ExportEntry]) -> datetime | None:
+    """Earliest date across all members, or None when no member is dated."""
+    dates = [datetime.fromisoformat(d) for entry in group for d in entry.record.dates]
+    return min(dates) if dates else None
 
 
 def _resolve_member_path(
@@ -122,16 +124,14 @@ def _resolve_member_path(
       - Destination root: ``<filename>`` (the working-library uuid name)
         for undated entries. ``find <dst> -maxdepth 1 -type f`` lists them.
     """
-    own_date = _first_valid_date(entry.dates)
+    own_date = datetime.fromisoformat(entry.record.dates[0]) if entry.record.dates else None
     timestamp_date = own_date or group_min_date or folder_min_date
 
     filename = os.path.basename(entry.media)
     ext = os.path.splitext(filename)[1]
 
     if album and timestamp_date is not None:
-        folder = (
-            f"{folder_min_date.year}/{folder_min_date.strftime('%Y%m%d')}-{_sanitize_album(album)}"
-        )
+        folder = f"{folder_min_date.year}/{folder_min_date.strftime('%Y%m%d')}-{album}"
         base = f"{timestamp_date.strftime('%Y%m%d-%H%M%S')}{ext}"
         return _disambiguate(os.path.join(folder, base), used)
 
@@ -155,24 +155,3 @@ def _disambiguate(rel_path: str, used: set[str]) -> str:
         if candidate not in used:
             return candidate
         counter += 1
-
-
-def _parse_iso(d: str) -> datetime | None:
-    """Parse an ISO date string, or ``None`` if it isn't one."""
-    try:
-        return datetime.fromisoformat(d)
-    except (TypeError, ValueError):
-        return None
-
-
-def _first_valid_date(dates: list[str]) -> datetime | None:
-    for d in dates:
-        parsed = _parse_iso(d)
-        if parsed is not None:
-            return parsed
-    return None
-
-
-def _sanitize_album(name: str) -> str:
-    """Replace path separators and control chars with ``-``."""
-    return _INVALID_NAME_CHARS.sub("-", name).strip()
