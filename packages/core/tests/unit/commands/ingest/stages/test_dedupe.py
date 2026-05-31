@@ -148,16 +148,19 @@ class TestDedupeResolve:
                 _entry("/tmp/l3/p3.jpg", "loose", hash_val="h3"),
             ]
             dedupe_resolve(manifest, make_options(prefer="album"))
+
             # Group h1: album keep, loose delete
             assert manifest[0].dedupe is not None
             assert manifest[0].dedupe.result == DedupeResult.KEEP
             assert manifest[1].dedupe is not None
             assert manifest[1].dedupe.result == DedupeResult.DELETE
+
             # Group h2: same
             assert manifest[2].dedupe is not None
             assert manifest[2].dedupe.result == DedupeResult.KEEP
             assert manifest[3].dedupe is not None
             assert manifest[3].dedupe.result == DedupeResult.DELETE
+
             # Group h3: unique, keep
             assert manifest[4].dedupe is not None
             assert manifest[4].dedupe.result == DedupeResult.KEEP

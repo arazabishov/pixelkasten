@@ -106,6 +106,7 @@ class TestReport:
                 apply_target="/dest/2023/01 - January/20230101-120000.jpg",
             ),
         ]
+
         # Set metadata with write_tags
         manifest[0].metadata = Metadata(
             status=Status.PROCESSED,

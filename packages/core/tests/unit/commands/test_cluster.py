@@ -83,6 +83,7 @@ class TestCluster:
         # Missing path is reported on stderr
         err = capsys.readouterr().err
         assert "missing.jpg" in err
+
         # And dropped from the result
         assert result[0] == [os.path.join(lib, "a.jpg")]
 
@@ -92,6 +93,7 @@ class TestCluster:
 
     def test_all_missing_paths_returns_empty_dict(self, tmp_path, capsys):
         lib = _make_library(tmp_path, np.zeros((1, 4)), ["a.jpg"])
+
         # Every input is missing -> no HDBSCAN call, empty result
         result = cluster(["/nope/x.jpg", "/nope/y.jpg"], lib, min_cluster_size=2)
         assert result == {}

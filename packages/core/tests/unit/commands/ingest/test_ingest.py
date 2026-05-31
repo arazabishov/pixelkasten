@@ -146,7 +146,9 @@ class TestPipeline:
 
         # Verify the manifest produced by link surfaces on the result
         assert result.manifest is expected_manifest
+
         # Verify link stats are exposed alongside the manifest for renderers
         assert result.link_stats is expected_stats
+
         # Verify the raw scan output is preserved on the result
         assert result.raw_collections is scan_collections

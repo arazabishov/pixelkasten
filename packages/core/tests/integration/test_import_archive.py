@@ -164,6 +164,7 @@ class TestInitArchivePipeline:
             for e in manifest
             if e.apply is not None and e.apply.target_path is not None
         ]
+
         # The album copy wins; the loose copy is dropped
         assert survivors == ["album.jpg"]
 
@@ -194,9 +195,11 @@ class TestInitArchivePipeline:
         manifest = _run_result.manifest
 
         by_src = _by_source_basename(manifest)
+
         # Subfolder file gets the folder name as album
         wedding_record = _read_pk_sidecar(str(dest), by_src["in_album.jpg"])
         assert wedding_record["album"] == "Wedding"
+
         # Root-level file stays loose
         root_record = _read_pk_sidecar(str(dest), by_src["at_root.jpg"])
         assert root_record["album"] is None
@@ -213,6 +216,7 @@ class TestInitArchivePipeline:
 
         # Same stem, different extension — Live Photo-style sibling pair
         shutil.copy2(FIXTURES_DIR / "no-metadata.jpg", source / "IMG_001.jpg")
+
         # A non-real video, but emit doesn't care about content
         (source / "IMG_001.mov").write_bytes(b"fake-mov")
 

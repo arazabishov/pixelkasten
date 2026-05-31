@@ -212,6 +212,7 @@ class TestInitTakeoutPipeline:
             sidecar = _read_pk_sidecar(str(dest), target)
             assert sidecar["dates"], f"{src} sidecar should have dates"
             assert sidecar["geo"] is not None, f"{src} sidecar should have geo"
+
             # Loose entries (Photos from YYYY) have album = null
             assert sidecar["album"] is None
 
@@ -254,6 +255,7 @@ class TestInitTakeoutPipeline:
 
         # Only one survivor copied
         assert len(emitted) == 1
+
         # Its sidecar records the album name (album-source winner)
         sidecar = _read_pk_sidecar(str(dest), emitted[0].apply.target_path)
         assert sidecar["album"] == "Vacation"
@@ -304,6 +306,7 @@ class TestInitTakeoutPipeline:
 
         # File was copied
         assert os.path.exists(target)
+
         # But no EXIF was written into it
         assert disk.get("EXIF:DateTimeOriginal") is None
         assert disk.get("Composite:GPSLatitude") is None

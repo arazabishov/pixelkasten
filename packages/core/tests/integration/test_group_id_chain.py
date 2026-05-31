@@ -105,6 +105,7 @@ class TestSameExtensionGroupChain:
         )
 
         media = _list_media(lib)
+
         # Verify both same-extension files landed in the working library
         assert len(media) == 2, f"expected 2 emitted files, got {media!r}"
 
@@ -115,6 +116,7 @@ class TestSameExtensionGroupChain:
         assert len(group_ids) == 1, (
             f"both members of the same Takeout group should share group_id, got {group_ids!r}"
         )
+
         # The shared group_id is a non-empty string
         (shared_group_id,) = group_ids
         assert shared_group_id
@@ -122,6 +124,7 @@ class TestSameExtensionGroupChain:
         # 2. propose on one member -> both records get proposed_album
         propose(str(lib / media[0]), "Paris weekend")
         records_after = [_read_record(lib, name) for name in media]
+
         # Verify propagation: both members carry the same proposed_album
         assert all(r.get("proposed_album") == "Paris weekend" for r in records_after), (
             f"propose should propagate to all group siblings; got {records_after!r}"

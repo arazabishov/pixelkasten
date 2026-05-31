@@ -39,6 +39,7 @@ class TestPropose:
 
         # Exactly one record updated
         assert len(updated) == 1
+
         # The proposed_album field is set on the record
         assert _read_record(lib, "abc.jpg")["proposed_album"] == "Vacation 2024"
 
@@ -58,6 +59,7 @@ class TestPropose:
         assert len(updated) == 2
         assert _read_record(lib, "live-image.heic")["proposed_album"] == "Berlin 2024"
         assert _read_record(lib, "live-video.mov")["proposed_album"] == "Berlin 2024"
+
         # The other group is not touched
         assert "proposed_album" not in _read_record(lib, "different.heic")
 
@@ -83,6 +85,7 @@ class TestPropose:
 
     def test_clear_removes_proposed_album(self, tmp_path):
         lib = _make_library(tmp_path, {"a.jpg": "g"})
+
         # First set the value
         propose(os.path.join(lib, "a.jpg"), "Some Album")
         assert "proposed_album" in _read_record(lib, "a.jpg")
@@ -91,6 +94,7 @@ class TestPropose:
         updated = propose(os.path.join(lib, "a.jpg"), None)
 
         assert len(updated) == 1
+
         # proposed_album is gone from the record
         assert "proposed_album" not in _read_record(lib, "a.jpg")
 
@@ -101,6 +105,7 @@ class TestPropose:
 
         # Clearing a never-set value still reports the record as visited
         assert len(updated) == 1
+
         # And the field remains absent
         assert "proposed_album" not in _read_record(lib, "a.jpg")
 
@@ -117,6 +122,7 @@ class TestPropose:
         pk = lib / ".pixelkasten"
         pk.mkdir(parents=True)
         (lib / "a.jpg").write_bytes(b"\xff")
+
         # Pre-1.0 record missing the group_id field
         (pk / "a.jpg.pk.json").write_text(json.dumps({"dates": [], "geo": None, "album": None}))
 

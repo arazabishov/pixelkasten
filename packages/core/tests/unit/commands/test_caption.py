@@ -52,12 +52,15 @@ class TestCaptionImage:
 
         # Returns the caption string
         assert result == "A red square."
+
         # Record now contains the caption
         assert _read_sidecar(lib, "photo.jpg")["caption"] == "A red square."
+
         # Ollama was called exactly once with the configured model
         assert mock_chat.call_count == 1
         called_args = mock_chat.call_args
         assert called_args[0][0] == TEST_MODEL
+
         # Image bytes were passed
         assert isinstance(called_args[1]["images"][0], bytes)
 
@@ -98,6 +101,7 @@ class TestCaptionImage:
         # Failure surfaces via None return and a stderr message
         assert result is None
         assert "failed for" in capsys.readouterr().err
+
         # Record is untouched: no caption written
         assert "caption" not in _read_sidecar(lib, "photo.jpg")
 
@@ -140,8 +144,10 @@ class TestCaptionVideo:
         # Caption recorded on the sidecar
         assert result == "A short blue clip."
         assert _read_sidecar(lib, "clip.mp4")["caption"] == "A short blue clip."
+
         # ffmpeg was asked for exactly the configured frame count
         mock_extract.assert_called_once_with(os.path.join(lib, "clip.mp4"), 2)
+
         # All extracted frames are forwarded to the VLM
         passed_images = mock_chat.call_args[1]["images"]
         assert len(passed_images) == 2
@@ -171,6 +177,7 @@ class TestCaptionValidation:
         (lib / ".pixelkasten").mkdir(parents=True)
         img = Image.new("RGB", (16, 16))
         img.save(str(lib / "photo.jpg"), format="JPEG")
+
         # No record -> caption raises rather than silently no-op'ing
         import pytest as _pytest
 

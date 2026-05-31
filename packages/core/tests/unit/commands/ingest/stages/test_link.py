@@ -143,6 +143,7 @@ class TestArchiveSourceFromFolderStructure:
         m, _ = _link_and_map(raw, mode="archive", source="/archive")
 
         entry = m["/archive/lonely.jpg"]
+
         # Root-level files have no folder-as-album context
         assert entry.source.type == "loose"
         assert entry.source.name is None
@@ -156,6 +157,7 @@ class TestArchiveSourceFromFolderStructure:
         m, _ = _link_and_map(raw, mode="archive", source="/archive")
 
         entry = m["/archive/Wedding/photo.jpg"]
+
         # Parent folder name becomes the album hint
         assert entry.source.type == "album"
         assert entry.source.name == "Wedding"
@@ -171,6 +173,7 @@ class TestArchiveSourceFromFolderStructure:
         m, _ = _link_and_map(raw, mode="archive", source="/archive")
 
         entry = m["/archive/Wedding/Day1/photo.jpg"]
+
         # Immediate parent only — power users with deep hierarchies can
         # reorganize via `propose`
         assert entry.source.type == "album"

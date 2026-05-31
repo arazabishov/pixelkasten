@@ -82,6 +82,7 @@ class TestGeocodeStep:
         enrich(EnrichOptions(library=lib, video_frames=5))
 
         record = _read_record(lib, "a.jpg")
+
         # location: atomic fields straight from the reverse-geocode result
         assert record["location"] == {"city": "Berlin", "region": "Berlin", "country": "DE"}
 
@@ -97,6 +98,7 @@ class TestGeocodeStep:
 
         # Nothing to geocode -> reverse_geocoder never called
         mock_rg.assert_not_called()
+
         # location remains absent
         record = _read_record(lib, "a.jpg")
         assert "location" not in record or record["location"] is None
@@ -184,6 +186,7 @@ class TestEmbedStep:
             records={"a.jpg": {"dates": [], "geo": None, "album": None}},
             media={"a.jpg": b"\xff"},
         )
+
         # A prior store exists; no-resume means this run rebuilds it from scratch.
         _write_store(lib, ["a.jpg", "stale.jpg"])
 
@@ -199,6 +202,7 @@ class TestEmbedStep:
     @patch("pixelkasten.tools.ffmpeg.capture_frames")
     def test_embeds_video_via_mean_of_frame_embeddings(self, mock_extract, mock_embed, tmp_path):
         mock_extract.return_value = [b"f1", b"f2", b"f3"]
+
         # Three frame embeddings; mean should be normalized to unit length.
         mock_embed.return_value = np.array(
             [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
@@ -214,11 +218,14 @@ class TestEmbedStep:
             enrich(EnrichOptions(library=lib, video_frames=3))
 
         matrix = np.load(os.path.join(lib, ".pixelkasten", "embeddings.npy"))
+
         # One row written for the video
         assert matrix.shape == (1, 3)
+
         # The video's embedding is the L2-normalized mean of frame embeddings
         norm = np.linalg.norm(matrix[0])
         assert abs(norm - 1.0) < 1e-5
+
         # frame extraction was called with the configured frame count
         mock_extract.assert_called_once_with(os.path.join(lib, "v.mp4"), 3)
 
@@ -261,9 +268,11 @@ class TestEmbedStep:
             summary = enrich(EnrichOptions(library=lib, video_frames=5))
 
         by_name = {os.path.basename(e.media): e for e in summary.entries}
+
         # the corrupt file is isolated as ERROR; the good one is embedded
         assert by_name["bad.jpg"].embed.status == Status.ERROR
         assert by_name["good.jpg"].embed.status == Status.PROCESSED
+
         # only the good file lands in the store
         with open(os.path.join(lib, ".pixelkasten", "embeddings.paths.json")) as f:
             assert json.load(f) == ["good.jpg"]
@@ -309,6 +318,7 @@ class TestEnrich:
         entry = summary.entries[0]
         assert entry.record.location is not None
         assert entry.embed.status == Status.PROCESSED
+
         # No leftover files on either side
         assert summary.unmatched_media == []
         assert summary.unmatched_records == []
@@ -326,6 +336,7 @@ class TestEnrich:
 
         # Verify unsupported top-level files are captured for reporting
         assert [os.path.basename(p) for p in summary.unsupported_media] == ["notes.txt"]
+
         # No records with geo -> geocoder is not called
         mock_rg.assert_not_called()
 
@@ -341,6 +352,7 @@ class TestEnrich:
 
         # Verify supported media without a record is captured for reporting
         assert [os.path.basename(p) for p in summary.unmatched_media] == ["orphan.jpg"]
+
         # No paired entries -> geocoder is not called
         mock_rg.assert_not_called()
 
@@ -358,6 +370,7 @@ class TestEnrich:
         # Verify the unmatched record is captured for reporting
         assert len(summary.unmatched_records) == 1
         assert summary.unmatched_records[0].path.endswith("ghost.jpg.pk.json")
+
         # No paired entries -> geocoder is not called
         mock_rg.assert_not_called()
 
