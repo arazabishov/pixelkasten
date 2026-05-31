@@ -14,6 +14,7 @@ be absent" contract that consumers rely on.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 
 
@@ -24,7 +25,7 @@ class Record:
     # absolute path of the .pk.json file this record reads from / writes to
     path: str
 
-    # capture timestamps in ISO form; empty when the asset is undated
+    # capture timestamps in ISO form; import always emits at least one
     dates: list[str] = field(default_factory=list)
 
     # signed decimal latitude/longitude/altitude, or None
@@ -86,3 +87,15 @@ class Record:
         if not self.group_id:
             raise RuntimeError(f"Record at {self.path} has no group_id (malformed or pre-1.0)")
         return self.group_id
+
+    def first_date(self) -> datetime:
+        """Return the primary capture date, raising when the record is undated.
+
+        Every record `import` emits carries at least one date (reconcile takes
+        it from disk EXIF or the sidecar timestamp). An empty ``dates`` means a
+        malformed or pre-1.0 record — so date-driven naming fails loudly here
+        rather than silently dropping the asset into an untyped fallback.
+        """
+        if not self.dates:
+            raise RuntimeError(f"Record at {self.path} has no dates (malformed or pre-1.0)")
+        return datetime.fromisoformat(self.dates[0])

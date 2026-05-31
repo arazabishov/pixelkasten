@@ -6,6 +6,8 @@ Prerequisites:
     - Required models pulled (`ollama pull gemma4:e4b`, `ollama pull gemma4:31b`)
 """
 
+from collections.abc import Sequence
+
 
 def check_ollama(model: str) -> None:
     """
@@ -34,7 +36,7 @@ def check_ollama(model: str) -> None:
         )
 
 
-def chat(model: str, prompt: str, images: list[str | bytes] | None = None) -> str | None:
+def chat(model: str, prompt: str, images: Sequence[str | bytes] | None = None) -> str | None:
     """
     Send a chat message to Ollama and return the response text.
 

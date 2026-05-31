@@ -105,21 +105,6 @@ class TestExportTargets:
         # No album anywhere -> top-level year folder
         assert _listing(dst) == ["2024/20240601-143022.jpg"]
 
-    def test_undated_file_lands_at_destination_root(self, tmp_path):
-        lib = _build_library(
-            tmp_path,
-            [
-                {"filename": "abc123def.jpg", "dates": []},
-            ],
-        )
-        dst = str(tmp_path / "out")
-
-        export(lib, dst, ExportOptions())
-
-        # No parseable date -> stays at the destination root with its
-        # working-library uuid name (no `Unsorted/` subdirectory).
-        assert _listing(dst) == ["abc123def.jpg"]
-
 
 class TestGroupBehavior:
     def test_group_members_co_locate_in_same_folder(self, tmp_path):
