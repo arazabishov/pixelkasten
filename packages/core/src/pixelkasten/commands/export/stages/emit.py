@@ -7,12 +7,13 @@ from pixelkasten.commands.export.types import Export
 from pixelkasten.configuration import ExportOptions
 
 
-def emit(state: Export, destination: str, options: ExportOptions) -> list[tuple[str, str]]:
-    """Copy each entry's media to its planned target; return the (src, dst) ops.
+def emit(state: Export, options: ExportOptions) -> None:
+    """Copy each entry's media to its planned target; record the (src, dst) ops.
 
-    Refuses a non-empty destination unless ``force``. ``--dry-run`` returns the
-    planned operations without touching disk.
+    Refuses a non-empty destination unless ``force``. ``--dry-run`` records the
+    planned operations on the state without touching disk.
     """
+    destination = state.destination
     if os.path.exists(destination) and os.listdir(destination) and not options.force:
         raise RuntimeError(
             f"Destination {destination} already exists and is not empty; pass --force to overwrite."
@@ -32,4 +33,4 @@ def emit(state: Export, destination: str, options: ExportOptions) -> list[tuple[
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             shutil.copy2(src, dst)
 
-    return operations
+    state.operations = operations

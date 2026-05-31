@@ -53,10 +53,22 @@ class Group:
 
 @dataclass
 class Export:
-    """Paired entries from the `read` stage that `plan` and `emit` act on."""
+    """Pipeline state for the `export` command: the paired entries plus the run
+    output. `read` fills `entries`; `plan` sets each entry's `target`; `emit`
+    records the `(src, dst)` operations it copied. The orchestrator returns this
+    state directly — there is no separate result type (mirroring ingest's
+    `Ingest` and enrich's `Enrich`). Counts shown to the user are derived from
+    `operations` at render time; the state stores no counters.
+    """
+
+    # absolute destination root the export was written to
+    destination: str
 
     # media paired with a record — the entries `plan` and `emit` act on
     entries: list[ExportEntry] = field(default_factory=list)
+
+    # (src, dst) copies `emit` planned or executed — the source of truth for counts
+    operations: list[tuple[str, str]] = field(default_factory=list)
 
     def grouped(self) -> list[Group]:
         """Bucket entries into groups by group_id, so a logical asset's files
@@ -65,16 +77,3 @@ class Export:
         for entry in self.entries:
             buckets.setdefault(entry.record.require_group_id(), []).append(entry)
         return [Group(id=group_id, entries=entries) for group_id, entries in buckets.items()]
-
-
-@dataclass
-class ExportResult:
-    """What the run produced: the destination and the planned (or executed) copies.
-
-    The (src, dst) operations are the source of truth; counts shown to the user
-    are derived from them in `render_export` — mirroring how ingest's manifest
-    and enrich's entries carry the data and the renderer derives the totals.
-    """
-
-    destination: str
-    operations: list[tuple[str, str]]

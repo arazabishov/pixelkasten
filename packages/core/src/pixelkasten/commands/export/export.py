@@ -13,13 +13,13 @@ library is read-only here; re-running produces the same export deterministically
 from pixelkasten.commands.export.stages.emit import emit
 from pixelkasten.commands.export.stages.plan import plan
 from pixelkasten.commands.export.stages.validate import validate
-from pixelkasten.commands.export.types import ExportEntry, ExportResult, Export
+from pixelkasten.commands.export.types import ExportEntry, Export
 from pixelkasten.configuration import ExportOptions
 from pixelkasten.stores.library import read_library
 
 
-def export(library: str, destination: str, options: ExportOptions) -> ExportResult:
-    """Export ``library`` to ``destination``; return the planned/executed copies.
+def export(library: str, destination: str, options: ExportOptions) -> Export:
+    """Export ``library`` to ``destination``; return the ``Export`` state.
 
     Raises:
         FileNotFoundError if ``library`` is not a working library.
@@ -30,17 +30,20 @@ def export(library: str, destination: str, options: ExportOptions) -> ExportResu
     # Read the working library: pair each supported media file with its record.
     raw_library = read_library(library)
 
-    # Initialize the command state
     state = Export(
+        destination=destination,
         entries=[
             ExportEntry(media=entry.media, record=entry.record) for entry in raw_library.entries
         ],
     )
 
+    # Hard-stop on proposal conflicts or unsafe album names before touching disk.
     validate(state)
 
+    # Resolve each entry's date/album destination path (proposed_album → album → year).
     plan(state)
 
-    operations = emit(state, destination, options)
+    # Copy each entry to its planned target — the single disk mutation.
+    emit(state, options)
 
-    return ExportResult(destination=destination, operations=operations)
+    return state

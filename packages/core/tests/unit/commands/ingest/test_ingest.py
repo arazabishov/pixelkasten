@@ -1,7 +1,7 @@
 """
 Tests for the ingest pipeline orchestrator.
 
-Tests stage sequencing, skip flags, dry-run, and the shape of IngestResult.
+Tests stage sequencing, skip flags, dry-run, and the shape of the Ingest state.
 All I/O-bound stages are mocked.
 """
 
@@ -122,7 +122,7 @@ class TestPipeline:
         mock_emit.assert_not_called()
         mock_report.assert_not_called()
 
-    def test_returns_ingest_result_with_manifest_and_link_stats(
+    def test_returns_state_with_manifest_and_link_stats(
         self,
         mock_scan,
         mock_link,

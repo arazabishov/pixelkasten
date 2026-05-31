@@ -35,8 +35,8 @@ from rich.progress import (
 from rich.table import Column, Table
 
 from pixelkasten.commands.enrich import Enrich
-from pixelkasten.commands.export import ExportResult
-from pixelkasten.commands.ingest import IngestResult
+from pixelkasten.commands.export import Export
+from pixelkasten.commands.ingest import Ingest
 from pixelkasten.configuration import ExportOptions, IngestOptions
 from pixelkasten.handlers import is_image, is_video
 from pixelkasten.commands.ingest.types import ApplyResult, DedupeResult, IngestEntry
@@ -92,8 +92,8 @@ def build_progress_factory(console: Console) -> Callable:
     return factory
 
 
-def render_import(console: Console, result: IngestResult, options: IngestOptions) -> None:
-    """Render every stage's summary table from one IngestResult."""
+def render_import(console: Console, result: Ingest, options: IngestOptions) -> None:
+    """Render every stage's summary table from one Ingest state."""
     _render_scan_table(console, result.raw_collections)
     _render_link_table(console, result.manifest, result.link_stats)
     if any(e.dedupe is not None for e in result.manifest):
@@ -146,18 +146,18 @@ def render_enrich(console: Console, state: Enrich) -> None:
     console.print()
 
 
-def render_export(console: Console, summary: ExportResult, options: ExportOptions) -> None:
+def render_export(console: Console, result: Export, options: ExportOptions) -> None:
     """Dry-run lists the planned copies; both modes print a one-line count summary.
 
-    The total is derived from the operations here — the result stores no counts.
+    The total is derived from the operations here — the state stores no counts.
     """
-    operations = summary.operations
+    operations = result.operations
     if options.dry_run:
         for src, dst in operations:
             typer.echo(f"copy {src} -> {dst}")
 
     label = "Would export" if options.dry_run else "Exported"
-    console.print(f"{label} {len(operations)} file(s) to {summary.destination}.")
+    console.print(f"{label} {len(operations)} file(s) to {result.destination}.")
 
 
 def render_propose(console: Console, paths: list[str], album: str | None) -> None:
