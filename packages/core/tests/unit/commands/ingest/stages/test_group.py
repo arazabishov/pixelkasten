@@ -38,6 +38,7 @@ class TestGroup:
 
         # Singleton entries still get a group_id
         assert manifest[0].group_id is not None
+
         # And it should be a 32-char uuid hex
         assert len(manifest[0].group_id) == 32
 
@@ -96,6 +97,7 @@ class TestGroup:
 
         # Deleted entries are skipped entirely
         assert manifest[0].group_id is None
+
         # Surviving entries still get group_ids
         assert manifest[1].group_id is not None
 
@@ -205,5 +207,6 @@ class TestGroupArchiveMode:
 
         # The keeper is grouped
         assert manifest[0].group_id is not None
+
         # The deletion candidate is skipped
         assert manifest[1].group_id is None

@@ -121,10 +121,13 @@ class TestFullTakeoutPipeline:
         run_export(str(lib), str(export), ExportOptions())
 
         files = _listing(str(export))
+
         # Album entry lands in the year/<YYYYMMDD>-<album>/ folder
         assert os.path.join("2024", "20240321-Vacation 2024", "20240321-102410.jpg") in files
+
         # Loose entry lands in the year folder
         assert os.path.join("2024", "20240702-155627.jpg") in files
+
         # No Unsorted bucket created when every entry has a date
         assert all(not f.startswith(os.path.join("Unsorted", "")) for f in files)
 

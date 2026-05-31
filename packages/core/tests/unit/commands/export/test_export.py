@@ -132,6 +132,7 @@ class TestGroupBehavior:
         export(lib, dst, ExportOptions())
 
         out = _listing(dst)
+
         # Both group members co-locate in the same album folder, named by timestamp
         assert out == [
             os.path.join("2024", "20240601-Vacation", "20240601-143022.heic"),
@@ -162,6 +163,7 @@ class TestGroupBehavior:
         export(lib, dst, ExportOptions())
 
         out = _listing(dst)
+
         # Both files live under the same album folder
         assert out == [
             os.path.join("2024", "20240601-Berlin Trip", "20240601-143022.heic"),
@@ -218,6 +220,7 @@ class TestGroupBehavior:
         export(lib, dst, ExportOptions())
 
         out = _listing(dst)
+
         # Album folder is prefixed with the earliest date across the group
         assert out == [
             os.path.join("2024", "20240601-Trip", "20240601-080000.mov"),
@@ -241,6 +244,7 @@ class TestGroupBehavior:
         export(lib, dst, ExportOptions())
 
         out = _listing(dst)
+
         # All three entries land in ONE folder, prefixed with 20240101 (the
         # album-wide earliest date), not each group's own date.
         assert out == [
@@ -265,6 +269,7 @@ class TestCollisionHandling:
         export(lib, dst, ExportOptions())
 
         out = _listing(dst)
+
         # First wins the bare timestamp name; second gets the -1 suffix
         assert out == [
             os.path.join("2024", "20240601-143022-1.jpg"),
@@ -310,6 +315,7 @@ class TestForceAndDryRun:
 
         # No files created
         assert not dst.exists()
+
         # The plan still reports the one copy that would have run
         assert len(state.operations) == 1
 
@@ -325,6 +331,7 @@ class TestForceAndDryRun:
                 }
             ],
         )
+
         # Snapshot the working library before
         before = _listing(lib)
         record_before = json.loads(
@@ -335,6 +342,7 @@ class TestForceAndDryRun:
 
         # File listing unchanged
         assert _listing(lib) == before
+
         # Record unchanged — proposed_album persists for re-runs
         record_after = json.loads(open(os.path.join(lib, ".pixelkasten", "abc.jpg.pk.json")).read())
         assert record_after == record_before

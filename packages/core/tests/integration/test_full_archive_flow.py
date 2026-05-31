@@ -65,6 +65,7 @@ class TestFullArchivePipeline:
         run_export(str(lib), str(export), ExportOptions())
 
         files = _listing(str(export))
+
         # Lands in a plain year folder, not an album subfolder
         year_dir = os.path.join("2024", "")
         assert any(f.startswith(year_dir) and "-" not in os.path.dirname(f) for f in files)
@@ -97,6 +98,7 @@ class TestFullArchivePipeline:
         run_export(str(lib), str(export), ExportOptions())
 
         files = _listing(str(export))
+
         # Lands under an album folder named after the source subfolder
         year_dir = os.path.join("2024", "")
         assert any(

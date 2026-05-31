@@ -29,6 +29,7 @@ def _unit(v):
 class TestResolveLibrary:
     def test_finds_library_from_file_inside_it(self, tmp_path):
         lib = _make_library(tmp_path, np.zeros((1, 4)), ["a.jpg"])
+
         # Walking up from a file inside the library finds the library root
         assert records_dir_home(os.path.join(lib, "a.jpg")) == lib
 
@@ -36,6 +37,7 @@ class TestResolveLibrary:
         lib = _make_library(tmp_path, np.zeros((1, 4)), ["a.jpg"])
         sub = os.path.join(lib, "sub")
         os.makedirs(sub)
+
         # Walking up from a deeper path still finds the library
         assert records_dir_home(sub) == lib
 
@@ -57,6 +59,7 @@ class TestSimilarInLibrary:
         # Top result is b (most similar non-self); c is farther
         assert results[0]["path"].endswith("b.jpg")
         assert results[1]["path"].endswith("c.jpg")
+
         # Scores are descending
         assert results[0]["score"] > results[1]["score"]
 

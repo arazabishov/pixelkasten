@@ -92,12 +92,15 @@ class TestEmit:
         # File lands at <dest>/<uuid>.<ext>
         target = manifest[0].apply.target_path
         assert target is not None
+
         # Filename is a fresh uuid4 hex, not derived from group_id
         file_id = _emitted_file_id(target)
         assert UUID_HEX.match(file_id), file_id
         assert file_id != "abc123"
+
         # Content is preserved
         assert open(target, "rb").read() == b"image-bytes"
+
         # Apply result reflects a plain copy (no write_tags queued)
         assert manifest[0].apply.result == ApplyResult.COPIED
 
@@ -142,6 +145,7 @@ class TestEmit:
 
         final_name = os.path.basename(manifest[0].apply.target_path)
         data = _read_record(dest, final_name)
+
         # All four record fields are present, including group_id
         assert data["dates"] == ["2024-06-01T14:30:22"]
         assert data["geo"] == {"latitude": 52.52, "longitude": 13.40, "altitude": 34.0}
@@ -158,6 +162,7 @@ class TestEmit:
 
         final_name = os.path.basename(manifest[0].apply.target_path)
         data = _read_record(dest, final_name)
+
         # No metadata -> empty dates, null geo, null album, group_id still set
         assert data["dates"] == []
         assert data["geo"] is None
@@ -174,6 +179,7 @@ class TestEmit:
 
         final_name = os.path.basename(manifest[0].apply.target_path)
         data = _read_record(dest, final_name)
+
         # Geo missing on the entry -> null in the record
         assert data["geo"] is None
 
@@ -187,6 +193,7 @@ class TestEmit:
 
         final_name = os.path.basename(manifest[0].apply.target_path)
         data = _read_record(dest, final_name)
+
         # Loose entry -> album is null even when source has no name
         assert data["album"] is None
 
@@ -209,8 +216,10 @@ class TestEmit:
         for t in targets:
             assert os.path.exists(t)
             assert UUID_HEX.match(_emitted_file_id(t))
+
         # Filenames are distinct (no shared stem any more)
         assert _emitted_file_id(targets[0]) != _emitted_file_id(targets[1])
+
         # But both records share the same group_id
         records = [_read_record(dest, os.path.basename(t)) for t in targets]
         assert records[0]["group_id"] == records[1]["group_id"] == "grp"
@@ -234,13 +243,16 @@ class TestEmit:
         emit(manifest, make_options(destination=dest))
 
         targets = [manifest[0].apply.target_path, manifest[1].apply.target_path]
+
         # Both files exist and have distinct names
         assert os.path.exists(targets[0])
         assert os.path.exists(targets[1])
         assert targets[0] != targets[1]
+
         # No "_2" disambiguation suffix in either filename
         for t in targets:
             assert "_" not in os.path.basename(t)
+
         # Both records carry the shared group_id so downstream tools find them
         records = [_read_record(dest, os.path.basename(t)) for t in targets]
         assert records[0]["group_id"] == records[1]["group_id"] == "grp"
@@ -265,6 +277,7 @@ class TestEmit:
         called_path, called_tags = mock_write_metadata.call_args_list[0][0]
         assert called_path == manifest[0].apply.target_path
         assert called_tags == ["DateTimeOriginal=2024:06:01 14:30:22"]
+
         # Result reflects the write
         assert manifest[0].apply is not None
         assert manifest[0].apply.result == ApplyResult.WRITTEN
@@ -290,12 +303,14 @@ class TestEmit:
 
         # Unsupported format never reaches the working library — no file emitted
         assert manifest[0].apply.target_path is None
+
         # No artifacts left on disk for the skipped entry
         assert not list(
             f
             for f in os.listdir(dest)
             if not f.startswith(".") and os.path.isfile(os.path.join(dest, f))
         )
+
         # Apply field records the skip
         assert manifest[0].apply.status == Status.SKIPPED
 
@@ -316,6 +331,7 @@ class TestEmit:
 
         # With nothing to emit, the destination directory is never created
         assert not os.path.exists(dest)
+
         # And no apply state is set on the entry
         assert manifest[0].apply is None
 
