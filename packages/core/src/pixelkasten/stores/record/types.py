@@ -74,3 +74,15 @@ class Record:
             data["proposed_album"] = self.proposed_album
 
         return data
+
+    def require_group_id(self) -> str:
+        """Return ``group_id``, raising when it's absent.
+
+        Every record `import` emits carries a ``group_id`` (the group stage
+        assigns one to each keeper, even singletons). The field is only ever
+        ``None`` for a malformed or pre-1.0 record — so consumers that bucket
+        by group fail loudly here rather than silently fabricating a key.
+        """
+        if not self.group_id:
+            raise RuntimeError(f"Record at {self.path} has no group_id (malformed or pre-1.0)")
+        return self.group_id

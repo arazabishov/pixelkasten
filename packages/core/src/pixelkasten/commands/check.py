@@ -22,12 +22,13 @@ from pixelkasten.stores.record.types import Record
 def check(library: str) -> dict:
     """Report proposed_album conflicts and invalid names across the library."""
     raw_library = read_library(library)
+
     records = [entry.record for entry in raw_library.entries]
     records.extend(raw_library.unmatched_records)
-
     records_by_group: dict[str, list[Record]] = {}
+
     for record in records:
-        records_by_group.setdefault(record.group_id or "", []).append(record)
+        records_by_group.setdefault(record.require_group_id(), []).append(record)
 
     proposals_by_group: dict[str, set[str]] = {}
     for group_id, group in records_by_group.items():
@@ -53,12 +54,16 @@ def _invalid_target_album_names(
 ) -> list[str]:
     invalid: set[str] = set()
     for group_id, group in records_by_group.items():
-        proposals = proposals_by_group[group_id]
-        if proposals:
-            invalid.update(name for name in proposals if not check_album_name(name))
-            continue
-
-        album = next((record.album for record in group if record.album), None)
-        if album and not check_album_name(album):
-            invalid.add(album)
+        targets = _target_album_names(proposals_by_group[group_id], group)
+        invalid.update(name for name in targets if not check_album_name(name))
     return sorted(invalid)
+
+
+def _target_album_names(proposals: set[str], group: list[Record]) -> set[str]:
+    """Album names this group would export into, per export's fallback chain:
+    the proposals when present, otherwise the import-time album as fallback."""
+    if proposals:
+        return proposals
+
+    album = next((record.album for record in group if record.album), None)
+    return {album} if album else set()

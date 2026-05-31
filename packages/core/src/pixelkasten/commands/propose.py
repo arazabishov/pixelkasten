@@ -30,13 +30,7 @@ def propose(path: str, album: str | None) -> list[str]:
     own_record_path = record_path(library, os.path.basename(path))
     own_record = read_record(own_record_path)
 
-    group_id = own_record.group_id
-    if not group_id:
-        raise RuntimeError(
-            f"Record at {own_record_path} has no group_id; "
-            "was the working library produced by an older `import` run?"
-        )
-
+    group_id = own_record.require_group_id()
     sibling_records = _siblings_by_group(library, group_id)
 
     # paths of records updated by this call

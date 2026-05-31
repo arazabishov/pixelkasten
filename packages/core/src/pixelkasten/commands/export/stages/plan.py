@@ -13,8 +13,7 @@ def plan(state: Export) -> None:
     # .mov / -edited variant) share a group_id and export to one album together.
     groups: dict[str, list[ExportEntry]] = {}
     for entry in state.entries:
-        group_id = entry.record.group_id or os.path.basename(entry.media)
-        groups.setdefault(group_id, []).append(entry)
+        groups.setdefault(entry.record.require_group_id(), []).append(entry)
 
     _reject_proposal_conflicts(groups)
     _reject_invalid_album_names(groups)
