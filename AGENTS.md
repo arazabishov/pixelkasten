@@ -1,6 +1,6 @@
 # AGENTS.md
 
-The core objective of this tool is to help organize a photo library. The `pixelkasten import` command normalizes a messy source — either a Google Takeout export (`--from-takeout`, matches JSON sidecars and writes timestamps + geo into copies via exiftool) or a flat archive of media files (`--from-archive`) — into a **working library**: a flat directory of GUID-named copies plus per-asset records under `.pixelkasten/`. From there, the rest of the toolbox (`enrich`, `caption`, `similar`, `cluster`, `propose`, `export --to`) lets a user (or an LLM agent driving the toolbox) enrich records with location/embeddings/captions, query the library, decide album assignments, and export a final organized photo library. See `pixelkasten-plans/full-redesign.md` for the original design and `pixelkasten-plans/toolbox-extensions.md` / `toolbox-review.md` for ongoing work.
+The core objective of this tool is to help organize a photo library. The `pixelkasten import` command normalizes a messy source — either a Google Takeout export (`--from-takeout`, matches JSON sidecars and writes timestamps + geo into copies via exiftool) or a flat archive of media files (`--from-archive`) — into a **working library**: a flat directory of GUID-named copies plus per-asset records under `.pixelkasten/`. From there, the rest of the toolbox (`enrich`, `caption`, `similar`, `cluster`, `propose`, `export --to`) lets a user (or an LLM agent driving the toolbox) enrich records with location/embeddings/captions, query the library, decide album assignments, and export a final organized photo library.
 
 ## Terminology
 
@@ -187,7 +187,7 @@ The export is regenerable from the working library + record decisions. The worki
 
 ### Agent integration
 
-A sample agent skill file lives at `docs/SKILL.md`. It is not auto-installed — users who want to drive pixelkasten from Claude Code copy or adapt it into their own agent configuration. The agent reads records (via `jq`), runs the toolbox commands on demand, and writes `proposed_album` via `propose`. See `pixelkasten-plans/full-redesign.md` for the full design.
+A sample agent skill file lives at `docs/SKILL.md`. It is not auto-installed — users who want to drive pixelkasten from Claude Code copy or adapt it into their own agent configuration. The agent reads records (via `jq`), runs the toolbox commands on demand, and writes `proposed_album` via `propose`.
 
 ### Handlers
 

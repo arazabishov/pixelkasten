@@ -115,4 +115,4 @@ uv sync
 
 ## Architecture and design
 
-See [AGENTS.md](AGENTS.md) for the pipeline shape, record schema, and design conventions. The implementation plans live under [pixelkasten-plans/](pixelkasten-plans/) — `core-conditioning.md` covers the foundational pipeline (Phases 1–6) and `full-redesign.md` covers the toolbox (Phases 7–14).
+See [AGENTS.md](AGENTS.md) for the pipeline shape, record schema, and design conventions. [docs/takeout.md](docs/takeout.md) covers Google Takeout's filename quirks, and [docs/SKILL.md](docs/SKILL.md) is a sample agent skill file for driving the toolbox.
