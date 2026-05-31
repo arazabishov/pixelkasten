@@ -143,10 +143,9 @@ When you understand what happens to files you don't propose, you'll make better 
 
 1. `proposed_album` set → `<YYYY>/<YYYYMMDD>-<proposed_album>/<YYYYMMDD-HHMMSS>.<ext>` (you decided)
 2. `proposed_album` unset, `album` set (from Takeout source folder, or the parent folder of an archive subfolder file — note that generic folder names like `DCIM` / `100APPLE` are propagated verbatim; treat them as hints, not gospel) → same shape, using `album`
-3. Neither set, parseable `dates[0]` → `<YYYY>/<YYYYMMDD-HHMMSS>.<ext>` (loose in year folder)
-4. No parseable date → `<filename>` at the destination root (the working-library uuid name)
+3. Neither set → `<YYYY>/<YYYYMMDD-HHMMSS>.<ext>` (loose in year folder), keyed on `dates[0]`
 
-You only need to act at step 1. Steps 2–4 are automatic.
+You only need to act at step 1. Steps 2–3 are automatic. Every record carries a date (import takes it from disk EXIF or the sidecar timestamp), so there is no undated fallback.
 
 ## What the agent should never do
 

@@ -149,19 +149,15 @@ def render_enrich(console: Console, state: Enrich) -> None:
 def render_export(console: Console, summary: ExportResult, options: ExportOptions) -> None:
     """Dry-run lists the planned copies; both modes print a one-line count summary.
 
-    total/undated are derived from the operations here — the result stores no counts.
+    The total is derived from the operations here — the result stores no counts.
     """
     operations = summary.operations
     if options.dry_run:
         for src, dst in operations:
             typer.echo(f"copy {src} -> {dst}")
 
-    dest = os.path.normpath(summary.destination)
-    undated = sum(1 for _, dst in operations if os.path.dirname(dst) == dest)
     label = "Would export" if options.dry_run else "Exported"
-    console.print(
-        f"{label} {len(operations)} file(s) to {summary.destination} ({undated} undated)."
-    )
+    console.print(f"{label} {len(operations)} file(s) to {summary.destination}.")
 
 
 def render_propose(console: Console, paths: list[str], album: str | None) -> None:

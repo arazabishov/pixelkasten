@@ -136,7 +136,7 @@ At **import** time, every `.pk.json` carries exactly four fields:
 }
 ```
 
-- `dates`: list from `entry.metadata.dates`; `[]` when there's no metadata.
+- `dates`: list from `entry.metadata.dates`, primary capture date first. Import normally populates it from disk EXIF or the sidecar timestamp; a file with no date anywhere yields `[]`, which `export` rejects (`Record.first_date()` fails hard).
 - `geo`: object or `null`.
 - `album`: source-folder name for Takeout entries; `null` for loose entries and all archive-mode entries.
 - `group_id`: uuid4 hex shared by all members of one logical asset (Live Photo image + video, edited variant). `propose` and `export` use this to find siblings of a given file.
@@ -163,7 +163,7 @@ Beyond `import`, the CLI exposes a small set of commands that the agent (or a hu
 | `pixelkasten cluster [paths…]` | HDBSCAN over a scoped slice of embeddings. Reads paths from args or stdin. | Stdout (JSON) |
 | `pixelkasten propose <path> <album>` / `--clear` | Write `proposed_album` to the file's record and to every group sibling. | Records |
 | `pixelkasten check <library>` | Report `proposed_album` conflicts (group members disagreeing) and invalid album names as JSON; exits non-zero when any are found. The agent runs it after organizing to confirm `export` will succeed. | Stdout (JSON) |
-| `pixelkasten export <library> --to <dst>` | Export the working library to an organized photo library. Reads records, resolves albums by fallback chain (`proposed_album → album → date-driven year folder → destination root for undated files`), copies into year/album folders. | Files at `<dst>` |
+| `pixelkasten export <library> --to <dst>` | Export the working library to an organized photo library. Reads records, resolves albums by fallback chain (`proposed_album → album → date-driven year folder`), copies into year/album folders. | Files at `<dst>` |
 
 ### Export library layout
 
@@ -171,7 +171,6 @@ Beyond `import`, the CLI exposes a small set of commands that the agent (or a hu
 
 ```
 <dst>/
-  bbe90b6fd17f468c86da78ab484fd469.jpg   # no parseable date -> keeps working-library uuid name
   2024/
     20240615-Wedding/                    # album: <YYYYMMDD>-<album_name>
       20240615-143022.heic
@@ -180,7 +179,9 @@ Beyond `import`, the CLI exposes a small set of commands that the agent (or a hu
     20240620-100530-1.jpg                # -N suffix on collision (unrelated assets)
 ```
 
-Undated files land at the destination root with their working-library uuid name; there's no `Unsorted/` bucket directory. The signal "no date" is in the filename (it isn't a `YYYYMMDD-` name); the user can `find <dst> -maxdepth 1 -type f` to list them.
+Every record carries at least one date (import takes it from disk EXIF or the
+sidecar timestamp; `Record.first_date()` fails hard on an empty `dates`), so every
+exported file lands in a `<YYYY>/` year folder — there is no undated-root fallback.
 
 The export is regenerable from the working library + record decisions. The working library is never modified by `export`.
 

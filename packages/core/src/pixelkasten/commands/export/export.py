@@ -1,16 +1,18 @@
 """
 Export a working library to a user-facing organized photo library.
 
-Pipeline: ``read -> plan -> emit``. ``read`` pairs each media file with its
-record (and reads its fields); ``plan`` resolves a date/album destination path
-per entry via the fallback chain (proposed_album → album → year folder →
-destination root for undated files); ``emit`` copies. Planning is pure; ``emit``
+Pipeline: ``read -> validate -> plan -> emit``. ``read`` pairs each media file
+with its record (and reads its fields); ``validate`` hard-stops on proposal
+conflicts or unsafe album names; ``plan`` resolves a date/album destination path
+per entry via the fallback chain (proposed_album → album → year folder);
+``emit`` copies. Planning is pure; ``emit``
 is the single disk mutation, so ``--dry-run`` skips the copy. The working
 library is read-only here; re-running produces the same export deterministically.
 """
 
 from pixelkasten.commands.export.stages.emit import emit
 from pixelkasten.commands.export.stages.plan import plan
+from pixelkasten.commands.export.stages.validate import validate
 from pixelkasten.commands.export.types import ExportEntry, ExportResult, Export
 from pixelkasten.configuration import ExportOptions
 from pixelkasten.stores.library import read_library
@@ -34,6 +36,8 @@ def export(library: str, destination: str, options: ExportOptions) -> ExportResu
             ExportEntry(media=entry.media, record=entry.record) for entry in raw_library.entries
         ],
     )
+
+    validate(state)
 
     plan(state)
 

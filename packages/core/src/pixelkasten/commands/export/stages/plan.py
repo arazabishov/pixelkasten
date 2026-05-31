@@ -3,144 +3,60 @@
 import os
 from datetime import datetime
 
-from pixelkasten.commands.export.types import ExportEntry, Export
-from pixelkasten.utils.album import check_album_conflicts, check_album_name
+from pixelkasten.commands.export.types import Export, Group
 
 
 def plan(state: Export) -> None:
-    """Map record data onto entries, reject conflicts, and set ``target``."""
-    # Bucket entries by group — one logical asset's files (e.g. an HEIC and its
-    # .mov / -edited variant) share a group_id and export to one album together.
-    groups: dict[str, list[ExportEntry]] = {}
-    for entry in state.entries:
-        groups.setdefault(entry.record.require_group_id(), []).append(entry)
+    """Set each entry's relative ``target`` from its record. Assumes ``validate`` passed.
 
-    _reject_proposal_conflicts(groups)
-    _reject_invalid_album_names(groups)
+    Two layouts: ``<YYYY>/<YYYYMMDD>-<album>/<name>`` for albumed entries and
+    ``<YYYY>/<name>`` for dated loose files, where ``<name>`` is
+    ``<YYYYMMDD-HHMMSS>.<ext>``. Every record is dated (``first_date`` fails hard
+    otherwise), so there is no undated fallback.
+    """
+    groups = state.grouped()
 
     album_min_dates = _compute_album_min_dates(groups)
     used_paths: set[str] = set()
 
-    # Sort groups so collision suffixes (-1, -2) are assigned in a stable,
-    # reproducible order when unrelated files resolve to the same target path.
-    for group_id in sorted(groups):
-        group = groups[group_id]
+    # Sort groups so collision suffixes (-1, -2) are assigned in a stable order.
+    for group in sorted(groups, key=lambda g: g.id):
+        album = group.target_album()
 
-        album = _group_target_album(group)
-        group_min_date = _group_min_date(group)
-        # The folder's date prefix uses the album's earliest date across all
-        # groups in the album; the filename's HHMMSS uses the file's own date
-        # (or the group's date as fallback within an album).
-        folder_min_date = album_min_dates.get(album) if album else group_min_date
-        for entry in group:
-            target = _resolve_member_path(entry, album, folder_min_date, group_min_date, used_paths)
-            used_paths.add(target)
-            entry.target = target
+        for entry in group.entries:
+            own_date = entry.record.first_date()
+            ext = os.path.splitext(entry.media)[1]
+
+            if album:
+                # Folder uses the album-wide earliest date so all its groups collapse
+                # into one folder; the filename uses the file's own date.
+                folder_date = album_min_dates[album]
+                folder = f"{folder_date.year}/{folder_date.strftime('%Y%m%d')}-{album}"
+                rel = os.path.join(folder, _timestamp_name(own_date, ext))
+            else:
+                rel = os.path.join(str(own_date.year), _timestamp_name(own_date, ext))
+
+            entry.target = _disambiguate(rel, used_paths)
+            used_paths.add(entry.target)
 
 
-def _reject_proposal_conflicts(groups: dict[str, list[ExportEntry]]) -> None:
-    """Raise if any group's members disagree on ``proposed_album``.
+def _compute_album_min_dates(groups: list[Group]) -> dict[str, datetime]:
+    """For each target album, the earliest date across every group in it.
 
-    ``check`` surfaces the same conflicts for the agent to resolve (via
-    ``propose``) before export; this is the hard stop if one slips through.
+    Precomputed before any path is assigned because the folder date spans groups:
+    all groups in one album collapse into a single folder named by that earliest date.
     """
-    proposals_by_group: dict[str, set[str]] = {}
-    for group_id, group in groups.items():
-        proposals_by_group[group_id] = {
-            e.record.proposed_album for e in group if e.record.proposed_album
-        }
-
-    conflicts = check_album_conflicts(proposals_by_group)
-    if not conflicts:
-        return
-
-    detail = "\n".join(f"  {group_id}: {proposals}" for group_id, proposals in conflicts)
-    raise RuntimeError(
-        "proposed_album disagreement within group(s); resolve before exporting:\n" + detail
-    )
-
-
-def _reject_invalid_album_names(groups: dict[str, list[ExportEntry]]) -> None:
-    invalid: set[str] = set()
-    for group in groups.values():
-        album = _group_target_album(group)
-        if album and not check_album_name(album):
-            invalid.add(album)
-
-    if not invalid:
-        return
-
-    detail = "\n".join(f"  {album!r}" for album in sorted(invalid))
-    raise RuntimeError("invalid album name(s); resolve before exporting:\n" + detail)
-
-
-def _compute_album_min_dates(groups: dict[str, list[ExportEntry]]) -> dict[str, datetime]:
-    """For each target album, the earliest date across every group in it."""
     out: dict[str, datetime] = {}
-    for group in groups.values():
-        album = _group_target_album(group)
-        if not album:
-            continue
-        group_date = _group_min_date(group)
-        if group_date is None:
-            continue
-        existing = out.get(album)
-        if existing is None or group_date < existing:
-            out[album] = group_date
+    for group in groups:
+        album = group.target_album()
+        if album:
+            date = group.min_date()
+            out[album] = min(date, out.get(album, date))
     return out
 
 
-def _group_target_album(group: list[ExportEntry]) -> str | None:
-    """proposed_album wins; otherwise the import-time album; otherwise None."""
-    proposed = next((e.record.proposed_album for e in group if e.record.proposed_album), None)
-    if proposed:
-        return proposed
-    return next((e.record.album for e in group if e.record.album), None)
-
-
-def _group_min_date(group: list[ExportEntry]) -> datetime | None:
-    """Earliest date across all members, or None when no member is dated."""
-    dates = [datetime.fromisoformat(d) for entry in group for d in entry.record.dates]
-    return min(dates) if dates else None
-
-
-def _resolve_member_path(
-    entry: ExportEntry,
-    album: str | None,
-    folder_min_date: datetime | None,
-    group_min_date: datetime | None,
-    used: set[str],
-) -> str:
-    """
-    Compute the relative target path for one entry.
-
-    Three outcomes:
-      - Album folder: ``<YYYY>/<YYYYMMDD>-<album>/<YYYYMMDD-HHMMSS>.<ext>``
-        when both an album and a date are available. The folder ``YYYYMMDD``
-        is the album's earliest date across all groups (so all groups in
-        one album collapse into the same folder).
-      - Year folder:  ``<YYYY>/<YYYYMMDD-HHMMSS>.<ext>`` for dated loose files.
-      - Destination root: ``<filename>`` (the working-library uuid name)
-        for undated entries. ``find <dst> -maxdepth 1 -type f`` lists them.
-    """
-    own_date = datetime.fromisoformat(entry.record.dates[0]) if entry.record.dates else None
-    timestamp_date = own_date or group_min_date or folder_min_date
-
-    filename = os.path.basename(entry.media)
-    ext = os.path.splitext(filename)[1]
-
-    if album and timestamp_date is not None:
-        folder = f"{folder_min_date.year}/{folder_min_date.strftime('%Y%m%d')}-{album}"
-        base = f"{timestamp_date.strftime('%Y%m%d-%H%M%S')}{ext}"
-        return _disambiguate(os.path.join(folder, base), used)
-
-    if own_date is not None:
-        folder = f"{own_date.year}"
-        base = f"{own_date.strftime('%Y%m%d-%H%M%S')}{ext}"
-        return _disambiguate(os.path.join(folder, base), used)
-
-    # Undated: keep the working-library filename at the destination root.
-    return _disambiguate(filename, used)
+def _timestamp_name(date: datetime, ext: str) -> str:
+    return f"{date.strftime('%Y%m%d-%H%M%S')}{ext}"
 
 
 def _disambiguate(rel_path: str, used: set[str]) -> str:
