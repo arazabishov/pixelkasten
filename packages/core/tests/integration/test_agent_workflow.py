@@ -119,4 +119,5 @@ class TestAgentWorkflow:
                 files.append(os.path.relpath(os.path.join(dirpath, f), str(export)))
 
         # File lands in the proposed album folder, prefixed with its date
-        assert "2024/20240702-Paris weekend/20240702-155627.jpg" in files
+        expected = os.path.join("2024", "20240702-Paris weekend", "20240702-155627.jpg")
+        assert expected in files

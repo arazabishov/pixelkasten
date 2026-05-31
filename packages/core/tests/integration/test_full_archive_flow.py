@@ -66,7 +66,8 @@ class TestFullArchivePipeline:
 
         files = _listing(str(export))
         # Lands in a plain year folder, not an album subfolder
-        assert any(f.startswith("2024/") and "-" not in os.path.dirname(f) for f in files)
+        year_dir = os.path.join("2024", "")
+        assert any(f.startswith(year_dir) and "-" not in os.path.dirname(f) for f in files)
 
     def test_subfolder_archive_file_exports_to_album_folder(self, tmp_path):
         source = tmp_path / "source"
@@ -97,4 +98,7 @@ class TestFullArchivePipeline:
 
         files = _listing(str(export))
         # Lands under an album folder named after the source subfolder
-        assert any("-Wedding/" in f and f.startswith("2024/") for f in files)
+        year_dir = os.path.join("2024", "")
+        assert any(
+            f.startswith(year_dir) and os.path.dirname(f).endswith("-Wedding") for f in files
+        )

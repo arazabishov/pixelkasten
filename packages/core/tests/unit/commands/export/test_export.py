@@ -70,7 +70,7 @@ class TestExportTargets:
         export(lib, dst, ExportOptions())
 
         # File lands under the agent's proposed album, not the init-time album
-        expected = "2024/20240601-Agent's Choice/20240601-143022.jpg"
+        expected = os.path.join("2024", "20240601-Agent's Choice", "20240601-143022.jpg")
         assert _listing(dst) == [expected]
 
     def test_init_album_used_when_no_proposed_album(self, tmp_path):
@@ -89,7 +89,9 @@ class TestExportTargets:
         export(lib, dst, ExportOptions())
 
         # Without a proposal, the init-time album is honored
-        assert _listing(dst) == ["2024/20240601-Wedding 2019/20240601-143022.jpg"]
+        assert _listing(dst) == [
+            os.path.join("2024", "20240601-Wedding 2019", "20240601-143022.jpg")
+        ]
 
     def test_loose_with_date_goes_to_year_folder(self, tmp_path):
         lib = _build_library(
@@ -103,7 +105,7 @@ class TestExportTargets:
         export(lib, dst, ExportOptions())
 
         # No album anywhere -> top-level year folder
-        assert _listing(dst) == ["2024/20240601-143022.jpg"]
+        assert _listing(dst) == [os.path.join("2024", "20240601-143022.jpg")]
 
 
 class TestGroupBehavior:
@@ -132,8 +134,8 @@ class TestGroupBehavior:
         out = _listing(dst)
         # Both group members co-locate in the same album folder, named by timestamp
         assert out == [
-            "2024/20240601-Vacation/20240601-143022.heic",
-            "2024/20240601-Vacation/20240601-143022.mov",
+            os.path.join("2024", "20240601-Vacation", "20240601-143022.heic"),
+            os.path.join("2024", "20240601-Vacation", "20240601-143022.mov"),
         ]
 
     def test_propagates_proposed_album_to_siblings_without_it(self, tmp_path):
@@ -162,8 +164,8 @@ class TestGroupBehavior:
         out = _listing(dst)
         # Both files live under the same album folder
         assert out == [
-            "2024/20240601-Berlin Trip/20240601-143022.heic",
-            "2024/20240601-Berlin Trip/20240601-143022.mov",
+            os.path.join("2024", "20240601-Berlin Trip", "20240601-143022.heic"),
+            os.path.join("2024", "20240601-Berlin Trip", "20240601-143022.mov"),
         ]
 
     def test_conflict_in_proposed_album_aborts_run(self, tmp_path):
@@ -218,8 +220,8 @@ class TestGroupBehavior:
         out = _listing(dst)
         # Album folder is prefixed with the earliest date across the group
         assert out == [
-            "2024/20240601-Trip/20240601-080000.mov",
-            "2024/20240601-Trip/20240605-100000.heic",
+            os.path.join("2024", "20240601-Trip", "20240601-080000.mov"),
+            os.path.join("2024", "20240601-Trip", "20240605-100000.heic"),
         ]
 
     def test_collapses_all_groups_in_same_album_into_one_folder(self, tmp_path):
@@ -242,9 +244,9 @@ class TestGroupBehavior:
         # All three entries land in ONE folder, prefixed with 20240101 (the
         # album-wide earliest date), not each group's own date.
         assert out == [
-            "2024/20240101-Baku trip/20240101-120000.jpg",
-            "2024/20240101-Baku trip/20240107-090000.jpg",
-            "2024/20240101-Baku trip/20240113-180622.jpg",
+            os.path.join("2024", "20240101-Baku trip", "20240101-120000.jpg"),
+            os.path.join("2024", "20240101-Baku trip", "20240107-090000.jpg"),
+            os.path.join("2024", "20240101-Baku trip", "20240113-180622.jpg"),
         ]
 
 
@@ -265,8 +267,8 @@ class TestCollisionHandling:
         out = _listing(dst)
         # First wins the bare timestamp name; second gets the -1 suffix
         assert out == [
-            "2024/20240601-143022-1.jpg",
-            "2024/20240601-143022.jpg",
+            os.path.join("2024", "20240601-143022-1.jpg"),
+            os.path.join("2024", "20240601-143022.jpg"),
         ]
 
 
@@ -295,7 +297,7 @@ class TestForceAndDryRun:
         export(str(lib), str(dst), ExportOptions(force=True))
 
         # Pre-existing file is gone after force-overwrite
-        assert _listing(str(dst)) == ["2024/20240601-143022.jpg"]
+        assert _listing(str(dst)) == [os.path.join("2024", "20240601-143022.jpg")]
 
     def test_dry_run_writes_nothing(self, tmp_path):
         lib = _build_library(
