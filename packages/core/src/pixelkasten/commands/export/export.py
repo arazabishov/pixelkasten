@@ -33,9 +33,6 @@ def export(library: str, destination: str, options: ExportOptions) -> ExportResu
         entries=[
             ExportEntry(media=entry.media, record=entry.record) for entry in raw_library.entries
         ],
-        unmatched_media=raw_library.unmatched_media,
-        unmatched_records=[record.path for record in raw_library.unmatched_records],
-        unsupported_media=raw_library.unsupported_media,
     )
 
     plan(state)

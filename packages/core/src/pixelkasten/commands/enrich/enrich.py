@@ -39,7 +39,7 @@ def enrich(options: EnrichOptions, progress: Callable = noop_progress) -> Enrich
             EnrichEntry(media=entry.media, record=entry.record) for entry in raw_library.entries
         ],
         unmatched_media=raw_library.unmatched_media,
-        unmatched_records=[record.path for record in raw_library.unmatched_records],
+        unmatched_records=raw_library.unmatched_records,
         unsupported_media=raw_library.unsupported_media,
     )
 

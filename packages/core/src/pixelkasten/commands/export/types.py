@@ -25,19 +25,10 @@ class ExportEntry:
 
 @dataclass
 class Export:
-    """Paired entries plus the files that didn't pair, from the `read` stage."""
+    """Paired entries from the `read` stage that `plan` and `emit` act on."""
 
     # media paired with a record — the entries `plan` and `emit` act on
     entries: list[ExportEntry] = field(default_factory=list)
-
-    # supported media at the library root with no matching record
-    unmatched_media: list[str] = field(default_factory=list)
-
-    # records under .pixelkasten with no media at the library root
-    unmatched_records: list[str] = field(default_factory=list)
-
-    # visible files whose format has no handler
-    unsupported_media: list[str] = field(default_factory=list)
 
 
 @dataclass

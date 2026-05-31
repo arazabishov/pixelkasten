@@ -355,9 +355,9 @@ class TestEnrich:
 
         summary = enrich(EnrichOptions(library=lib, video_frames=5))
 
-        # Verify the unmatched record path is captured for reporting
+        # Verify the unmatched record is captured for reporting
         assert len(summary.unmatched_records) == 1
-        assert summary.unmatched_records[0].endswith("ghost.jpg.pk.json")
+        assert summary.unmatched_records[0].path.endswith("ghost.jpg.pk.json")
         # No paired entries -> geocoder is not called
         mock_rg.assert_not_called()
 
