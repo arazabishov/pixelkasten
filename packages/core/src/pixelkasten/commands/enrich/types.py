@@ -59,7 +59,7 @@ class Enrich:
     unmatched_media: list[str] = field(default_factory=list)
 
     # records with no matching media file at the library root
-    unmatched_records: list[str] = field(default_factory=list)
+    unmatched_records: list[Record] = field(default_factory=list)
 
     # top-level visible files skipped because enrich does not support their format
     unsupported_media: list[str] = field(default_factory=list)
