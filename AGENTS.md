@@ -278,7 +278,7 @@ Never coerce `None` to a default value with `or` (e.g., `destination = options.d
 
 #### os.path only — no pathlib
 
-All path manipulation MUST use `os.path`. Do not use `pathlib.Path` anywhere in the codebase. The link stage requires `os.path` because pathlib normalizes double extensions (`.MP.jpg`) and duplicate markers `(1)`, which breaks Takeout filename parsing. All other stages use `os.path` for consistency. File paths are represented as plain strings throughout the pipeline — in `IngestEntry`, in function signatures, and in return values.
+All path manipulation MUST use `os.path`. Do not use `pathlib.Path` anywhere in the codebase. The link stage requires `os.path` because pathlib normalizes Pixel mode tags like `.MP`/`.NIGHT` that look like extensions (e.g. `photo.MP.jpg`) and duplicate markers `(1)`, which breaks Takeout filename parsing. All other stages use `os.path` for consistency. File paths are represented as plain strings throughout the pipeline — in `IngestEntry`, in function signatures, and in return values.
 
 #### Typing at boundaries
 

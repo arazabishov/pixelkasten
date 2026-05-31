@@ -101,6 +101,28 @@ class TestEmit:
         # Apply result reflects a plain copy (no write_tags queued)
         assert manifest[0].apply.result == ApplyResult.COPIED
 
+    def test_drops_pixel_mode_tag_keeping_only_format_extension(self, tmp_path):
+        # Pixel bakes capture-mode tags into the name (.MP Motion Photo,
+        # .NIGHT Night Sight); the file is a plain JPEG, so the working-library
+        # copy keeps only .jpg and drops the tag with the rest of the name.
+        dest = str(tmp_path / "dest")
+        manifest = [
+            _entry(_make_source_file(tmp_path, "PXL_001.MP.jpg"), group_id="g1"),
+            _entry(_make_source_file(tmp_path, "PXL_002.NIGHT.jpg"), group_id="g2"),
+        ]
+
+        emit(manifest, make_options(destination=dest))
+
+        for entry in manifest:
+            name = os.path.basename(entry.apply.target_path)
+            file_id, ext = os.path.splitext(name)
+
+            # Only the format extension survives — the mode tag is gone
+            assert ext == ".jpg", name
+
+            # The uuid stem carries no leftover .MP / .NIGHT segment
+            assert UUID_HEX.match(file_id), name
+
     @patch("pixelkasten.commands.ingest.stages.emit.write_metadata")
     def test_writes_record_with_four_fields_including_group_id(self, mock_write_metadata, tmp_path):
         dest = str(tmp_path / "dest")

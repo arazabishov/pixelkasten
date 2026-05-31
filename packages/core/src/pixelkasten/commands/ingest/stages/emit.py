@@ -59,12 +59,18 @@ def _emit_entry(entry: IngestEntry, destination: str) -> Apply:
         # Unsupported handlers leave the file out of the working library.
         return Apply(status=Status.SKIPPED, error=entry.metadata.error)
 
-    # ``os.path.splitext`` returns ``(root, ext)``; we pick [1] to keep just
-    # the extension and append it to a fresh uuid4 hex. Examples:
-    #   "IMG_001.HEIC"       -> ".heic"
-    #   "IMG_001-edited.jpg" -> ".jpg"    (suffixes are part of the basename)
-    #   "IMG_001.MP.jpg"     -> ".jpg"    (Motion Photo — final ext wins)
-    #   "<uuid>-000"         -> ""        (no extension; dest_name has none)
+    # The destination keeps the *format* extension only: a fresh uuid4 hex +
+    # the last ``os.path.splitext`` component, lowercased. Pixel bakes capture-mode
+    # tags into the name (``.MP`` Motion Photo, ``.NIGHT`` Night Sight) that look
+    # like extensions but aren't — the file is a plain JPEG, so ``.jpg`` is the
+    # real extension and the tag is dropped along with the rest of the descriptive
+    # name (no bytes lost; the Motion Photo's embedded video stays in the JPEG).
+    # Examples:
+    #   "IMG_001.HEIC"        -> ".heic"
+    #   "IMG_001-edited.jpg"  -> ".jpg"    (suffixes are part of the basename)
+    #   "PXL_001.MP.jpg"      -> ".jpg"    (Motion Photo tag dropped)
+    #   "PXL_001.NIGHT.jpg"   -> ".jpg"    (Night Sight tag dropped)
+    #   "<uuid>-000"          -> ""        (no extension; dest_name has none)
     # Same extraction link's ``_parse_media`` uses for its ``extension`` field,
     # so the two stages agree on what the extension is.
     dest_name = f"{uuid.uuid4().hex}{os.path.splitext(entry.media_path)[1].lower()}"
