@@ -286,7 +286,7 @@ Stages are the type boundary, not individual functions within a stage. Internal 
 
 #### Stage structure
 
-Each mutating stage follows the same shape: filter keepers, iterate entries, try/except per entry, set the stage's field on `IngestEntry`. The try body should be extracted into a private helper that returns the result type — this keeps the main function flat and the per-entry logic testable. See `_resolve` in reconcile and `_emit_entry` in emit for examples.
+Each mutating stage follows the same shape: filter keepers, iterate entries, try/except per entry, set the stage's field on `IngestEntry`. The try body should be extracted into a private helper that returns the per-entry outcome type — this keeps the main function flat and the per-entry logic testable. See `_resolve` in reconcile and `_emit_entry` in emit for examples.
 
 #### Batching shape
 

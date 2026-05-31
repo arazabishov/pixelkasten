@@ -304,12 +304,12 @@ class TestForceAndDryRun:
         )
         dst = tmp_path / "out"
 
-        summary = export(str(lib), str(dst), ExportOptions(dry_run=True))
+        state = export(str(lib), str(dst), ExportOptions(dry_run=True))
 
         # No files created
         assert not dst.exists()
         # The plan still reports the one copy that would have run
-        assert len(summary.operations) == 1
+        assert len(state.operations) == 1
 
     def test_working_library_is_untouched_after_export(self, tmp_path):
         lib = _build_library(

@@ -4,9 +4,9 @@ All Rich/terminal rendering for the CLI lives in this file.
 Convention: every command has exactly one public renderer named
 ``render_<command>(console, value, *extras) -> None``. ``value`` is what
 the command returned; ``*extras`` are whatever else the renderer needs to
-do its job — typically the command's ``options`` (so result types don't
-duplicate option fields) or other primitives. The CLI's job is to capture
-the return value and call the matching renderer — nothing else. When
+do its job — typically the command's ``options`` (so the returned state
+doesn't duplicate option fields) or other primitives. The CLI's job is to
+capture the return value and call the matching renderer — nothing else. When
 you're looking for "how does X get displayed", grep this file for
 ``render_x``.
 
