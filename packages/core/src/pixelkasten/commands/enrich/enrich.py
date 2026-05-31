@@ -17,7 +17,7 @@ Per-media failures are recorded on the entry and the run continues.
 
 from collections.abc import Callable
 
-from pixelkasten.commands.enrich.state import EnrichEntry, EnrichState
+from pixelkasten.commands.enrich.types import EnrichEntry, Enrich
 from pixelkasten.commands.enrich.stages.embed import embed
 from pixelkasten.commands.enrich.stages.emit import emit
 from pixelkasten.commands.enrich.stages.geocode import geocode
@@ -26,7 +26,7 @@ from pixelkasten.stores.library import read_library
 from pixelkasten.utils.progress import noop_progress
 
 
-def enrich(options: EnrichOptions, progress: Callable = noop_progress) -> EnrichState:
+def enrich(options: EnrichOptions, progress: Callable = noop_progress) -> Enrich:
     """Geocode + embed all assets in the working library; return the state."""
     library = options.library
 
@@ -34,7 +34,7 @@ def enrich(options: EnrichOptions, progress: Callable = noop_progress) -> Enrich
     raw_library = read_library(library)
 
     # Initialize the command state
-    state = EnrichState(
+    state = Enrich(
         entries=[
             EnrichEntry(media=entry.media, record=entry.record) for entry in raw_library.entries
         ],

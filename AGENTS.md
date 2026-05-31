@@ -56,11 +56,12 @@ A simple `core/` and `cli/` directory split inside one package would not be enou
 ```
 packages/core/src/pixelkasten/
   configuration.py    # Options, EnrichOptions, ExportOptions + RECORDS_DIR / RECORD_SUFFIX / EMBEDDINGS_* constants
+  types.py            # Status enum — types shared across command pipelines
   handlers/           # format-specific metadata handlers (EXIF, QuickTime, shared)
   commands/           # user-facing operations
     ingest/           # multi-stage pipeline (CLI: `pixelkasten import`)
       __init__.py     # exports ingest() + IngestResult
-      state.py        # IngestEntry + its sub-dataclasses (the in-memory manifest)
+      types.py        # IngestEntry + its sub-dataclasses (the in-memory manifest) + IngestResult
       stages/         # scan, link, dedupe, reconcile, group, emit, report
     enrich/           # multi-stage command (read, geocode, embed, emit)
     export/           # multi-stage command (read, plan, emit)
@@ -81,7 +82,7 @@ packages/core/src/pixelkasten/
     dates.py pil.py progress.py
 ```
 
-Commands live under `commands/`. Multi-stage commands use a package: `ingest` has its orchestrator in `commands/ingest/ingest.py` and stages under `commands/ingest/stages/`; `enrich` and `export` follow the same shape (orchestrator + `state.py` + `stages/`) and share their working-library walk via `stores/library` — `read_library` returns typed library entries with a media path and parsed `Record` plus the files/records that didn't pair, and each command maps those entries onto its own state type. The remaining commands — `caption`, `cluster`, `propose`, `similar` — are single-file modules. The Python module is named `ingest` (not `import`) because `import` is a reserved keyword; the CLI command name `pixelkasten import` is independent of the Python module name. Wrappers around external tools and services (`exiftool`, `ffmpeg`, `ollama`, `clip`) live under `tools/`; the disk I/O for the working library's artifacts (its `Record`/`Library` models + persistence) lives under `stores/`; generic domain-free helpers (including pure validation like `album`) live under `utils/`.
+Commands live under `commands/`. Multi-stage commands use a package: `ingest` has its orchestrator in `commands/ingest/ingest.py` and stages under `commands/ingest/stages/`; `enrich` and `export` follow the same shape (orchestrator + `types.py` + `stages/`) and share their working-library walk via `stores/library` — `read_library` returns typed library entries with a media path and parsed `Record` plus the files/records that didn't pair, and each command maps those entries onto its own state type. The remaining commands — `caption`, `cluster`, `propose`, `similar` — are single-file modules. The Python module is named `ingest` (not `import`) because `import` is a reserved keyword; the CLI command name `pixelkasten import` is independent of the Python module name. Wrappers around external tools and services (`exiftool`, `ffmpeg`, `ollama`, `clip`) live under `tools/`; the disk I/O for the working library's artifacts (its `Record`/`Library` models + persistence) lives under `stores/`; generic domain-free helpers (including pure validation like `album`) live under `utils/`.
 
 ### Import pipeline
 
@@ -280,7 +281,7 @@ All path manipulation MUST use `os.path`. Do not use `pathlib.Path` anywhere in 
 
 #### Typing at boundaries
 
-Stages are the type boundary, not individual functions within a stage. Internal helpers (exiftool, sidecar, handlers) can freely use raw dicts — they never leave the stage. But when a stage writes to `IngestEntry`, it must use the typed structures from `commands/ingest/state.py` (e.g., `Geo`, `Metadata`, `Dedupe`). This keeps typing focused where it matters (the manifest contract between stages) without fighting Python's dynamic nature inside stage internals.
+Stages are the type boundary, not individual functions within a stage. Internal helpers (exiftool, sidecar, handlers) can freely use raw dicts — they never leave the stage. But when a stage writes to `IngestEntry`, it must use the typed structures from `commands/ingest/types.py` (e.g., `Geo`, `Metadata`, `Dedupe`). This keeps typing focused where it matters (the manifest contract between stages) without fighting Python's dynamic nature inside stage internals.
 
 #### Stage structure
 
@@ -307,7 +308,7 @@ One pattern, one place. **All terminal rendering lives in `packages/cli/src/pixe
 commands/<x>.py → return value → cli.py → render_<x>() in render.py → console
 ```
 
-Result types that need a typed shape are collocated with their command (`ExportResult` in `commands/export/state.py`, `IngestResult` in `commands/ingest/ingest.py`). Multi-stage commands that share mutable command state keep that type in their package (`EnrichState` in `commands/enrich/state.py`). Trivial returns (a string for `caption`, a list of paths for `propose`) stay primitive. Don't invent a new dataclass for two scalars.
+Result types that need a typed shape are collocated with their command (`ExportResult` and `IngestResult` in their command's `types.py`). Multi-stage commands that share mutable command state keep that type in their package (`Enrich` in `commands/enrich/types.py`). Trivial returns (a string for `caption`, a list of paths for `propose`) stay primitive. Don't invent a new dataclass for two scalars.
 
 **Result types don't duplicate option fields.** If a renderer needs an option's value (e.g. `dry_run`), it takes the `options` object as an extra renderer argument. That keeps result types focused on what the run actually *produced* and avoids the ambiguity of two sources of truth for the same field.
 

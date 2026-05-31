@@ -24,7 +24,7 @@ class ExportEntry:
 
 
 @dataclass
-class ExportState:
+class Export:
     """Paired entries plus the files that didn't pair, from the `read` stage."""
 
     # media paired with a record — the entries `plan` and `emit` act on

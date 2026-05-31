@@ -11,7 +11,7 @@ entries (the "manifest"). Types are grouped by pipeline stage:
 from dataclasses import dataclass, field
 from enum import Enum
 
-from pixelkasten.pipeline import Status
+from pixelkasten.types import Status
 
 
 class DedupeResult(Enum):
@@ -134,3 +134,17 @@ class IngestEntry:
         if self.dedupe is None:
             return True
         return self.dedupe.result != DedupeResult.DELETE and self.dedupe.status != Status.ERROR
+
+
+@dataclass
+class IngestResult:
+    """Manifest plus pre-link state that is not derivable from the manifest alone."""
+
+    # every entry the pipeline processed, enriched stage by stage
+    manifest: list[IngestEntry]
+
+    # scan output (media / sidecars / album markers) — input to link
+    raw_collections: dict
+
+    # link stage counters (matched / unmatched / confidence breakdown) for the report
+    link_stats: dict

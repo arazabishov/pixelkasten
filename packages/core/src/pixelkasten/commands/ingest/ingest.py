@@ -14,7 +14,6 @@ The user-facing command name is ``pixelkasten import``; the Python module is
 """
 
 from collections.abc import Callable
-from dataclasses import dataclass
 
 from pixelkasten.commands.ingest.stages.dedupe import dedupe_hash, dedupe_resolve
 from pixelkasten.commands.ingest.stages.emit import emit
@@ -24,16 +23,7 @@ from pixelkasten.commands.ingest.stages.reconcile import reconcile
 from pixelkasten.commands.ingest.stages.report import report
 from pixelkasten.commands.ingest.stages.scan import scan
 from pixelkasten.configuration import IngestOptions
-from pixelkasten.commands.ingest.state import IngestEntry
-
-
-@dataclass
-class IngestResult:
-    """Manifest plus pre-link state that is not derivable from the manifest alone."""
-
-    manifest: list[IngestEntry]
-    raw_collections: dict
-    link_stats: dict
+from pixelkasten.commands.ingest.types import IngestResult
 
 
 def ingest(options: IngestOptions, progress: Callable) -> IngestResult:

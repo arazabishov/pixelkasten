@@ -2,9 +2,9 @@
 
 from collections.abc import Callable
 
-from pixelkasten.commands.enrich.state import Embed, EnrichEntry, EnrichState
+from pixelkasten.commands.enrich.types import Embed, EnrichEntry, Enrich
 from pixelkasten.handlers import is_image, is_video
-from pixelkasten.pipeline import Status
+from pixelkasten.types import Status
 from pixelkasten.tools.clip import embed_video
 
 
@@ -12,7 +12,7 @@ from pixelkasten.tools.clip import embed_video
 EMBED_BATCH_SIZE = 32
 
 
-def embed(state: EnrichState, video_frames: int, progress: Callable) -> None:
+def embed(state: Enrich, video_frames: int, progress: Callable) -> None:
     """Compute an embedding for every entry, recording it on `entry.embed`.
 
     Pure stage: the expensive work (CLIP forward passes, ffmpeg frame

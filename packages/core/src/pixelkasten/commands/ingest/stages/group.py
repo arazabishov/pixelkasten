@@ -21,7 +21,7 @@ import os
 import uuid
 
 from pixelkasten.configuration import IngestOptions
-from pixelkasten.commands.ingest.state import IngestEntry
+from pixelkasten.commands.ingest.types import IngestEntry
 
 
 def group(manifest: list[IngestEntry], options: IngestOptions) -> None:

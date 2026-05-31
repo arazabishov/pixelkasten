@@ -1,14 +1,14 @@
 """Tests for the group stage — shared group_id for logical asset groups."""
 
 from helpers import make_options
-from pixelkasten.commands.ingest.state import (
+from pixelkasten.commands.ingest.types import (
     Dedupe,
     DedupeResult,
     IngestEntry,
     SidecarMatch,
     Source,
 )
-from pixelkasten.pipeline import Status
+from pixelkasten.types import Status
 from pixelkasten.commands.ingest.stages.group import group
 
 

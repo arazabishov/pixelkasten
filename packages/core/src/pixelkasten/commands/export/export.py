@@ -11,7 +11,7 @@ library is read-only here; re-running produces the same export deterministically
 
 from pixelkasten.commands.export.stages.emit import emit
 from pixelkasten.commands.export.stages.plan import plan
-from pixelkasten.commands.export.state import ExportEntry, ExportResult, ExportState
+from pixelkasten.commands.export.types import ExportEntry, ExportResult, Export
 from pixelkasten.configuration import ExportOptions
 from pixelkasten.stores.library import read_library
 
@@ -29,7 +29,7 @@ def export(library: str, destination: str, options: ExportOptions) -> ExportResu
     raw_library = read_library(library)
 
     # Initialize the command state
-    state = ExportState(
+    state = Export(
         entries=[
             ExportEntry(media=entry.media, record=entry.record) for entry in raw_library.entries
         ],

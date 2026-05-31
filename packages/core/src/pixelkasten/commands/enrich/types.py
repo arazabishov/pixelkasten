@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
-from pixelkasten.pipeline import Status
+from pixelkasten.types import Status
 from pixelkasten.stores.record.types import Record
 
 if TYPE_CHECKING:
@@ -46,7 +46,7 @@ class EnrichEntry:
 
 
 @dataclass
-class EnrichState:
+class Enrich:
     """Run state for the `enrich` command: the paired entries plus the files
     that never became entries. Per-entry outcomes live on `EnrichEntry`; the
     counts shown to the user are derived from `entries` at render time.

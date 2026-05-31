@@ -1,8 +1,8 @@
 import hashlib
 
 from helpers import make_options
-from pixelkasten.commands.ingest.state import Dedupe, DedupeResult, IngestEntry, Source
-from pixelkasten.pipeline import Status
+from pixelkasten.commands.ingest.types import Dedupe, DedupeResult, IngestEntry, Source
+from pixelkasten.types import Status
 from pixelkasten.commands.ingest.stages.dedupe import dedupe_hash, dedupe_resolve
 
 
