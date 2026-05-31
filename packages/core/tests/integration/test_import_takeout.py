@@ -388,7 +388,7 @@ class TestInitTakeoutPipeline:
         # And the manifest entry for it records SKIPPED on apply
         avi_entry = next(e for e in manifest if e.media_path.endswith("video.avi"))
         assert avi_entry.apply is not None
-        from pixelkasten.pipeline import Status as _Status
+        from pixelkasten.types import Status as _Status
 
         assert avi_entry.apply.status == _Status.SKIPPED
 

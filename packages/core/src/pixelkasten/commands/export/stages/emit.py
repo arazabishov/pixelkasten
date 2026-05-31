@@ -3,11 +3,11 @@
 import os
 import shutil
 
-from pixelkasten.commands.export.state import ExportState
+from pixelkasten.commands.export.types import Export
 from pixelkasten.configuration import ExportOptions
 
 
-def emit(state: ExportState, destination: str, options: ExportOptions) -> list[tuple[str, str]]:
+def emit(state: Export, destination: str, options: ExportOptions) -> list[tuple[str, str]]:
     """Copy each entry's media to its planned target; return the (src, dst) ops.
 
     Refuses a non-empty destination unless ``force``. ``--dry-run`` returns the

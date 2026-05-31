@@ -2,10 +2,10 @@
 
 from collections.abc import Callable
 
-from pixelkasten.commands.enrich.state import EnrichEntry, EnrichState
+from pixelkasten.commands.enrich.types import EnrichEntry, Enrich
 
 
-def geocode(state: EnrichState, progress: Callable) -> None:
+def geocode(state: Enrich, progress: Callable) -> None:
     """Set `location` on the record of every entry that has geo coordinates.
 
     Stays pure with respect to disk: the location is written onto the held

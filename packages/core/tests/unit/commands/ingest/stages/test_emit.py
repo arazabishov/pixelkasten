@@ -15,7 +15,7 @@ import re
 from unittest.mock import patch
 
 from helpers import make_options
-from pixelkasten.commands.ingest.state import (
+from pixelkasten.commands.ingest.types import (
     ApplyResult,
     Dedupe,
     DedupeResult,
@@ -25,7 +25,7 @@ from pixelkasten.commands.ingest.state import (
     SidecarMatch,
     Source,
 )
-from pixelkasten.pipeline import Status
+from pixelkasten.types import Status
 from pixelkasten.commands.ingest.stages.emit import emit
 
 UUID_HEX = re.compile(r"^[0-9a-f]{32}$")

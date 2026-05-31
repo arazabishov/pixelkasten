@@ -8,7 +8,7 @@ All I/O-bound stages are mocked.
 from unittest.mock import patch
 
 from helpers import make_options, noop_progress
-from pixelkasten.commands.ingest.state import IngestEntry, Source
+from pixelkasten.commands.ingest.types import IngestEntry, Source
 
 # Patch the stage names where they're looked up — inside the ingest module
 # itself, not the package's __init__.

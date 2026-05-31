@@ -23,7 +23,7 @@ def propose(path: str, album: str | None) -> list[str]:
     Returns the list of record paths updated.
     """
     if album is not None:
-        _validate_album_name(album)
+        _check_album_name(album)
 
     library = records_dir_home(path)
 
@@ -48,7 +48,7 @@ def propose(path: str, album: str | None) -> list[str]:
     return updated
 
 
-def _validate_album_name(album: str) -> None:
+def _check_album_name(album: str) -> None:
     if album.lower() == "null":
         raise ValueError("'null' is reserved; use --clear to remove proposed_album.")
     if not check_album_name(album):

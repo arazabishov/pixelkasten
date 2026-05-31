@@ -11,7 +11,7 @@ silently normalizes double extensions (.MP.jpg) and duplicate markers (1).
 import os
 import re
 
-from pixelkasten.commands.ingest.state import IngestEntry, SidecarMatch, Source
+from pixelkasten.commands.ingest.types import IngestEntry, SidecarMatch, Source
 from pixelkasten.configuration import IngestOptions
 
 # Truncated variants of .supplemental-metadata (longest first for greedy matching).

@@ -12,13 +12,13 @@ from collections.abc import Callable
 
 import numpy as np
 
-from pixelkasten.commands.enrich.state import EnrichState
-from pixelkasten.pipeline import Status
+from pixelkasten.commands.enrich.types import Enrich
+from pixelkasten.types import Status
 from pixelkasten.stores.embeddings import write_embeddings
 from pixelkasten.stores.record import write_record
 
 
-def emit(library: str, state: EnrichState, progress: Callable) -> None:
+def emit(library: str, state: Enrich, progress: Callable) -> None:
     """Persist records geocode located, then overwrite the embeddings store."""
     # geocode set `location` on the record of every geo-bearing entry; persist those.
     located = [entry for entry in state.entries if entry.record.location is not None]

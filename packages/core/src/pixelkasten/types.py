@@ -1,7 +1,7 @@
-"""Shared pipeline primitives.
+"""Shared types used across command pipelines.
 
 Types used by more than one command pipeline live here so neither has to
-import the other's state module. Today that is just `Status`, the per-entry
+import the other's types module. Today that is just `Status`, the per-entry
 outcome enum that ingest's manifest entries and enrich's entries both carry.
 """
 

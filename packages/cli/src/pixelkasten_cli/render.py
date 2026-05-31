@@ -34,13 +34,13 @@ from rich.progress import (
 )
 from rich.table import Column, Table
 
-from pixelkasten.commands.enrich import EnrichState
+from pixelkasten.commands.enrich import Enrich
 from pixelkasten.commands.export import ExportResult
 from pixelkasten.commands.ingest import IngestResult
 from pixelkasten.configuration import ExportOptions, IngestOptions
 from pixelkasten.handlers import is_image, is_video
-from pixelkasten.commands.ingest.state import ApplyResult, DedupeResult, IngestEntry
-from pixelkasten.pipeline import Status
+from pixelkasten.commands.ingest.types import ApplyResult, DedupeResult, IngestEntry
+from pixelkasten.types import Status
 
 # Progress bar labels are padded to this width so the bars start at the
 # same column regardless of label length. Set to the longest label we use
@@ -104,7 +104,7 @@ def render_import(console: Console, result: IngestResult, options: IngestOptions
     _render_error_table(console, result.manifest)
 
 
-def render_enrich(console: Console, state: EnrichState) -> None:
+def render_enrich(console: Console, state: Enrich) -> None:
     """Two tables — geocoding totals, then embedding totals — plus failure sample.
 
     Every count is derived from the entries here, the same way ``render_import``

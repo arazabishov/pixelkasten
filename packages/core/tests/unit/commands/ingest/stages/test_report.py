@@ -7,7 +7,7 @@ import os
 
 from helpers import make_options
 from pixelkasten.commands.ingest.stages.report import report, _resolve_status
-from pixelkasten.commands.ingest.state import (
+from pixelkasten.commands.ingest.types import (
     Apply,
     ApplyResult,
     Dedupe,
@@ -17,7 +17,7 @@ from pixelkasten.commands.ingest.state import (
     SidecarMatch,
     Source,
 )
-from pixelkasten.pipeline import Status
+from pixelkasten.types import Status
 
 
 def _entry(

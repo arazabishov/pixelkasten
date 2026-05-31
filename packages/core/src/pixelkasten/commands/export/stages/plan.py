@@ -3,11 +3,11 @@
 import os
 from datetime import datetime
 
-from pixelkasten.commands.export.state import ExportEntry, ExportState
+from pixelkasten.commands.export.types import ExportEntry, Export
 from pixelkasten.utils.album import check_album_conflicts, check_album_name
 
 
-def plan(state: ExportState) -> None:
+def plan(state: Export) -> None:
     """Map record data onto entries, reject conflicts, and set ``target``."""
     # Bucket entries by group — one logical asset's files (e.g. an HEIC and its
     # .mov / -edited variant) share a group_id and export to one album together.

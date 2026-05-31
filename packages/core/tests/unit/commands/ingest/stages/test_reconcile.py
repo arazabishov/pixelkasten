@@ -8,14 +8,14 @@ Mocks read_metadata (I/O) and read_sidecar (I/O). Uses real handlers
 from unittest.mock import patch
 
 from helpers import make_options
-from pixelkasten.commands.ingest.state import (
+from pixelkasten.commands.ingest.types import (
     Dedupe,
     DedupeResult,
     IngestEntry,
     SidecarMatch,
     Source,
 )
-from pixelkasten.pipeline import Status
+from pixelkasten.types import Status
 from pixelkasten.commands.ingest.stages.reconcile import reconcile
 
 

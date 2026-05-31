@@ -1,7 +1,7 @@
 """Tests for the ingest pipeline state types (IngestEntry.can_keep)."""
 
-from pixelkasten.commands.ingest.state import Dedupe, DedupeResult, IngestEntry, Source
-from pixelkasten.pipeline import Status
+from pixelkasten.commands.ingest.types import Dedupe, DedupeResult, IngestEntry, Source
+from pixelkasten.types import Status
 
 
 def _entry(dedupe=None):

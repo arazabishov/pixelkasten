@@ -15,7 +15,7 @@ import pytest
 
 from pixelkasten.commands.enrich import enrich
 from pixelkasten.configuration import EnrichOptions
-from pixelkasten.pipeline import Status
+from pixelkasten.types import Status
 
 
 def _make_working_library(tmp_path, records: dict[str, dict], media: dict[str, bytes]):
@@ -284,8 +284,8 @@ class TestEnrichValidation:
             enrich(EnrichOptions(library=str(bare), video_frames=5))
 
 
-class TestEnrichState:
-    """Verifies the EnrichState returned by enrich() reflects what changed."""
+class TestEnrich:
+    """Verifies the `Enrich` state returned by enrich() reflects what changed."""
 
     @patch("reverse_geocoder.search")
     def test_state_reflects_what_was_written(self, mock_rg, fake_clip, tmp_path):
