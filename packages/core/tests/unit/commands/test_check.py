@@ -7,6 +7,8 @@ conflicts and invalid album names.
 
 import json
 
+import pytest
+
 from pixelkasten.commands.check import check
 
 
@@ -120,3 +122,12 @@ def test_raises_when_records_directory_is_missing(tmp_path):
 
     # A library with no .pixelkasten/ is a usage error, not an empty report
     assert raised is True
+
+
+def test_raises_when_a_record_is_missing_group_id(tmp_path):
+    # Pre-1.0 record missing the group_id field
+    lib = _build_library(tmp_path, [{"proposed_album": "Berlin"}])
+
+    # group_id is an import invariant; check fails loudly rather than bucketing it
+    with pytest.raises(RuntimeError, match="no group_id"):
+        check(lib)
