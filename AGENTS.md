@@ -60,8 +60,8 @@ packages/core/src/pixelkasten/
   handlers/           # format-specific metadata handlers (EXIF, QuickTime, shared)
   commands/           # user-facing operations
     ingest/           # multi-stage pipeline (CLI: `pixelkasten import`)
-      __init__.py     # exports ingest() + IngestResult
-      types.py        # IngestEntry + its sub-dataclasses (the in-memory manifest) + IngestResult
+      __init__.py     # exports ingest() + Ingest
+      types.py        # IngestEntry + its sub-dataclasses + Ingest (the pipeline state)
       stages/         # scan, link, dedupe, reconcile, group, emit, report
     enrich/           # multi-stage command (read, geocode, embed, emit)
     export/           # multi-stage command (read, plan, emit)
@@ -309,9 +309,9 @@ One pattern, one place. **All terminal rendering lives in `packages/cli/src/pixe
 commands/<x>.py → return value → cli.py → render_<x>() in render.py → console
 ```
 
-Result types that need a typed shape are collocated with their command (`ExportResult` and `IngestResult` in their command's `types.py`). Multi-stage commands that share mutable command state keep that type in their package (`Enrich` in `commands/enrich/types.py`). Trivial returns (a string for `caption`, a list of paths for `propose`) stay primitive. Don't invent a new dataclass for two scalars.
+Each multi-stage command (`ingest`, `enrich`, `export`) threads a single state object through its stages and returns it directly — `Ingest`, `Enrich`, and `Export`, each in its command's `types.py`. There is no separate result type: the end-of-run state *is* what the renderer consumes, so per-asset data and run output live on one object and counts are derived at render time (never stored as counters). Trivial returns (a string for `caption`, a list of paths for `propose`) stay primitive. Don't invent a new dataclass for two scalars.
 
-**Result types don't duplicate option fields.** If a renderer needs an option's value (e.g. `dry_run`), it takes the `options` object as an extra renderer argument. That keeps result types focused on what the run actually *produced* and avoids the ambiguity of two sources of truth for the same field.
+**State objects don't duplicate option fields.** If a renderer needs an option's value (e.g. `dry_run`), it takes the `options` object as an extra renderer argument. That keeps the state focused on what the run actually *produced* and avoids the ambiguity of two sources of truth for the same field.
 
 Two output channels exist, and the distinction is load-bearing:
 

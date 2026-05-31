@@ -137,14 +137,19 @@ class IngestEntry:
 
 
 @dataclass
-class IngestResult:
-    """Manifest plus pre-link state that is not derivable from the manifest alone."""
+class Ingest:
+    """Pipeline state for the `import` command: the manifest plus the scan/link
+    side data that isn't derivable from the manifest. Stages enrich `manifest`
+    in place; `scan` and `link` populate the collections. The orchestrator
+    returns this state directly — there is no separate result type (mirroring
+    enrich's `Enrich` and export's `Export`).
+    """
 
     # every entry the pipeline processed, enriched stage by stage
-    manifest: list[IngestEntry]
+    manifest: list[IngestEntry] = field(default_factory=list)
 
     # scan output (media / sidecars / album markers) — input to link
-    raw_collections: dict
+    raw_collections: dict = field(default_factory=dict)
 
     # link stage counters (matched / unmatched / confidence breakdown) for the report
-    link_stats: dict
+    link_stats: dict = field(default_factory=dict)
