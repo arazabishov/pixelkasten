@@ -15,6 +15,7 @@ from pixelkasten.types import Status
 
 
 class DedupeResult(Enum):
+    # Omit from working-library output; the source file is never deleted.
     DELETE = "delete"
     KEEP = "keep"
 
@@ -26,10 +27,10 @@ class ApplyResult(Enum):
 
 @dataclass
 class Source:
-    # "album" or "loose" — from Takeout folder structure
+    # "album" or "loose" — from Takeout albums or archive folder structure
     type: str
 
-    # album name from the containing folder, None for loose files
+    # Takeout album or immediate archive parent folder name; None for loose files
     name: str | None = None
 
 
@@ -59,10 +60,10 @@ class Dedupe:
     # tracks progress through hash → resolve phases
     status: Status
 
-    # whether to keep or discard this duplicate — drives can_keep()
+    # whether to keep or omit this copy from output — drives can_keep()
     result: DedupeResult | None = None
 
-    # SHA-256 digest for grouping identical files across albums
+    # SHA-256 digest for grouping identical files
     hash: str | None = None
 
     # surfaced in CSV report when hashing fails
@@ -74,10 +75,10 @@ class Metadata:
     # skipped when no handler exists for the file format
     status: Status
 
-    # exiftool tag=value pairs, written to disk during apply
+    # exiftool tag=value pairs, written to the destination copy during emit
     write_tags: list[str] = field(default_factory=list)
 
-    # all known dates in priority order — first entry drives rename path
+    # known dates in priority order — first entry drives export naming
     dates: list[str] = field(default_factory=list)
 
     # best available GPS — disk EXIF wins, sidecar as fallback
@@ -95,7 +96,7 @@ class Apply:
     # whether exiftool tags were written or file was only copied
     result: ApplyResult | None = None
 
-    # actual path on disk — may differ from rename on filename collision
+    # actual path of the emitted UUID-named copy
     target_path: str | None = None
 
     # surfaced in CSV report
@@ -113,10 +114,10 @@ class IngestEntry:
     # matched Google Takeout JSON sidecar — provides timestamps and geo for reconcile
     sidecar: SidecarMatch | None = None
 
-    # content hash and keep/delete decision — gates all downstream stages
+    # content hash and keep/omit decision — gates all downstream stages
     dedupe: Dedupe | None = None
 
-    # disk vs sidecar diff — carries write_tags for emit and dates for grouping
+    # disk vs sidecar diff — carries write_tags for emit and dates for export
     metadata: Metadata | None = None
 
     # final outcome — copied/written result and actual disk path
@@ -127,7 +128,7 @@ class IngestEntry:
 
     def can_keep(self) -> bool:
         """
-        Returns True if the entry should be processed (not deleted or errored during dedupe).
+        Returns True if the entry should be processed (not omitted or errored during dedupe).
 
         When dedupe was skipped, the dedupe field is None, so the entry is kept.
         """

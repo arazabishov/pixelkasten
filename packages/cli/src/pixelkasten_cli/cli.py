@@ -102,7 +102,7 @@ def import_cmd(
     prefer: str = typer.Option(
         "album",
         "--prefer",
-        help="When deduplicating, prefer 'album' or 'loose' copies (Takeout mode only).",
+        help="For mixed album/loose duplicates, retain the preferred type (Takeout and archive).",
     ),
 ):
     """Import a source into a working library."""

@@ -37,13 +37,14 @@ def dedupe_resolve(manifest: list[IngestEntry], options: IngestOptions) -> None:
     rule covers both:
 
       - Unique files: KEEP.
-      - Mixed source types within a duplicate group: keep the side that
-        matches ``--prefer``, delete the others.
+      - Mixed source types within a duplicate group: keep every copy that
+        matches ``--prefer``, omit the others from the working library.
       - Uniform group (all album, or all loose): keep all. For Takeout this
         preserves cross-album membership; for archive it preserves
-        cross-folder organization (and rarely retains a stray same-folder
-        duplicate at the source root).
+        cross-folder organization, including identical loose copies at
+        the source root.
 
+    DELETE means omission from the output, never deletion of a source file.
     Mutates entries in-place, setting dedupe.status and dedupe.result.
     """
     # Group by hash, skipping errored entries.
@@ -77,10 +78,8 @@ def _resolve(
         for entry, dedupe in duplicates:
             dedupe.status = Status.PROCESSED
 
-            # If the group has both preferred and non-preferred copies, --prefer
-            # decides: keep matches, delete the rest. If the group is uniform
-            # (all album, or all loose), there's nothing to choose between —
-            # keep everything; the user wants every copy of this content.
+            # Preserve source organization by retaining all copies within one type.
+            # Only mixed-source groups omit non-preferred copies from the output.
             if has_preferred and has_other:
                 dedupe.result = (
                     DedupeResult.KEEP if entry.source.type == prefer else DedupeResult.DELETE

@@ -23,7 +23,7 @@ class IngestOptions:
     # output directory for processed files
     destination: str | None
 
-    # "takeout" matches JSON sidecars; "archive" treats every media file as loose
+    # "takeout" matches sidecars; "archive" keeps subfolder album hints, root files loose
     mode: str
 
     # preview changes without writing
@@ -35,7 +35,7 @@ class IngestOptions:
     # skip writing metadata into files
     skip_metadata_write: bool
 
-    # prefer "album" or "loose" when deduplicating (Takeout mode only)
+    # prefer "album" or "loose" in mixed-source duplicate groups (both input modes)
     prefer: str
 
     # enable fuzzy sidecar matching

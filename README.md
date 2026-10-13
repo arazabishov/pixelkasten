@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/arazabishov/pixelkasten/actions/workflows/ci.yml/badge.svg)](https://github.com/arazabishov/pixelkasten/actions/workflows/ci.yml)
 
-PixelKasten helps you organize your photo library. It normalizes a messy source — a Google Takeout export or any flat archive of media files — into a deduplicated, metadata-enriched **working library**. From there, you can either export straight to an organized photo library, or hand the working library off to an LLM agent (Claude Code, etc.) that proposes album assignments through conversation with you.
+PixelKasten helps you organize your photo library. It normalizes a messy source — a Google Takeout export or a media archive — into a metadata-enriched **working library** of UUID-named copies and per-asset records. From there, you can either export straight to an organized photo library, or hand the working library off to an LLM agent (Claude Code, etc.) that proposes album assignments through conversation with you.
 
 If you've ever tried to make sense of a Google Photos Takeout export, you know the pain: photos scattered across directories, timestamps and GPS coordinates trapped in `.json` sidecar files, and filenames truncated in ways that make matching surprisingly difficult. PixelKasten handles that. And if you just have a folder of photos you want organized, no Takeout involved, it can do that too.
 
@@ -26,6 +26,10 @@ The same flow works for archives without sidecars — just swap the mode:
 pixelkasten import --from-archive -s ~/old-photos -d ~/library
 pixelkasten export ~/library --to ~/photos
 ```
+
+In archive mode, files in subfolders retain their immediate parent folder name as an `album` hint; files at the source root are loose.
+
+Import resolves duplicates by content hash unless `--skip-dedupe` is set. Unique files are kept. When identical-content copies include both album and loose entries, `--prefer album` (the default) or `--prefer loose` keeps every copy of the selected type and omits the others from the working library. Groups containing only album copies or only loose copies retain every copy, including identical loose files. This policy applies in both Takeout and archive modes and never deletes source files.
 
 ## Quick start — with an LLM agent
 
@@ -58,6 +62,7 @@ A sample skill file for Claude Code lives at [`docs/SKILL.md`](docs/SKILL.md). C
 | `pixelkasten similar <path> [--k N]` | k-NN over the library's embeddings | Stdout (JSON) |
 | `pixelkasten cluster [paths…]` | HDBSCAN over a scoped slice | Stdout (JSON) |
 | `pixelkasten propose <path> <album>` | Record `proposed_album` on the file and group siblings | Records |
+| `pixelkasten check <library>` | Report proposal conflicts and invalid album names; does not validate dates | Stdout (JSON) |
 | `pixelkasten export <library> --to <dst>` | Export the working library to an organized layout | Files at dst |
 
 Read-only operations (listings, EXIF, record fields) use shell tools — `jq`, `find`, `exiftool`, `ls`.
@@ -86,7 +91,6 @@ PixelKasten distinguishes a **working library** from an **export library**.
 
 ```
 ~/photos/
-  bbe90b6fd17f468c86da78ab484fd469.jpg   # undated -> kept at root with uuid name
   2024/
     20240615-Wedding/              # album: <YYYYMMDD>-<name>
       20240615-143022.heic         # group member
@@ -94,6 +98,8 @@ PixelKasten distinguishes a **working library** from an **export library**.
     20240620-100530.jpg            # loose file in year folder
     20240620-100530-1.jpg          # -N suffix on collision
 ```
+
+Export requires a non-empty `dates` list with a parseable first date in each record it exports. Import can emit `dates: []` when no usable date is available; export then fails during planning instead of placing an undated file at the root. Dates can come from native EXIF/QuickTime metadata, Takeout sidecar timestamps, or filesystem creation/modification fallbacks; filesystem dates are not confirmed capture dates. `pixelkasten check` reports proposal conflicts and invalid album names, not missing dates.
 
 You can delete the working library after a satisfactory export. Users who want to keep iterating with the agent keep both.
 

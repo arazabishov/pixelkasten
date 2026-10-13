@@ -1,6 +1,6 @@
 # AGENTS.md
 
-The core objective of this tool is to help organize a photo library. The `pixelkasten import` command normalizes a messy source — either a Google Takeout export (`--from-takeout`, matches JSON sidecars and writes timestamps + geo into copies via exiftool) or a flat archive of media files (`--from-archive`) — into a **working library**: a flat directory of GUID-named copies plus per-asset records under `.pixelkasten/`. From there, the rest of the toolbox (`enrich`, `caption`, `similar`, `cluster`, `propose`, `export --to`) lets a user (or an LLM agent driving the toolbox) enrich records with location/embeddings/captions, query the library, decide album assignments, and export a final organized photo library.
+The core objective of this tool is to help organize a photo library. The `pixelkasten import` command normalizes a messy source — either a Google Takeout export (`--from-takeout`, matches JSON sidecars and writes timestamps + geo into copies via exiftool) or an archive of media files (`--from-archive`) — into a **working library**: a flat directory of GUID-named copies plus per-asset records under `.pixelkasten/`. From there, the rest of the toolbox (`enrich`, `caption`, `similar`, `cluster`, `propose`, `export --to`) lets a user (or an LLM agent driving the toolbox) enrich records with location/embeddings/captions, query the library, decide album assignments, and export a final organized photo library.
 
 ## Terminology
 
@@ -55,7 +55,7 @@ A simple `core/` and `cli/` directory split inside one package would not be enou
 
 ```
 packages/core/src/pixelkasten/
-  configuration.py    # Options, EnrichOptions, ExportOptions + RECORDS_DIR / RECORD_SUFFIX / EMBEDDINGS_* constants
+  configuration.py    # IngestOptions, EnrichOptions, ExportOptions + RECORDS_DIR / RECORD_SUFFIX / EMBEDDINGS_* constants
   types.py            # Status enum — types shared across command pipelines
   handlers/           # format-specific metadata handlers (EXIF, QuickTime, shared)
   commands/           # user-facing operations
@@ -94,7 +94,7 @@ scan → link → dedupe → reconcile → group → emit
 
 - `scan` walks the source and partitions files into media, metadata (Takeout sidecars), and album marker files.
 - `link` matches each media file to its Google Takeout sidecar (Takeout mode only). Archive mode short-circuits the matching but still populates `source`: files in subfolders become `Source(type="album", name=<parent folder name>)`, files at the source root stay `Source(type="loose")`. Folder names propagate as album hints for the agent and the export.
-- `dedupe` hashes files and resolves duplicates. The same rule applies in both modes: mixed `album`/`loose` groups use `--prefer` to choose; uniform groups keep all copies (preserves cross-album / cross-folder organization). Archive's flat-root case (multiple identical files at the source root) therefore keeps every copy — mild over-retention recoverable from the export side.
+- `dedupe` hashes files and keeps unique files. In both modes, an identical-content group containing both `album` and `loose` entries retains every copy of the type selected by `--prefer` (default: `album`) and omits the other type from the working library. Uniform all-album or all-loose groups retain every copy, preserving cross-album / cross-folder organization and also retaining identical loose files at an archive's source root. `DedupeResult.DELETE` means omission from the output, never deletion of a source file. `--skip-dedupe` bypasses this filtering.
 - `reconcile` reads disk EXIF, compares with sidecar data (when present), and queues `write_tags` for any metadata missing from disk. Always runs.
 - `group` assigns a `group_id` (uuid4 hex) to each keeper so downstream commands (`propose`, `export`) can fan out album decisions across one logical asset's files. Takeout mode buckets by shared sidecar — Live Photo image+video, edited variants, and Motion Photos all share a sidecar in Takeout. Archive mode buckets by `(directory, stem)` where `stem` is the literal `basename-without-extension`; Live Photo image+video and RAW+JPEG captures group via shared stem. Edit pairs aren't recognized in archive mode — filename conventions like `-edited` don't generalize across sources. Use `--from-takeout` for Takeout content to get edit pairing via sidecars.
 - `emit` writes the working library: `<dst>/<file_id>.<ext>` for each file (a fresh uuid4 hex per file — filenames are independently unique), `<dst>/.pixelkasten/<filename>.pk.json` for the record. The record carries the entry's `group_id` so downstream commands (`propose`, `export`) recover group membership from records rather than filenames. In Takeout mode, queued `write_tags` are applied via exiftool to the destination copy. Unsupported file formats are skipped (not emitted).
@@ -136,9 +136,9 @@ At **import** time, every `.pk.json` carries exactly four fields:
 }
 ```
 
-- `dates`: list from `entry.metadata.dates`, primary capture date first. Import normally populates it from disk EXIF or the sidecar timestamp; a file with no date anywhere yields `[]`, which `export` rejects (`Record.first_date()` fails hard).
+- `dates`: ordered ISO-format dates from `entry.metadata.dates`; `dates[0]` is used for export naming. Reconcile collects native EXIF/QuickTime metadata dates and filesystem creation/modification fallbacks, and prepends the Takeout sidecar timestamp when the native primary timestamp is missing. Filesystem dates are not confirmed capture dates. Import can emit `[]` when no usable date is available; `Record.first_date()` makes export fail on an empty list.
 - `geo`: object or `null`.
-- `album`: source-folder name for Takeout entries; `null` for loose entries and all archive-mode entries.
+- `album`: source-folder name for Takeout album entries or the immediate parent folder name for nested archive files; `null` for loose entries, including root-level archive files.
 - `group_id`: uuid4 hex shared by all members of one logical asset (Live Photo image + video, edited variant). `propose` and `export` use this to find siblings of a given file.
 
 Subsequent commands add fields without modifying the originals:
@@ -162,7 +162,7 @@ Beyond `import`, the CLI exposes a small set of commands that the agent (or a hu
 | `pixelkasten similar <path> [--k N]` | k-NN over `embeddings.npy` by cosine. | Stdout (JSON) |
 | `pixelkasten cluster [paths…]` | HDBSCAN over a scoped slice of embeddings. Reads paths from args or stdin. | Stdout (JSON) |
 | `pixelkasten propose <path> <album>` / `--clear` | Write `proposed_album` to the file's record and to every group sibling. | Records |
-| `pixelkasten check <library>` | Report `proposed_album` conflicts (group members disagreeing) and invalid album names as JSON; exits non-zero when any are found. The agent runs it after organizing to confirm `export` will succeed. | Stdout (JSON) |
+| `pixelkasten check <library>` | Report `proposed_album` conflicts (group members disagreeing) and invalid album names as JSON; exits non-zero when any are found. It does not validate dates or guarantee that `export` will succeed. | Stdout (JSON) |
 | `pixelkasten export <library> --to <dst>` | Export the working library to an organized photo library. Reads records, resolves albums by fallback chain (`proposed_album → album → date-driven year folder`), copies into year/album folders. | Files at `<dst>` |
 
 ### Export library layout
@@ -179,9 +179,7 @@ Beyond `import`, the CLI exposes a small set of commands that the agent (or a hu
     20240620-100530-1.jpg                # -N suffix on collision (unrelated assets)
 ```
 
-Every record carries at least one date (import takes it from disk EXIF or the
-sidecar timestamp; `Record.first_date()` fails hard on an empty `dates`), so every
-exported file lands in a `<YYYY>/` year folder — there is no undated-root fallback.
+Every successfully exported file lands in a `<YYYY>/` year folder; `export` requires each paired record's `dates[0]` to be parseable. Import can emit `dates: []`, and `Record.first_date()` raises during planning for those records, before any export copies are written. There is no undated-root fallback.
 
 The export is regenerable from the working library + record decisions. The working library is never modified by `export`.
 
@@ -260,7 +258,7 @@ return {"timestamp": timestamp, "geo": geo}
 
 #### Type annotations and imports
 
-All public functions should have full type annotations. Always use proper imports for type annotations — never use string annotations (e.g., `"PipelineOptions"`) as a workaround. If an import would cause a circular dependency, fix the dependency structure instead. Imports for heavy dependencies (torch, sklearn, ollama) are deferred inside functions. This is not just about startup speed. A user running only `init` and `apply` should not pay the cost of loading CLIP or the Ollama client; those are reserved for `enrich`, `caption`, `similar`, and `cluster`. Deferred imports keep the lightweight paths lightweight.
+All public functions should have full type annotations. Always use proper imports for type annotations — never use string annotations (e.g., `"PipelineOptions"`) as a workaround. If an import would cause a circular dependency, fix the dependency structure instead. Imports for heavy dependencies (torch, sklearn, ollama) are deferred inside functions. This is not just about startup speed. A user running only `import` and `export` should not pay the cost of loading CLIP or the Ollama client; those are reserved for `enrich`, `caption`, `similar`, and `cluster`. Deferred imports keep the lightweight paths lightweight.
 
 #### Comments and docstrings
 
@@ -299,7 +297,7 @@ Either shape is fine on its own; the divergence has a reason, but a fresh reader
 
 #### When to use a typed options dataclass
 
-Commands that take more than two or three inputs, or whose options round-trip through hooks / UI layers, get a typed dataclass in `configuration.py` (e.g., `Options`, `EnrichOptions`, `ExportOptions`). Commands with one or two scalar arguments don't — adding a dataclass for two scalars is ceremony. When in doubt, count the arguments and the layers they cross.
+Commands that take more than two or three inputs, or whose options round-trip through hooks / UI layers, get a typed dataclass in `configuration.py` (e.g., `IngestOptions`, `EnrichOptions`, `ExportOptions`). Commands with one or two scalar arguments don't — adding a dataclass for two scalars is ceremony. When in doubt, count the arguments and the layers they cross.
 
 ### Reporting and output
 

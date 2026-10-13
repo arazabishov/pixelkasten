@@ -107,6 +107,24 @@ class TestExportTargets:
         # No album anywhere -> top-level year folder
         assert _listing(dst) == [os.path.join("2024", "20240601-143022.jpg")]
 
+    @pytest.mark.parametrize("album", [None, "Trip"])
+    def test_undated_record_reports_missing_dates_before_copying(self, tmp_path, album):
+        lib = _build_library(
+            tmp_path,
+            [{"filename": "abc.jpg", "dates": [], "album": album}],
+        )
+        dst = os.path.join(str(tmp_path), "out")
+        record_path = os.path.join(lib, ".pixelkasten", "abc.jpg.pk.json")
+
+        with pytest.raises(RuntimeError) as exc_info:
+            export(lib, dst, ExportOptions())
+
+        # Missing dates are reported without labeling the record malformed or legacy.
+        assert str(exc_info.value) == f"Record at {record_path} has no dates"
+
+        # Planning fails before any destination or exported media is created.
+        assert not os.path.exists(dst)
+
 
 class TestGroupBehavior:
     def test_group_members_co_locate_in_same_folder(self, tmp_path):

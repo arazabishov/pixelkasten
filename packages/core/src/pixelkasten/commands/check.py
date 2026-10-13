@@ -1,9 +1,8 @@
 """
-Check a working library is ready to export.
+Inspect a working library for proposal conflicts and invalid album names.
 
-The agent runs ``check`` after organizing to confirm the library has no
-integrity problems that would make ``export`` ambiguous or fail. Two classes
-of problem are reported:
+The agent runs ``check`` after organizing to find album decisions that would
+make ``export`` ambiguous or fail. Two classes of problem are reported:
 
   - proposed_album disagreement within a group: a group's files all export to
     one album, so their proposed_album values must agree.
@@ -11,7 +10,8 @@ of problem are reported:
 
 ``export`` runs the same conflict check and refuses to run while conflicts
 remain, so ``check`` is the agent's chance to find and fix them first (via
-``propose``) before exporting.
+``propose``) before exporting. It does not validate dates or guarantee that
+``export`` will succeed.
 """
 
 from pixelkasten.utils.album import check_album_conflicts, check_album_name

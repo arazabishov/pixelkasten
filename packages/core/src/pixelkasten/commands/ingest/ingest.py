@@ -42,7 +42,7 @@ def ingest(options: IngestOptions, progress: Callable) -> Ingest:
         # SHA-256 hash every file to identify duplicates.
         dedupe_hash(state.manifest, progress)
 
-        # Resolve duplicates per --prefer (Takeout) or lex-smallest (archive).
+        # Both input modes use --prefer only for mixed album/loose duplicate groups.
         dedupe_resolve(state.manifest, options)
 
     # Read disk EXIF, queue write_tags for any metadata only the sidecar has.

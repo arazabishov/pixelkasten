@@ -12,8 +12,9 @@ def plan(state: Export) -> None:
 
     Two layouts: ``<YYYY>/<YYYYMMDD>-<album>/<name>`` for albumed entries and
     ``<YYYY>/<name>`` for dated loose files, where ``<name>`` is
-    ``<YYYYMMDD-HHMMSS>.<ext>``. Every record is dated (``first_date`` fails hard
-    otherwise), so there is no undated fallback.
+    ``<YYYYMMDD-HHMMSS>.<ext>``. Planning requires a parseable first date in
+    every paired record and has no undated fallback. Import may produce
+    empty date lists, which ``first_date`` rejects.
     """
     groups = state.grouped()
 

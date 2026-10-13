@@ -25,13 +25,13 @@ class Record:
     # absolute path of the .pk.json file this record reads from / writes to
     path: str
 
-    # capture timestamps in ISO form; import always emits at least one
+    # ordered ISO dates; may be empty or include filesystem-date fallbacks
     dates: list[str] = field(default_factory=list)
 
     # signed decimal latitude/longitude/altitude, or None
     geo: dict[str, float] | None = None
 
-    # source-folder name for Takeout entries, else None
+    # Takeout album or immediate archive parent folder name; None for loose files
     album: str | None = None
 
     # uuid4 hex shared by every file of one logical asset
@@ -89,13 +89,13 @@ class Record:
         return self.group_id
 
     def first_date(self) -> datetime:
-        """Return the primary capture date, raising when the record is undated.
+        """Return the primary recorded date, raising when it is missing or invalid.
 
-        Every record `import` emits carries at least one date (reconcile takes
-        it from disk EXIF or the sidecar timestamp). An empty ``dates`` means a
-        malformed or pre-1.0 record — so date-driven naming fails loudly here
-        rather than silently dropping the asset into an untyped fallback.
+        Import can leave ``dates`` empty when no usable native metadata,
+        sidecar, or filesystem date is available. Export requires a primary
+        date for naming, so missing dates fail loudly rather than creating
+        an undated fallback. Filesystem dates are not confirmed capture dates.
         """
         if not self.dates:
-            raise RuntimeError(f"Record at {self.path} has no dates (malformed or pre-1.0)")
+            raise RuntimeError(f"Record at {self.path} has no dates")
         return datetime.fromisoformat(self.dates[0])

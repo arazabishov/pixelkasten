@@ -1,10 +1,11 @@
 """
-Integration tests for `init --from-archive`: a flat archive of media files
-without JSON sidecars.
+Integration tests for `import --from-archive`: media files without Takeout
+JSON sidecars.
 
-The working library shape matches Takeout mode (flat GUID-named files +
-.pixelkasten/ sidecars), but every sidecar has album=null and no EXIF is
-written into copies. Dedupe breaks ties by lex-smallest media_path.
+The working library uses flat UUID-named copies and .pixelkasten/ records.
+Nested files inherit their immediate parent folder as an album hint;
+root-level files are loose. No EXIF is written into copies. Mixed album/loose
+duplicates follow --prefer; uniform groups retain every copy.
 
 Requires exiftool installed (`brew install exiftool`).
 """
@@ -56,7 +57,7 @@ def _read_pk_sidecar(dest_root: str, target_path: str) -> dict:
 
 
 class TestInitArchivePipeline:
-    """End-to-end behavior of `pixelkasten init --from-archive`."""
+    """End-to-end behavior of `pixelkasten import --from-archive`."""
 
     def test_root_level_archive_files_have_null_album(self, tmp_path):
         """

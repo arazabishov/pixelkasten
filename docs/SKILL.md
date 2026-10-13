@@ -1,6 +1,6 @@
 # pixelkasten — agent skill (sample)
 
-This is a reference skill file you can copy or adapt when running Claude Code (or another agent) against a pixelkasten working library. **It is not auto-installed by `pixelkasten init`.** Put it wherever your agent expects skill instructions (e.g., paste into Claude's "project instructions" or load it as a custom skill).
+This is a reference skill file you can copy or adapt when running Claude Code (or another agent) against a pixelkasten working library. **It is not auto-installed by `pixelkasten import`.** Put it wherever your agent expects skill instructions (e.g., paste into Claude's "project instructions" or load it as a custom skill).
 
 ## What pixelkasten is
 
@@ -26,6 +26,8 @@ Every keeper in the working library has a record at `<library>/.pixelkasten/<fil
 ```
 
 Fields can be absent. Use `jq` filters that tolerate missing keys.
+
+Import can emit an empty `dates` list. Dates come from native EXIF/QuickTime metadata and filesystem creation/modification fallbacks, with a Takeout sidecar timestamp prepended when the native primary timestamp is missing. Filesystem dates are not confirmed capture dates; flag missing or questionable dates to the user instead of guessing.
 
 Members of one logical asset (Live Photo image + video, edited variant) share a `group_id`. **Filenames are independently unique** — siblings do *not* share a filename stem — so use `group_id` (not the filename) to identify a group's members.
 
@@ -56,6 +58,7 @@ Substitute the real `<path-to-pixelkasten-repo>` (the user will tell you where i
 | `pixelkasten cluster [paths…] [--min-cluster-size N]` | HDBSCAN over a scoped slice (images and videos both eligible); prints `{"<label>": [path, …]}`. Label `-1` is HDBSCAN's noise bucket — paths it couldn't group. | `jq -r … \| pixelkasten cluster` |
 | `pixelkasten propose <path> <album>` | Write `proposed_album` to the file and group siblings. | `pixelkasten propose library/3f2a1b8c.heic "Berlin trip"` |
 | `pixelkasten propose <path> --clear` | Remove `proposed_album` from the file and group siblings. | |
+| `pixelkasten check <library>` | Report proposal conflicts and invalid album names as JSON; does not validate dates. | `pixelkasten check library` |
 
 For reads, the records are the source of truth — use `jq`, `find`, `ls`. **Do not call `exiftool` to inspect dates, geo, or album on these files.** `pixelkasten import` already extracted that data into the record; the file's on-disk EXIF and the record can diverge (e.g., when `--skip-metadata-write` was used), and the record is canonical for the agent's purposes.
 
@@ -69,6 +72,9 @@ jq -r 'select(.location.region == "Berlin")' .pixelkasten/*.pk.json
 
 # All files between two dates
 jq -r 'select((.dates // [])[0] >= "2024-06-01" and (.dates // [])[0] < "2024-07-01") | input_filename' .pixelkasten/*.pk.json
+
+# Records with no date (export has no undated fallback)
+jq -r 'select((.dates // []) | length == 0) | input_filename' .pixelkasten/*.pk.json
 
 # All files without a caption
 jq -r 'select(.caption == null or .caption == "") | input_filename' .pixelkasten/*.pk.json
@@ -92,14 +98,14 @@ To map record paths back to media files in the library, drop the `.pk.json` suff
 ## Behavioral rules
 
 - **Anchor with 1–2 questions at the start of every session.** Where does the user live? Do they want this organized by trip, by year, by event? Don't skip — your output is only as good as the user's mental model that anchors it.
-- **Propose only when confident.** A photo without `proposed_album` is *not* a failure — `export` will route it to its Takeout album (`.album`) if present, otherwise to a `<YYYY>/<YYYYMMDD-HHMMSS>.<ext>` year-folder slot. Use that fallback for everyday/home-region photos that don't belong to a distinct event. Never invent an album like `"Uncategorized"` or `"Other"` just to have something to propose.
-- **Album names should not include dates.** `export` prepends `<YYYY>/<YYYYMMDD>-` to the album folder using the group's earliest date, so `"Berlin trip"` becomes `2024/20240601-Berlin trip/`. Putting a year in the name produces ugly duplicates like `20240601-Berlin 2024 trip`.
+- **Propose only when confident.** A photo without `proposed_album` is *not* a failure — for records with a usable date, `export` will route it to its source album (`.album`, including archive folder hints) if present, otherwise to a `<YYYY>/<YYYYMMDD-HHMMSS>.<ext>` year-folder slot. Use that fallback for everyday/home-region photos that don't belong to a distinct event. Never invent an album like `"Uncategorized"` or `"Other"` just to have something to propose.
+- **Album names should not include dates.** `export` prepends `<YYYY>/<YYYYMMDD>-` to the album folder using the earliest primary date across all files assigned to that album, so `"Berlin trip"` becomes `2024/20240601-Berlin trip/`. Putting a year in the name produces ugly duplicates like `20240601-Berlin 2024 trip`.
 - **Match existing albums.** Before proposing a new album, check what's already in `.album` and `.proposed_album`. Use the user's vocabulary and casing.
 - **Prefer the larger grouping when unsure.** It's easier for the user to split a "Summer 2024" album later than to merge ten micro-events.
 - **Surface conflicts rather than silently picking.** When date says one event but location says another, ask the user which signal to trust here.
 - **After a correction, restate the rule and apply forward.** Don't re-ask the same question on the next slice.
 - **Captioning is the one slow operation — use it deliberately.** `similar` and `cluster` are cheap enough that cost shouldn't gate the decision to query them when they'd sharpen your reasoning; only `caption` warrants restraint. Cached captions are free for re-reads.
-- **Propose on any group member; the tool propagates to siblings.** Live Photo image + video share a stem and get the same proposal automatically.
+- **Propose on any group member; the tool propagates to siblings.** Files sharing a `group_id` get the same proposal automatically, regardless of their independent UUID filenames.
 
 ## When to reach for vision tools
 
@@ -139,13 +145,13 @@ These come from earlier auto-organization passes — they're starting points, no
 
 ## The export's fallback chain
 
-When you understand what happens to files you don't propose, you'll make better calls about when to propose at all. For each photo, `pixelkasten export` picks a target in this order:
+When you understand what happens to files you don't propose, you'll make better calls about when to propose at all. For each logical asset group, `pixelkasten export` resolves the album in this order; each file's basename uses its own `dates[0]`:
 
 1. `proposed_album` set → `<YYYY>/<YYYYMMDD>-<proposed_album>/<YYYYMMDD-HHMMSS>.<ext>` (you decided)
 2. `proposed_album` unset, `album` set (from Takeout source folder, or the parent folder of an archive subfolder file — note that generic folder names like `DCIM` / `100APPLE` are propagated verbatim; treat them as hints, not gospel) → same shape, using `album`
 3. Neither set → `<YYYY>/<YYYYMMDD-HHMMSS>.<ext>` (loose in year folder), keyed on `dates[0]`
 
-You only need to act at step 1. Steps 2–3 are automatic. Every record carries a date (import takes it from disk EXIF or the sidecar timestamp), so there is no undated fallback.
+You only need to propose at step 1. Steps 2–3 are automatic, but all exported records need a parseable `dates[0]`. Import can emit `dates: []`; export fails during planning for those records, with no undated-root fallback. Run `pixelkasten check <library>` after organizing to find proposal conflicts and invalid album names, and inspect dates separately: `check` does not validate them.
 
 ## What the agent should never do
 
